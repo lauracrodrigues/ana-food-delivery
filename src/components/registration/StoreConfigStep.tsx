@@ -6,9 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState, useRef } from "react";
-import { Upload, X } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useState, useRef, useEffect } from "react";
+import { Upload, X, Check, Zap, Rocket, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const days = [
   { id: 'monday', label: 'Segunda-feira' },
@@ -22,6 +24,7 @@ const days = [
 
 const storeConfigSchema = z.object({
   logo: z.string().optional(),
+  planId: z.string().min(1, "Selecione um plano"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
   confirmPassword: z.string(),
   workingDays: z.array(z.string()).min(1, "Selecione pelo menos um dia de funcionamento"),
@@ -41,6 +44,16 @@ const storeConfigSchema = z.object({
 
 export type StoreConfigData = z.infer<typeof storeConfigSchema>;
 
+interface Plan {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  features: string[];
+  icon: React.ReactNode;
+  recommended?: boolean;
+}
+
 interface StoreConfigStepProps {
   onNext: (data: StoreConfigData) => void;
   onBack: () => void;
@@ -49,6 +62,7 @@ interface StoreConfigStepProps {
 
 export function StoreConfigStep({ onNext, onBack, initialData }: StoreConfigStepProps) {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -56,6 +70,7 @@ export function StoreConfigStep({ onNext, onBack, initialData }: StoreConfigStep
     resolver: zodResolver(storeConfigSchema),
     defaultValues: {
       logo: "",
+      planId: "",
       password: "",
       confirmPassword: "",
       workingDays: [],
@@ -64,6 +79,32 @@ export function StoreConfigStep({ onNext, onBack, initialData }: StoreConfigStep
       ...initialData,
     },
   });
+
+  useEffect(() => {
+    loadPlans();
+  }, []);
+
+  const loadPlans = async () => {
+    const { data, error } = await supabase
+      .from('plans')
+      .select('*')
+      .order('price', { ascending: true });
+
+    if (data && !error) {
+      const formattedPlans: Plan[] = data.map((plan, index) => ({
+        id: plan.id,
+        name: plan.name,
+        description: plan.description || '',
+        price: plan.price,
+        features: Array.isArray(plan.features) ? plan.features.map(f => String(f)) : [],
+        icon: index === 0 ? <Zap className="w-5 h-5" /> : 
+              index === 1 ? <Rocket className="w-5 h-5" /> : 
+              <Crown className="w-5 h-5" />,
+        recommended: index === 1
+      }));
+      setPlans(formattedPlans);
+    }
+  };
 
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -109,16 +150,83 @@ export function StoreConfigStep({ onNext, onBack, initialData }: StoreConfigStep
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto shadow-medium">
+    <Card className="w-full max-w-3xl mx-auto shadow-medium">
       <CardHeader className="text-center bg-gradient-accent text-accent-foreground rounded-t-lg">
         <CardTitle className="text-2xl">Configuração da Loja</CardTitle>
         <CardDescription className="text-accent-foreground/80">
-          Configure a identidade visual e funcionamento da sua loja
+          Escolha seu plano e configure o funcionamento da sua loja
         </CardDescription>
       </CardHeader>
       <CardContent className="p-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Plan Selection */}
+            <FormField
+              control={form.control}
+              name="planId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Escolha seu Plano *</FormLabel>
+                  <FormControl>
+                    <RadioGroup onValueChange={field.onChange} value={field.value}>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {plans.map((plan) => (
+                          <label
+                            key={plan.id}
+                            htmlFor={plan.id}
+                            className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all hover:shadow-md ${
+                              field.value === plan.id
+                                ? 'border-primary bg-primary/5'
+                                : 'border-border'
+                            } ${plan.recommended ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+                          >
+                            {plan.recommended && (
+                              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">
+                                Recomendado
+                              </span>
+                            )}
+                            <RadioGroupItem
+                              value={plan.id}
+                              id={plan.id}
+                              className="sr-only"
+                            />
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                {plan.icon}
+                                <h3 className="font-semibold">{plan.name}</h3>
+                              </div>
+                              {field.value === plan.id && (
+                                <Check className="w-5 h-5 text-primary" />
+                              )}
+                            </div>
+                            <p className="text-2xl font-bold mb-2">
+                              R$ {plan.price.toFixed(2)}
+                              <span className="text-sm font-normal text-muted-foreground">/mês</span>
+                            </p>
+                            <p className="text-sm text-muted-foreground mb-3">{plan.description}</p>
+                            <ul className="space-y-1">
+                              {plan.features.slice(0, 3).map((feature, index) => (
+                                <li key={index} className="text-xs flex items-start gap-1">
+                                  <Check className="w-3 h-3 text-success mt-0.5 flex-shrink-0" />
+                                  <span>{feature}</span>
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="mt-3 pt-3 border-t border-border">
+                              <p className="text-xs font-medium text-success">
+                                ✨ 7 dias grátis para testar!
+                              </p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {/* Logo Upload */}
             <FormField
               control={form.control}

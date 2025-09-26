@@ -4,14 +4,19 @@ import { StoreConfigStep, StoreConfigData } from "@/components/registration/Stor
 import { UserInfoStep, UserInfoData } from "@/components/registration/UserInfoStep";
 import { RegistrationComplete } from "@/components/registration/RegistrationComplete";
 import { Store, ChevronLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Registration() {
   const [currentStep, setCurrentStep] = useState(1);
   const [companyData, setCompanyData] = useState<CompanyInfoData | null>(null);
   const [storeConfig, setStoreConfig] = useState<StoreConfigData | null>(null);
   const [userInfo, setUserInfo] = useState<UserInfoData | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleCompanyInfoNext = (data: CompanyInfoData) => {
     setCompanyData(data);
@@ -23,9 +28,53 @@ export default function Registration() {
     setCurrentStep(3);
   };
 
-  const handleUserInfoNext = (data: UserInfoData) => {
+  const handleUserInfoNext = async (data: UserInfoData) => {
     setUserInfo(data);
-    setCurrentStep(4);
+    setIsProcessing(true);
+
+    if (!companyData || !storeConfig) {
+      toast({
+        title: "Erro",
+        description: "Dados incompletos. Por favor, complete todos os passos.",
+        variant: "destructive",
+      });
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      // Call edge function to create tenant
+      const { data: result, error } = await supabase.functions.invoke('create-tenant', {
+        body: {
+          companyData,
+          storeConfig: {
+            ...storeConfig,
+            password: storeConfig.password // The edge function will handle the password
+          },
+          userInfo: data
+        }
+      });
+
+      if (error || !result?.success) {
+        throw new Error(error?.message || result?.error || 'Erro ao criar empresa');
+      }
+
+      toast({
+        title: "Empresa criada com sucesso!",
+        description: "Sua loja foi configurada e está pronta para uso.",
+      });
+
+      setCurrentStep(4);
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast({
+        title: "Erro ao criar empresa",
+        description: error.message || "Ocorreu um erro ao processar o cadastro. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleBack = () => {
@@ -74,7 +123,7 @@ export default function Registration() {
       <main className="container mx-auto px-4 py-12">
         {/* Progress Steps */}
         {currentStep < 4 && (
-          <div className="max-w-2xl mx-auto mb-12">
+          <div className="max-w-3xl mx-auto mb-12">
             <div className="flex items-center justify-between">
               {steps.slice(0, 3).map((step, index) => (
                 <div key={step.number} className="flex items-center">
@@ -124,6 +173,7 @@ export default function Registration() {
             onNext={handleUserInfoNext} 
             onBack={handleBack}
             initialData={userInfo || undefined}
+            isLoading={isProcessing}
           />
         )}
         {currentStep === 4 && companyData && storeConfig && userInfo && (

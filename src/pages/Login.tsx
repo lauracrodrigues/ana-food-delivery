@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,8 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Lock, Store, ArrowRight } from "lucide-react";
+import { Mail, Lock, Store, ArrowRight, Chrome } from "lucide-react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Separator } from "@/components/ui/separator";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -31,27 +33,92 @@ export default function Login() {
     },
   });
 
+  useEffect(() => {
+    // Check if user is already logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        checkUserRole(session.user.id);
+      }
+    });
+  }, [navigate]);
+
+  const checkUserRole = async (userId: string) => {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    if (profile?.role === 'master_admin') {
+      navigate('/admin');
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
   const onSubmit = async (data: LoginData) => {
     setIsLoading(true);
     
-    // Simular autenticação
-    setTimeout(() => {
-      // Check for master admin
-      if (data.email === "admin@anafood.vip" && data.password === "314159") {
+    try {
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (error) {
         toast({
-          title: "Login realizado!",
-          description: "Bem-vindo ao painel master.",
+          title: "Erro ao fazer login",
+          description: error.message === "Invalid login credentials" 
+            ? "Email ou senha incorretos" 
+            : error.message,
+          variant: "destructive",
         });
-        navigate("/admin");
-      } else {
-        toast({
-          title: "Login realizado!",
-          description: "Bem-vindo ao painel da sua loja.",
-        });
-        navigate("/dashboard");
+        setIsLoading(false);
+        return;
       }
+
+      if (authData.user) {
+        toast({
+          title: "Login realizado!",
+          description: "Bem-vindo de volta!",
+        });
+        
+        await checkUserRole(authData.user.id);
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao fazer login. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível fazer login com Google",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao fazer login com Google",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -142,6 +209,26 @@ export default function Login() {
                 </Button>
               </form>
             </Form>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Ou continue com</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+            >
+              <Chrome className="w-4 h-4 mr-2" />
+              Google
+            </Button>
 
             <div className="mt-6 pt-6 border-t border-border">
               <p className="text-center text-sm text-muted-foreground">

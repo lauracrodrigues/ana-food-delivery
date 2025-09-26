@@ -51,40 +51,138 @@ export type Database = {
           address: Json | null
           cnpj: string | null
           created_at: string | null
+          email: string | null
+          fantasy_name: string | null
           id: string
           is_active: boolean | null
           logo_url: string | null
           name: string
           owner_id: string | null
           phone: string | null
+          plan_id: string | null
+          segment: string | null
           subdomain: string
+          subscription_status: string | null
+          trial_ends_at: string | null
           updated_at: string | null
         }
         Insert: {
           address?: Json | null
           cnpj?: string | null
           created_at?: string | null
+          email?: string | null
+          fantasy_name?: string | null
           id?: string
           is_active?: boolean | null
           logo_url?: string | null
           name: string
           owner_id?: string | null
           phone?: string | null
+          plan_id?: string | null
+          segment?: string | null
           subdomain: string
+          subscription_status?: string | null
+          trial_ends_at?: string | null
           updated_at?: string | null
         }
         Update: {
           address?: Json | null
           cnpj?: string | null
           created_at?: string | null
+          email?: string | null
+          fantasy_name?: string | null
           id?: string
           is_active?: boolean | null
           logo_url?: string | null
           name?: string
           owner_id?: string | null
           phone?: string | null
+          plan_id?: string | null
+          segment?: string | null
           subdomain?: string
+          subscription_status?: string | null
+          trial_ends_at?: string | null
           updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupon_uses: {
+        Row: {
+          company_id: string
+          coupon_id: string
+          id: string
+          used_at: string
+        }
+        Insert: {
+          company_id: string
+          coupon_id: string
+          id?: string
+          used_at?: string
+        }
+        Update: {
+          company_id?: string
+          coupon_id?: string
+          id?: string
+          used_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_uses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_uses_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          discount_type: string
+          discount_value: number
+          id: string
+          max_uses: number | null
+          uses_count: number | null
+          valid_until: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          discount_type: string
+          discount_value: number
+          id?: string
+          max_uses?: number | null
+          uses_count?: number | null
+          valid_until?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          max_uses?: number | null
+          uses_count?: number | null
+          valid_until?: string | null
         }
         Relationships: []
       }
@@ -128,6 +226,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      plans: {
+        Row: {
+          created_at: string
+          description: string | null
+          features: Json | null
+          id: string
+          max_orders_per_month: number | null
+          max_products: number | null
+          name: string
+          price: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          features?: Json | null
+          id?: string
+          max_orders_per_month?: number | null
+          max_products?: number | null
+          name: string
+          price: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          features?: Json | null
+          id?: string
+          max_orders_per_month?: number | null
+          max_products?: number | null
+          name?: string
+          price?: number
+        }
+        Relationships: []
       }
       products: {
         Row: {
@@ -183,18 +314,21 @@ export type Database = {
       profiles: {
         Row: {
           company_id: string | null
+          created_at: string | null
           full_name: string | null
           id: string
           role: string
         }
         Insert: {
           company_id?: string | null
+          created_at?: string | null
           full_name?: string | null
           id: string
           role?: string
         }
         Update: {
           company_id?: string | null
+          created_at?: string | null
           full_name?: string | null
           id?: string
           role?: string

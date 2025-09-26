@@ -22,9 +22,10 @@ interface UserInfoStepProps {
   onNext: (data: UserInfoData) => void;
   onBack: () => void;
   initialData?: Partial<UserInfoData>;
+  isLoading?: boolean;
 }
 
-export function UserInfoStep({ onNext, onBack, initialData }: UserInfoStepProps) {
+export function UserInfoStep({ onNext, onBack, initialData, isLoading = false }: UserInfoStepProps) {
   const form = useForm<UserInfoData>({
     resolver: zodResolver(userInfoSchema),
     defaultValues: {
@@ -109,14 +110,16 @@ export function UserInfoStep({ onNext, onBack, initialData }: UserInfoStepProps)
                 variant="outline" 
                 className="flex-1"
                 onClick={onBack}
+                disabled={isLoading}
               >
                 Voltar
               </Button>
               <Button 
                 type="submit" 
                 className="flex-1 bg-gradient-primary hover:opacity-90 transition-opacity"
+                disabled={isLoading}
               >
-                Finalizar Cadastro
+                {isLoading ? "Criando empresa..." : "Finalizar Cadastro"}
               </Button>
             </div>
           </form>
