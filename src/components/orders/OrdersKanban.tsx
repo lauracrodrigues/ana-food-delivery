@@ -54,7 +54,7 @@ const statusColumns = [
   { id: "preparing", title: "Em Preparo", color: "bg-yellow-500" },
   { id: "ready", title: "Pronto", color: "bg-green-500" },
   { id: "delivering", title: "Em Entrega", color: "bg-purple-500" },
-  { id: "completed", title: "Concluído", color: "bg-gray-500" },
+  { id: "completed", title: "Concluído", color: "bg-muted" },
   { id: "cancelled", title: "Cancelado", color: "bg-red-500" },
 ];
 

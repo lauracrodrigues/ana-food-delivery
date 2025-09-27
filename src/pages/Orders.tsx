@@ -102,7 +102,7 @@ export default function Orders() {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="min-h-screen flex w-full bg-gradient-dark">
+      <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         
         <main className="flex-1 flex flex-col">

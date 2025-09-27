@@ -96,7 +96,7 @@ export default function Registration() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-dark">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-card/50 backdrop-blur border-b border-border">
         <div className="container mx-auto px-4 py-4">
