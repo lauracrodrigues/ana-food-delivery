@@ -13,6 +13,8 @@ import {
   Building2,
   MapPin,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Store,
   Mail,
   User
@@ -91,7 +93,7 @@ const menuItems: MenuItem[] = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, toggleSidebar } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -162,6 +164,18 @@ export function AppSidebar() {
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       <SidebarHeader className="border-b border-border">
         <div className={`${isCollapsed ? "p-2" : "p-4"} transition-all`}>
+          {/* Collapse Button */}
+          {!isCollapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => toggleSidebar()}
+              className="absolute right-2 top-2 h-6 w-6"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          )}
+          
           {/* Company Logo and Name */}
           <div className="flex items-center gap-3 mb-4">
             {userInfo?.company?.logo_url ? (

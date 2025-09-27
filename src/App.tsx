@@ -9,6 +9,10 @@ import Registration from "./pages/Registration";
 import AdminDashboard from "./pages/AdminDashboard";
 import StoreDashboard from "./pages/StoreDashboard";
 import Orders from "./pages/Orders";
+import { Customers } from "./pages/Customers";
+import { Products } from "./pages/Products";
+import { Categories } from "./pages/Categories";
+import { Extras } from "./pages/Extras";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 
