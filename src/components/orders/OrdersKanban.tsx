@@ -79,7 +79,7 @@ export function OrdersKanban() {
     preparing: true,
     ready: true,
     delivering: true,
-    completed: true,
+    completed: false,
     cancelled: false,
   });
 
@@ -426,7 +426,7 @@ export function OrdersKanban() {
           <span className="ml-2">Carregando pedidos...</span>
         </div>
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-4 overflow-x-auto pb-4 min-h-[500px]">
           {statusColumns
             .filter((column) => {
               if (column.id === "pending" && autoAccept) return false;
@@ -444,13 +444,13 @@ export function OrdersKanban() {
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, column.id)}
                 >
-                  <div className={`${column.color} text-primary-foreground p-3 rounded-t-lg`}>
+                  <div className={`${column.color} text-white p-3 rounded-t-lg`}>
                     <h3 className="font-semibold">
                       {column.title} ({columnOrders.length})
                     </h3>
                   </div>
 
-                  <div className="bg-muted/20 min-h-[400px] p-2 rounded-b-lg space-y-2">
+                  <div className="bg-card border border-border min-h-[400px] p-2 rounded-b-lg space-y-2">
                     {columnOrders.map((order) => {
                       const isExpanded = expandedItems.has(order.id);
                       const items = order.items || [];
@@ -485,8 +485,8 @@ export function OrdersKanban() {
                             </div>
                             <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
                               order.type === "delivery" 
-                                ? "bg-blue-100 text-blue-700" 
-                                : "bg-green-100 text-green-700"
+                                ? "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400" 
+                                : "bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400"
                             }`}>
                               {order.type === "delivery" ? (
                                 <>

@@ -163,18 +163,20 @@ export function AppSidebar() {
   return (
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       <SidebarHeader className="border-b border-border">
-        <div className={`${isCollapsed ? "p-2" : "p-4"} transition-all`}>
-          {/* Collapse Button */}
-          {!isCollapsed && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => toggleSidebar()}
-              className="absolute right-2 top-2 h-6 w-6"
-            >
+        <div className={`${isCollapsed ? "p-2" : "p-4"} transition-all relative`}>
+          {/* Collapse/Expand Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => toggleSidebar()}
+            className="absolute right-2 top-2 h-6 w-6 z-10"
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
               <ChevronLeft className="h-4 w-4" />
-            </Button>
-          )}
+            )}
+          </Button>
           
           {/* Company Logo and Name */}
           <div className="flex items-center gap-3 mb-4">
@@ -182,11 +184,11 @@ export function AppSidebar() {
               <img 
                 src={userInfo.company.logo_url} 
                 alt={userInfo.company.name}
-                className="w-10 h-10 rounded-lg object-cover"
+                className={`${isCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg object-cover transition-all`}
               />
             ) : (
-              <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <Store className="w-5 h-5 text-primary-foreground" />
+              <div className={`${isCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg bg-gradient-primary flex items-center justify-center transition-all`}>
+                <Store className={`${isCollapsed ? "w-4 h-4" : "w-5 h-5"} text-primary-foreground transition-all`} />
               </div>
             )}
             {!isCollapsed && (

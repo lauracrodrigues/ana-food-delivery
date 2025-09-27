@@ -138,8 +138,10 @@ export default function Orders() {
           </header>
 
           {/* Orders Kanban */}
-          <div className="flex-1 p-6">
-            <OrdersKanban />
+          <div className="flex-1 overflow-hidden">
+            <div className="h-full p-6">
+              <OrdersKanban />
+            </div>
           </div>
         </main>
       </div>
