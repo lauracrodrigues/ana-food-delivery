@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Registration from "./pages/Registration";
 import AdminDashboard from "./pages/AdminDashboard";
 import StoreDashboard from "./pages/StoreDashboard";
+import Orders from "./pages/Orders";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/cadastro" element={<Registration />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/dashboard" element={<StoreDashboard />} />
+          <Route path="/orders" element={<Orders />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

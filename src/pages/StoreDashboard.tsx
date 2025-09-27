@@ -1,26 +1,18 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ShoppingBag, 
-  Settings, 
-  LogOut, 
   BarChart3, 
-  Package, 
   TrendingUp,
   DollarSign,
   Clock,
-  Users,
-  ChefHat,
-  Megaphone,
   Store,
   Menu
 } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { OrdersKanban } from "@/components/orders/OrdersKanban";
 import { MetricsCard } from "@/components/dashboard/MetricsCard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { TopProductsList } from "@/components/dashboard/TopProductsList";
@@ -32,14 +24,13 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 
 export default function StoreDashboard() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
   const [companyName, setCompanyName] = useState("");
   const [subdomain, setSubdomain] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [storeOpen, setStoreOpen] = useState(true);
   const [deliveryActive, setDeliveryActive] = useState(true);
-  const [activeTab, setActiveTab] = useState("overview");
+  
 
   // Load company info
   const { data: companyData } = useQuery({
@@ -236,14 +227,6 @@ export default function StoreDashboard() {
     });
   };
 
-  // Determine which tab to show based on current path
-  useEffect(() => {
-    if (location.pathname === '/orders') {
-      setActiveTab('orders');
-    } else {
-      setActiveTab('overview');
-    }
-  }, [location.pathname]);
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -283,87 +266,68 @@ export default function StoreDashboard() {
 
           {/* Main Content Area */}
           <div className="flex-1 p-6">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="bg-card/50 backdrop-blur">
-                <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                  <BarChart3 className="w-4 h-4 mr-2" />
-                  Visão Geral
-                </TabsTrigger>
-                <TabsTrigger value="orders" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                  <ShoppingBag className="w-4 h-4 mr-2" />
-                  Pedidos
-                </TabsTrigger>
-              </TabsList>
+            <div className="space-y-6">
+              {/* Metrics Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <MetricsCard
+                  title="Pedidos Hoje"
+                  value={metrics.todayOrders}
+                  icon={ShoppingBag}
+                  trend={{ value: 12, isPositive: true }}
+                  subtitle="vs. ontem"
+                />
+                <MetricsCard
+                  title="Faturamento"
+                  value={`R$ ${metrics.todayRevenue.toFixed(2)}`}
+                  icon={DollarSign}
+                  trend={{ value: 8, isPositive: true }}
+                  subtitle="vs. ontem"
+                />
+                <MetricsCard
+                  title="Ticket Médio"
+                  value={`R$ ${metrics.averageTicket.toFixed(2)}`}
+                  icon={TrendingUp}
+                  trend={{ value: 5, isPositive: true }}
+                  subtitle="vs. média"
+                />
+                <MetricsCard
+                  title="Pedidos Pendentes"
+                  value={metrics.pendingOrders}
+                  icon={Clock}
+                  subtitle="aguardando"
+                />
+              </div>
 
-              {/* Overview Tab */}
-              <TabsContent value="overview" className="space-y-6">
-                {/* Metrics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <MetricsCard
-                    title="Pedidos Hoje"
-                    value={metrics.todayOrders}
-                    icon={ShoppingBag}
-                    trend={{ value: 12, isPositive: true }}
-                    subtitle="vs. ontem"
-                  />
-                  <MetricsCard
-                    title="Faturamento"
-                    value={`R$ ${metrics.todayRevenue.toFixed(2)}`}
-                    icon={DollarSign}
-                    trend={{ value: 8, isPositive: true }}
-                    subtitle="vs. ontem"
-                  />
-                  <MetricsCard
-                    title="Ticket Médio"
-                    value={`R$ ${metrics.averageTicket.toFixed(2)}`}
-                    icon={TrendingUp}
-                    trend={{ value: 5, isPositive: true }}
-                    subtitle="vs. média"
-                  />
-                  <MetricsCard
-                    title="Pedidos Pendentes"
-                    value={metrics.pendingOrders}
-                    icon={Clock}
-                    subtitle="aguardando"
-                  />
+              {/* Charts Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <RevenueChart data={revenueData.map(item => ({ time: item.date, revenue: item.revenue }))} />
                 </div>
-
-                {/* Charts Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2">
-                    <RevenueChart data={revenueData.map(item => ({ time: item.date, revenue: item.revenue }))} />
-                  </div>
-                  <div>
-                    <PaymentMethodsChart data={paymentMethodsData} />
-                  </div>
+                <div>
+                  <PaymentMethodsChart data={paymentMethodsData} />
                 </div>
+              </div>
 
-                {/* Bottom Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <TopProductsList products={topProducts.map(p => ({ name: p.name, quantity: p.sales, revenue: p.revenue }))} />
-                  <AlertsWidget alerts={recentAlerts.map(a => ({ 
-                    id: a.id.toString(), 
-                    type: a.type === 'order' ? 'info' as const : a.type === 'stock' ? 'warning' as const : 'error' as const, 
-                    title: a.type === 'order' ? 'Novo Pedido' : a.type === 'stock' ? 'Estoque Baixo' : 'Sistema',
-                    description: a.message, 
-                    time: a.time 
-                  }))} />
-                  <QuickActions
-                    onToggleStore={handleToggleStore}
-                    onToggleDelivery={handleToggleDelivery}
-                    onBackup={handleBackup}
-                    onSendBroadcast={handleBroadcast}
-                    storeOpen={storeOpen}
-                    deliveryActive={deliveryActive}
-                  />
-                </div>
-              </TabsContent>
-
-              {/* Orders Tab */}
-              <TabsContent value="orders" className="space-y-4">
-                <OrdersKanban />
-              </TabsContent>
-            </Tabs>
+              {/* Bottom Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <TopProductsList products={topProducts.map(p => ({ name: p.name, quantity: p.sales, revenue: p.revenue }))} />
+                <AlertsWidget alerts={recentAlerts.map(a => ({ 
+                  id: a.id.toString(), 
+                  type: a.type === 'order' ? 'info' as const : a.type === 'stock' ? 'warning' as const : 'error' as const, 
+                  title: a.type === 'order' ? 'Novo Pedido' : a.type === 'stock' ? 'Estoque Baixo' : 'Sistema',
+                  description: a.message, 
+                  time: a.time 
+                }))} />
+                <QuickActions
+                  onToggleStore={handleToggleStore}
+                  onToggleDelivery={handleToggleDelivery}
+                  onBackup={handleBackup}
+                  onSendBroadcast={handleBroadcast}
+                  storeOpen={storeOpen}
+                  deliveryActive={deliveryActive}
+                />
+              </div>
+            </div>
           </div>
         </main>
       </div>

@@ -159,9 +159,9 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
 
   return (
-    <Sidebar className={isCollapsed ? "w-14" : "w-64"} collapsible="icon">
+    <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       <SidebarHeader className="border-b border-border">
-        <div className="p-4">
+        <div className={`${isCollapsed ? "p-2" : "p-4"} transition-all`}>
           {/* Company Logo and Name */}
           <div className="flex items-center gap-3 mb-4">
             {userInfo?.company?.logo_url ? (
