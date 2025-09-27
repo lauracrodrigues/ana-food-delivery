@@ -3,6 +3,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Store, Menu } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -122,6 +123,7 @@ export default function Orders() {
                 </div>
                 
                 <div className="flex items-center gap-2">
+                  <ThemeToggle />
                   <Button
                     variant={storeOpen ? "default" : "destructive"}
                     size="sm"
