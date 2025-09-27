@@ -188,34 +188,58 @@ export type Database = {
       }
       orders: {
         Row: {
+          address: string | null
           company_id: string
           created_at: string | null
           customer_name: string | null
           customer_phone: string | null
+          delivery_fee: number | null
+          estimated_time: number | null
           id: string
           items: Json | null
+          observations: string | null
+          order_number: string | null
+          payment_method: string | null
           status: string
           total: number
+          type: string | null
+          updated_at: string | null
         }
         Insert: {
+          address?: string | null
           company_id: string
           created_at?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          delivery_fee?: number | null
+          estimated_time?: number | null
           id?: string
           items?: Json | null
+          observations?: string | null
+          order_number?: string | null
+          payment_method?: string | null
           status?: string
           total: number
+          type?: string | null
+          updated_at?: string | null
         }
         Update: {
+          address?: string | null
           company_id?: string
           created_at?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          delivery_fee?: number | null
+          estimated_time?: number | null
           id?: string
           items?: Json | null
+          observations?: string | null
+          order_number?: string | null
+          payment_method?: string | null
           status?: string
           total?: number
+          type?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -336,6 +360,100 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_settings: {
+        Row: {
+          alert_time: number | null
+          auto_accept: boolean | null
+          company_id: string
+          created_at: string | null
+          delivery_fee: number | null
+          delivery_time: number | null
+          id: string
+          pickup_time: number | null
+          printer_settings: Json | null
+          sound_enabled: boolean | null
+          store_open: boolean | null
+          updated_at: string | null
+          visible_columns: Json | null
+        }
+        Insert: {
+          alert_time?: number | null
+          auto_accept?: boolean | null
+          company_id: string
+          created_at?: string | null
+          delivery_fee?: number | null
+          delivery_time?: number | null
+          id?: string
+          pickup_time?: number | null
+          printer_settings?: Json | null
+          sound_enabled?: boolean | null
+          store_open?: boolean | null
+          updated_at?: string | null
+          visible_columns?: Json | null
+        }
+        Update: {
+          alert_time?: number | null
+          auto_accept?: boolean | null
+          company_id?: string
+          created_at?: string | null
+          delivery_fee?: number | null
+          delivery_time?: number | null
+          id?: string
+          pickup_time?: number | null
+          printer_settings?: Json | null
+          sound_enabled?: boolean | null
+          store_open?: boolean | null
+          updated_at?: string | null
+          visible_columns?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_alerts: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          customer_name: string
+          id: string
+          message: string | null
+          phone: string
+          read: boolean | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          customer_name: string
+          id?: string
+          message?: string | null
+          phone: string
+          read?: boolean | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          customer_name?: string
+          id?: string
+          message?: string | null
+          phone?: string
+          read?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_alerts_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
