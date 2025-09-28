@@ -16,6 +16,9 @@ export default function Orders() {
   const [companyName, setCompanyName] = useState("");
   const [subdomain, setSubdomain] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
+  
+  // Debug logs para verificar dados do Supabase
+  console.log("Orders component mounted - companyId:", companyId);
 
   // Load company info
   const { data: companyData } = useQuery({
