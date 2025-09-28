@@ -1,6 +1,4 @@
 import { OrdersKanban } from "@/components/orders/OrdersKanban";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Store, Menu } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -104,50 +102,44 @@ export default function Orders() {
   };
 
   return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        
-        <main className="flex-1 flex flex-col">
-          {/* Header */}
-          <header className="bg-card/50 backdrop-blur border-b border-border sticky top-0 z-10">
-            <div className="px-4 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <SidebarTrigger>
-                    <Menu className="h-5 w-5" />
-                  </SidebarTrigger>
-                  <div>
-                    <h1 className="text-xl font-bold">Gestão de Pedidos</h1>
-                    <p className="text-xs text-muted-foreground">
-                      {subdomain ? `${subdomain}.anafood.vip` : "Configure seu domínio"}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <ThemeToggle />
-                  <Button
-                    variant={storeOpen ? "default" : "destructive"}
-                    size="sm"
-                    onClick={handleToggleStore}
-                  >
-                    <Store className="w-4 h-4 mr-2" />
-                    {storeOpen ? "Loja Aberta" : "Loja Fechada"}
-                  </Button>
-                </div>
+    <div className="flex flex-col h-screen">
+      {/* Header */}
+      <header className="bg-card/50 backdrop-blur border-b border-border sticky top-0 z-10">
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger>
+                <Menu className="h-5 w-5" />
+              </SidebarTrigger>
+              <div>
+                <h1 className="text-xl font-bold">Gestão de Pedidos</h1>
+                <p className="text-xs text-muted-foreground">
+                  {subdomain ? `${subdomain}.anafood.vip` : "Configure seu domínio"}
+                </p>
               </div>
             </div>
-          </header>
-
-          {/* Orders Kanban */}
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full p-6">
-              <OrdersKanban />
+            
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button
+                variant={storeOpen ? "default" : "destructive"}
+                size="sm"
+                onClick={handleToggleStore}
+              >
+                <Store className="w-4 h-4 mr-2" />
+                {storeOpen ? "Loja Aberta" : "Loja Fechada"}
+              </Button>
             </div>
           </div>
-        </main>
+        </div>
+      </header>
+
+      {/* Orders Kanban */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full p-6">
+          <OrdersKanban />
+        </div>
       </div>
-    </SidebarProvider>
+    </div>
   );
 }
