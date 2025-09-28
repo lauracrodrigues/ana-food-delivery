@@ -234,6 +234,42 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_fees: {
+        Row: {
+          company_id: string
+          created_at: string
+          delivery_fee: number
+          id: string
+          is_active: boolean | null
+          max_distance_km: number | null
+          min_order_value: number | null
+          updated_at: string
+          zone_name: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          delivery_fee?: number
+          id?: string
+          is_active?: boolean | null
+          max_distance_km?: number | null
+          min_order_value?: number | null
+          updated_at?: string
+          zone_name: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          delivery_fee?: number
+          id?: string
+          is_active?: boolean | null
+          max_distance_km?: number | null
+          min_order_value?: number | null
+          updated_at?: string
+          zone_name?: string
+        }
+        Relationships: []
+      }
       extras: {
         Row: {
           category: string | null

@@ -74,6 +74,7 @@ const menuItems: MenuItem[] = [
       { title: "Produtos", url: "/products", icon: ShoppingCart },
       { title: "Categorias", url: "/categories", icon: Tag },
       { title: "Adicionais", url: "/extras", icon: Plus },
+      { title: "Taxas de Entrega", url: "/delivery-fees", icon: MapPin },
     ],
   },
   {
@@ -97,7 +98,7 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [openGroups, setOpenGroups] = useState<string[]>(["Cadastros", "Configurações"]);
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
 
   // Load user and company info
   const { data: userInfo } = useQuery({

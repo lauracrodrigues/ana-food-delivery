@@ -62,19 +62,28 @@ export function Customers() {
     },
   });
 
-  // Fetch customers
+  // Fetch customers with debug logging
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ["customers", profile?.company_id],
     queryFn: async () => {
-      if (!profile?.company_id) return [];
+      if (!profile?.company_id) {
+        console.log("No company_id found for customers query");
+        return [];
+      }
       
+      console.log("Fetching customers for company:", profile.company_id);
       const { data, error } = await supabase
         .from("customers")
         .select("*")
         .eq("company_id", profile.company_id)
         .order("name");
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching customers:", error);
+        throw error;
+      }
+      
+      console.log("Customers fetched:", data);
       return data as Customer[];
     },
     enabled: !!profile?.company_id,

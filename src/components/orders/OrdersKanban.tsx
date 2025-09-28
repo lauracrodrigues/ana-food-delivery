@@ -83,7 +83,7 @@ export function OrdersKanban() {
     cancelled: false,
   });
 
-  // Load orders from Supabase
+  // Load orders from Supabase with debug logging
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
@@ -93,15 +93,24 @@ export function OrdersKanban() {
         .eq("id", (await supabase.auth.getUser()).data.user?.id)
         .single();
 
-      if (!profile?.company_id) throw new Error("Company not found");
+      if (!profile?.company_id) {
+        console.log("No company_id found for orders query");
+        throw new Error("Company not found");
+      }
 
+      console.log("Fetching orders for company:", profile.company_id);
       const { data, error } = await supabase
         .from("orders")
         .select("*")
         .eq("company_id", profile.company_id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching orders:", error);
+        throw error;
+      }
+      
+      console.log("Orders fetched:", data);
       return data as Order[];
     },
     refetchInterval: 30000, // Refresh every 30 seconds
