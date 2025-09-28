@@ -84,7 +84,7 @@ export function OrdersKanban() {
   });
 
   // Load orders from Supabase with debug logging
-  const { data: orders = [], isLoading } = useQuery({
+  const { data: orders = [], isLoading, refetch } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
       const { data: profile } = await supabase
@@ -115,6 +115,29 @@ export function OrdersKanban() {
     },
     refetchInterval: 30000, // Refresh every 30 seconds
   });
+
+  // Setup real-time subscription for orders
+  useEffect(() => {
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'orders'
+        },
+        (payload) => {
+          console.log('Real-time update received:', payload);
+          refetch(); // Refetch orders when any change occurs
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
 
   // Load settings from Supabase
   useQuery({
