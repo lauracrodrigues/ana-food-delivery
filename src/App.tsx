@@ -16,6 +16,7 @@ import { Products } from "./pages/Products";
 import { Categories } from "./pages/Categories";
 import { Extras } from "./pages/Extras";
 import { DeliveryFees } from "./pages/DeliveryFees";
+import { Settings } from "./pages/Settings";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/categories" element={<DashboardLayout><Categories /></DashboardLayout>} />
             <Route path="/extras" element={<DashboardLayout><Extras /></DashboardLayout>} />
             <Route path="/delivery-fees" element={<DashboardLayout><DeliveryFees /></DashboardLayout>} />
+            <Route path="/settings" element={<DashboardLayout><Settings /></DashboardLayout>} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

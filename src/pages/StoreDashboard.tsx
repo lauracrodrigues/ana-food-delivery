@@ -19,8 +19,8 @@ import { TopProductsList } from "@/components/dashboard/TopProductsList";
 import { PaymentMethodsChart } from "@/components/dashboard/PaymentMethodsChart";
 import { AlertsWidget } from "@/components/dashboard/AlertsWidget";
 import { QuickActions } from "@/components/dashboard/QuickActions";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/layout/AppSidebar";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function StoreDashboard() {
   const navigate = useNavigate();
@@ -229,108 +229,102 @@ export default function StoreDashboard() {
 
 
   return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        
-        <main className="flex-1 flex flex-col">
-          {/* Header */}
-          <header className="bg-card/50 backdrop-blur border-b border-border sticky top-0 z-10">
-            <div className="px-4 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <SidebarTrigger>
-                    <Menu className="h-5 w-5" />
-                  </SidebarTrigger>
-                  <div>
-                    <h1 className="text-xl font-bold">{companyName || "Carregando..."}</h1>
-                    <p className="text-xs text-muted-foreground">
-                      {subdomain ? `${subdomain}.anafood.vip` : "Configure seu domínio"}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant={storeOpen ? "default" : "destructive"}
-                    size="sm"
-                    onClick={handleToggleStore}
-                  >
-                    <Store className="w-4 h-4 mr-2" />
-                    {storeOpen ? "Loja Aberta" : "Loja Fechada"}
-                  </Button>
-                </div>
+    <div className="flex flex-col h-screen">
+      {/* Header */}
+      <header className="bg-card/50 backdrop-blur border-b border-border sticky top-0 z-10">
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger>
+                <Menu className="h-5 w-5" />
+              </SidebarTrigger>
+              <div>
+                <h1 className="text-xl font-bold">Dashboard</h1>
+                <p className="text-xs text-muted-foreground">
+                  {subdomain ? `${subdomain}.anafood.vip` : "Configure seu domínio"}
+                </p>
               </div>
             </div>
-          </header>
-
-          {/* Main Content Area */}
-          <div className="flex-1 p-6">
-            <div className="space-y-6">
-              {/* Metrics Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <MetricsCard
-                  title="Pedidos Hoje"
-                  value={metrics.todayOrders}
-                  icon={ShoppingBag}
-                  trend={{ value: 12, isPositive: true }}
-                  subtitle="vs. ontem"
-                />
-                <MetricsCard
-                  title="Faturamento"
-                  value={`R$ ${metrics.todayRevenue.toFixed(2)}`}
-                  icon={DollarSign}
-                  trend={{ value: 8, isPositive: true }}
-                  subtitle="vs. ontem"
-                />
-                <MetricsCard
-                  title="Ticket Médio"
-                  value={`R$ ${metrics.averageTicket.toFixed(2)}`}
-                  icon={TrendingUp}
-                  trend={{ value: 5, isPositive: true }}
-                  subtitle="vs. média"
-                />
-                <MetricsCard
-                  title="Pedidos Pendentes"
-                  value={metrics.pendingOrders}
-                  icon={Clock}
-                  subtitle="aguardando"
-                />
-              </div>
-
-              {/* Charts Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                  <RevenueChart data={revenueData.map(item => ({ time: item.date, revenue: item.revenue }))} />
-                </div>
-                <div>
-                  <PaymentMethodsChart data={paymentMethodsData} />
-                </div>
-              </div>
-
-              {/* Bottom Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <TopProductsList products={topProducts.map(p => ({ name: p.name, quantity: p.sales, revenue: p.revenue }))} />
-                <AlertsWidget alerts={recentAlerts.map(a => ({ 
-                  id: a.id.toString(), 
-                  type: a.type === 'order' ? 'info' as const : a.type === 'stock' ? 'warning' as const : 'error' as const, 
-                  title: a.type === 'order' ? 'Novo Pedido' : a.type === 'stock' ? 'Estoque Baixo' : 'Sistema',
-                  description: a.message, 
-                  time: a.time 
-                }))} />
-                <QuickActions
-                  onToggleStore={handleToggleStore}
-                  onToggleDelivery={handleToggleDelivery}
-                  onBackup={handleBackup}
-                  onSendBroadcast={handleBroadcast}
-                  storeOpen={storeOpen}
-                  deliveryActive={deliveryActive}
-                />
-              </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant={storeOpen ? "default" : "destructive"}
+                size="sm"
+                onClick={handleToggleStore}
+              >
+                <Store className="w-4 h-4 mr-2" />
+                {storeOpen ? "Loja Aberta" : "Loja Fechada"}
+              </Button>
             </div>
           </div>
-        </main>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-auto p-6">
+        <div className="space-y-6">
+          {/* Metrics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <MetricsCard
+              title="Pedidos Hoje"
+              value={metrics.todayOrders}
+              icon={ShoppingBag}
+              trend={{ value: 12, isPositive: true }}
+              subtitle="vs. ontem"
+            />
+            <MetricsCard
+              title="Faturamento"
+              value={`R$ ${metrics.todayRevenue.toFixed(2)}`}
+              icon={DollarSign}
+              trend={{ value: 8, isPositive: true }}
+              subtitle="vs. ontem"
+            />
+            <MetricsCard
+              title="Ticket Médio"
+              value={`R$ ${metrics.averageTicket.toFixed(2)}`}
+              icon={TrendingUp}
+              trend={{ value: 5, isPositive: true }}
+              subtitle="vs. média"
+            />
+            <MetricsCard
+              title="Pedidos Pendentes"
+              value={metrics.pendingOrders}
+              icon={Clock}
+              subtitle="aguardando"
+            />
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <RevenueChart data={revenueData.map(item => ({ time: item.date, revenue: item.revenue }))} />
+            </div>
+            <div>
+              <PaymentMethodsChart data={paymentMethodsData} />
+            </div>
+          </div>
+
+          {/* Bottom Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <TopProductsList products={topProducts.map(p => ({ name: p.name, quantity: p.sales, revenue: p.revenue }))} />
+            <AlertsWidget alerts={recentAlerts.map(a => ({ 
+              id: a.id.toString(), 
+              type: a.type === 'order' ? 'info' as const : a.type === 'stock' ? 'warning' as const : 'error' as const, 
+              title: a.type === 'order' ? 'Novo Pedido' : a.type === 'stock' ? 'Estoque Baixo' : 'Sistema',
+              description: a.message, 
+              time: a.time 
+            }))} />
+            <QuickActions
+              onToggleStore={handleToggleStore}
+              onToggleDelivery={handleToggleDelivery}
+              onBackup={handleBackup}
+              onSendBroadcast={handleBroadcast}
+              storeOpen={storeOpen}
+              deliveryActive={deliveryActive}
+            />
+          </div>
+        </div>
       </div>
-    </SidebarProvider>
+    </div>
   );
 }

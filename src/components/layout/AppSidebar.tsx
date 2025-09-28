@@ -85,11 +85,7 @@ const menuItems: MenuItem[] = [
   {
     title: "Configurações",
     icon: Settings,
-    subItems: [
-      { title: "Dados da Empresa", url: "/settings/company", icon: Building2 },
-      { title: "Bairros de Entrega", url: "/settings/delivery-areas", icon: MapPin },
-      { title: "Outras Configurações", url: "/settings/general", icon: Settings },
-    ],
+    url: "/settings",
   },
 ];
 
