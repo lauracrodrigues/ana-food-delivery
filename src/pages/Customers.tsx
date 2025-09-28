@@ -211,7 +211,7 @@ export function Customers() {
   );
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="p-6">
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">

@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Registration from "./pages/Registration";
@@ -30,13 +31,13 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/cadastro" element={<Registration />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/dashboard" element={<StoreDashboard />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/categories" element={<Categories />} />
-            <Route path="/extras" element={<Extras />} />
+            <Route path="/admin" element={<DashboardLayout><AdminDashboard /></DashboardLayout>} />
+            <Route path="/dashboard" element={<DashboardLayout><StoreDashboard /></DashboardLayout>} />
+            <Route path="/orders" element={<DashboardLayout><Orders /></DashboardLayout>} />
+            <Route path="/customers" element={<DashboardLayout><Customers /></DashboardLayout>} />
+            <Route path="/products" element={<DashboardLayout><Products /></DashboardLayout>} />
+            <Route path="/categories" element={<DashboardLayout><Categories /></DashboardLayout>} />
+            <Route path="/extras" element={<DashboardLayout><Extras /></DashboardLayout>} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
