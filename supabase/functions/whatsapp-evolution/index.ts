@@ -71,6 +71,32 @@ serve(async (req) => {
       );
     }
 
+    // Deletar instância
+    if (action === 'delete') {
+      console.log('Deletando instância:', instanceName);
+
+      const response = await fetch(`https://evo.anafood.vip/instance/delete/${instanceName}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': EVOLUTION_API_KEY,
+        },
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Erro ao deletar instância:', response.status, data);
+        throw new Error(`Evolution API error: ${JSON.stringify(data)}`);
+      }
+
+      console.log('Instância deletada com sucesso');
+
+      return new Response(
+        JSON.stringify({ success: true, data }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Criar nova instância
     console.log('Comunicando com Evolution API:', { sessionName, agentName });
 

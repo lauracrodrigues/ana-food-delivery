@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -163,12 +164,28 @@ export default function WhatsApp() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Buscar o nome da sessão antes de deletar
+      const session = sessions.find(s => s.id === id);
+      
+      // Deletar do banco de dados
       const { error } = await supabase
         .from('whatsapp_sessions')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+
+      // Deletar da Evolution API
+      if (session) {
+        try {
+          await supabase.functions.invoke('whatsapp-evolution', {
+            body: { instanceName: session.session_name, action: 'delete' }
+          });
+        } catch (error) {
+          console.error('Erro ao deletar da Evolution API:', error);
+          // Continua mesmo se falhar na API
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-sessions"] });
@@ -275,11 +292,22 @@ export default function WhatsApp() {
       }
 
       if (response.data?.success && response.data.data?.code) {
-        setQrCodeDialog({
-          open: true,
-          qrCode: response.data.data.code,
-          sessionName: sessionName,
-        });
+        // Gerar imagem do QR Code a partir do código
+        try {
+          const qrCodeDataUrl = await QRCode.toDataURL(response.data.data.code, {
+            width: 300,
+            margin: 2,
+          });
+          
+          setQrCodeDialog({
+            open: true,
+            qrCode: qrCodeDataUrl,
+            sessionName: sessionName,
+          });
+        } catch (qrError) {
+          console.error('Erro ao gerar QR Code:', qrError);
+          throw new Error('Erro ao gerar imagem do QR Code');
+        }
       } else {
         throw new Error('QR Code não disponível');
       }
