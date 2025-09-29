@@ -93,6 +93,7 @@ export default function WhatsApp() {
           .eq('id', data.id);
 
         if (error) throw error;
+        return { isNew: false, data };
       } else {
         // Add new session
         const { error } = await supabase
@@ -105,15 +106,42 @@ export default function WhatsApp() {
           });
 
         if (error) throw error;
+        return { isNew: true, data };
       }
     },
-    onSuccess: () => {
+    onSuccess: async ({ isNew, data }) => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-sessions"] });
       toast({
         title: editingSession ? "Sessão atualizada" : "Sessão adicionada",
         description: `A sessão foi ${editingSession ? 'atualizada' : 'adicionada'} com sucesso.`,
       });
       handleCloseDialog();
+
+      // Comunicar com Evolution API apenas para novas sessões
+      if (isNew) {
+        try {
+          const response = await supabase.functions.invoke('whatsapp-evolution', {
+            body: {
+              sessionName: data.session_name,
+              agentName: data.agent_name,
+              agentPrompt: data.agent_prompt || '',
+            }
+          });
+
+          if (response.error) {
+            console.error('Erro ao comunicar com Evolution API:', response.error);
+            toast({
+              title: "Atenção",
+              description: "Sessão salva, mas houve erro ao comunicar com Evolution API.",
+              variant: "destructive",
+            });
+          } else {
+            console.log('Sucesso ao comunicar com Evolution API:', response.data);
+          }
+        } catch (error) {
+          console.error('Erro ao chamar edge function:', error);
+        }
+      }
     },
     onError: () => {
       toast({

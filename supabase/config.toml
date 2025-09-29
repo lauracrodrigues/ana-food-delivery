@@ -1,4 +1,7 @@
 project_id = "jgdyklzrxygvwuhlnbat"
 
+[functions.whatsapp-evolution]
+verify_jwt = false
+
 [functions.create-tenant]
 verify_jwt = false
