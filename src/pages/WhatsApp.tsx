@@ -243,6 +243,22 @@ export default function WhatsApp() {
       return;
     }
 
+    // Verificar duplicidade apenas ao criar nova sessão
+    if (!editingSession) {
+      const duplicateName = sessions.find(
+        s => s.session_name.toLowerCase() === formData.session_name.trim().toLowerCase()
+      );
+      
+      if (duplicateName) {
+        toast({
+          title: "Nome duplicado",
+          description: "Já existe uma sessão com este nome. Por favor, escolha outro nome.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     if (editingSession) {
       saveMutation.mutate({ ...formData, id: editingSession.id });
     } else {
@@ -304,6 +320,40 @@ export default function WhatsApp() {
             qrCode: qrCodeDataUrl,
             sessionName: sessionName,
           });
+
+          // Iniciar polling do status da conexão
+          const pollInterval = setInterval(async () => {
+            const status = await checkConnectionStatus(sessionName);
+            
+            if (status === 'open') {
+              clearInterval(pollInterval);
+              setQrCodeDialog({ open: false, qrCode: '', sessionName: '' });
+              toast({
+                title: "Conectado com sucesso!",
+                description: "Sua sessão do WhatsApp está conectada.",
+              });
+              queryClient.invalidateQueries({ queryKey: ["whatsapp-sessions"] });
+            } else if (status === 'close') {
+              clearInterval(pollInterval);
+              toast({
+                title: "Erro na conexão",
+                description: "Não foi possível conectar. Verifique se o QR Code foi escaneado corretamente.",
+                variant: "destructive",
+              });
+            }
+          }, 3000); // Verifica a cada 3 segundos
+
+          // Timeout após 2 minutos
+          setTimeout(() => {
+            clearInterval(pollInterval);
+            if (qrCodeDialog.open) {
+              toast({
+                title: "Tempo esgotado",
+                description: "O QR Code expirou. Por favor, tente novamente.",
+                variant: "destructive",
+              });
+            }
+          }, 120000);
         } catch (qrError) {
           console.error('Erro ao gerar QR Code:', qrError);
           throw new Error('Erro ao gerar imagem do QR Code');
