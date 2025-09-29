@@ -5,10 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Edit2, Trash2, Plus, Save, X, MessageSquare } from "lucide-react";
+import { Edit2, Trash2, Plus, MessageSquare, QrCode, RefreshCw } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -19,6 +20,7 @@ interface WhatsAppSession {
   agent_prompt: string | null;
   is_active: boolean;
   created_at: string;
+  connection_status?: 'open' | 'close' | 'connecting' | 'unknown';
 }
 
 interface SessionForm {
@@ -34,6 +36,12 @@ export default function WhatsApp() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<WhatsAppSession | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [qrCodeDialog, setQrCodeDialog] = useState<{ open: boolean; qrCode: string; sessionName: string }>({
+    open: false,
+    qrCode: '',
+    sessionName: '',
+  });
+  const [loadingStatus, setLoadingStatus] = useState<Record<string, boolean>>({});
   
   const [formData, setFormData] = useState<SessionForm>({
     session_name: "",
@@ -230,6 +238,92 @@ export default function WhatsApp() {
     setDeleteId(null);
   };
 
+  // Verificar status da conexão
+  const checkConnectionStatus = async (sessionName: string) => {
+    setLoadingStatus(prev => ({ ...prev, [sessionName]: true }));
+    try {
+      const response = await supabase.functions.invoke('whatsapp-evolution', {
+        body: { instanceName: sessionName, action: 'status' }
+      });
+
+      if (response.data?.success) {
+        return response.data.data.instance.state;
+      }
+      return 'unknown';
+    } catch (error) {
+      console.error('Erro ao verificar status:', error);
+      return 'unknown';
+    } finally {
+      setLoadingStatus(prev => ({ ...prev, [sessionName]: false }));
+    }
+  };
+
+  // Conectar/Reconectar via QR Code
+  const handleConnect = async (sessionName: string) => {
+    try {
+      toast({
+        title: "Gerando QR Code",
+        description: "Aguarde enquanto geramos o QR Code...",
+      });
+
+      const response = await supabase.functions.invoke('whatsapp-evolution', {
+        body: { instanceName: sessionName, action: 'connect' }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (response.data?.success && response.data.data?.code) {
+        setQrCodeDialog({
+          open: true,
+          qrCode: response.data.data.code,
+          sessionName: sessionName,
+        });
+      } else {
+        throw new Error('QR Code não disponível');
+      }
+    } catch (error) {
+      console.error('Erro ao conectar:', error);
+      toast({
+        title: "Erro ao gerar QR Code",
+        description: error instanceof Error ? error.message : "Não foi possível gerar o QR Code.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Atualizar status periodicamente
+  useEffect(() => {
+    if (sessions.length === 0) return;
+
+    const updateStatuses = async () => {
+      for (const session of sessions) {
+        const status = await checkConnectionStatus(session.session_name);
+        session.connection_status = status;
+      }
+      queryClient.setQueryData(["whatsapp-sessions", companyId], sessions);
+    };
+
+    updateStatuses();
+    const interval = setInterval(updateStatuses, 30000); // Atualiza a cada 30 segundos
+
+    return () => clearInterval(interval);
+  }, [sessions.length, companyId]);
+
+  const getStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'open':
+        return <Badge className="bg-green-500">Conectado</Badge>;
+      case 'close':
+        return <Badge variant="destructive">Desconectado</Badge>;
+      case 'connecting':
+        return <Badge variant="secondary">Conectando...</Badge>;
+      default:
+        return <Badge variant="outline">Verificando...</Badge>;
+    }
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between mb-6">
@@ -269,6 +363,7 @@ export default function WhatsApp() {
                 <TableRow>
                   <TableHead>Nome da Sessão</TableHead>
                   <TableHead>Nome do Agente</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Prompt</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -278,6 +373,19 @@ export default function WhatsApp() {
                   <TableRow key={session.id}>
                     <TableCell className="font-medium">{session.session_name}</TableCell>
                     <TableCell>{session.agent_name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(session.connection_status)}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => checkConnectionStatus(session.session_name)}
+                          disabled={loadingStatus[session.session_name]}
+                        >
+                          <RefreshCw className={`h-4 w-4 ${loadingStatus[session.session_name] ? 'animate-spin' : ''}`} />
+                        </Button>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <span className="text-sm text-muted-foreground">
                         {session.agent_prompt ? 
@@ -289,6 +397,16 @@ export default function WhatsApp() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-2 justify-end">
+                        {session.connection_status !== 'open' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleConnect(session.session_name)}
+                          >
+                            <QrCode className="h-4 w-4 mr-1" />
+                            Conectar
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"
@@ -391,6 +509,44 @@ export default function WhatsApp() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrCodeDialog.open} onOpenChange={(open) => setQrCodeDialog({ ...qrCodeDialog, open })}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Conectar WhatsApp</DialogTitle>
+            <DialogDescription>
+              Escaneie o QR Code abaixo com o WhatsApp da sessão: {qrCodeDialog.sessionName}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex flex-col items-center justify-center py-6">
+            {qrCodeDialog.qrCode && (
+              <img 
+                src={qrCodeDialog.qrCode} 
+                alt="QR Code WhatsApp" 
+                className="w-64 h-64 border-2 border-border rounded-lg"
+              />
+            )}
+            <p className="text-sm text-muted-foreground mt-4 text-center">
+              O QR Code expira em alguns minutos. Se necessário, clique em "Conectar" novamente.
+            </p>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setQrCodeDialog({ open: false, qrCode: '', sessionName: '' })}
+            >
+              Fechar
+            </Button>
+            <Button onClick={() => handleConnect(qrCodeDialog.sessionName)}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Gerar Novo QR Code
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

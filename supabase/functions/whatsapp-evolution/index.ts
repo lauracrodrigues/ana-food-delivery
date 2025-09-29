@@ -11,13 +11,67 @@ serve(async (req) => {
   }
 
   try {
-    const { sessionName, agentName, agentPrompt } = await req.json();
+    const body = await req.json();
+    const { action, instanceName, sessionName, agentName, agentPrompt } = body;
     const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
 
     if (!EVOLUTION_API_KEY) {
       throw new Error('EVOLUTION_API_KEY não configurada');
     }
 
+    // Verificar status da conexão
+    if (action === 'status') {
+      console.log('Verificando status da instância:', instanceName);
+
+      const response = await fetch(`https://evo.anafood.vip/instance/connectionState/${instanceName}`, {
+        method: 'GET',
+        headers: {
+          'apikey': EVOLUTION_API_KEY,
+        },
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Erro ao verificar status:', response.status, data);
+        throw new Error(`Evolution API error: ${JSON.stringify(data)}`);
+      }
+
+      console.log('Status da instância:', data);
+
+      return new Response(
+        JSON.stringify({ success: true, data }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Obter QR Code para conectar
+    if (action === 'connect') {
+      console.log('Obtendo QR Code para:', instanceName);
+
+      const response = await fetch(`https://evo.anafood.vip/instance/connect/${instanceName}`, {
+        method: 'GET',
+        headers: {
+          'apikey': EVOLUTION_API_KEY,
+        },
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Erro ao obter QR Code:', response.status, data);
+        throw new Error(`Evolution API error: ${JSON.stringify(data)}`);
+      }
+
+      console.log('QR Code obtido com sucesso');
+
+      return new Response(
+        JSON.stringify({ success: true, data }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Criar nova instância
     console.log('Comunicando com Evolution API:', { sessionName, agentName });
 
     const response = await fetch('https://evo.anafood.vip/instance/create', {
