@@ -1,18 +1,16 @@
 import { useState, useEffect } from "react";
-import QRCode from "qrcode";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Edit2, Trash2, Plus, MessageSquare, QrCode, RefreshCw } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { MessageSquare, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WhatsAppSessionList } from "@/components/whatsapp/WhatsAppSessionList";
+import { WhatsAppTestMessage } from "@/components/whatsapp/WhatsAppTestMessage";
+import { WhatsAppStatusMessages } from "@/components/whatsapp/WhatsAppStatusMessages";
+import { WhatsAppSessionDialog } from "@/components/whatsapp/WhatsAppSessionDialog";
+import { WhatsAppQRCodeDialog } from "@/components/whatsapp/WhatsAppQRCodeDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface WhatsAppSession {
   id: string;
