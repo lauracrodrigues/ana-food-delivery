@@ -5,6 +5,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Clock,
   Printer,
   Eye,
@@ -79,9 +86,10 @@ export function OrdersKanban() {
     preparing: true,
     ready: true,
     delivering: true,
-    completed: false,
-    cancelled: false,
+    completed: true,
+    cancelled: false, // Cancelled disabled by default
   });
+  const [bulkStatusSelectOpen, setBulkStatusSelectOpen] = useState(false);
 
   // Load orders from Supabase with debug logging
   const { data: orders = [], isLoading, refetch } = useQuery({
@@ -401,6 +409,36 @@ export function OrdersKanban() {
             className="text-sm border rounded px-3 py-1 w-48"
           />
 
+          {selectedOrders.size > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {selectedOrders.size} selecionados
+              </span>
+              <Select
+                open={bulkStatusSelectOpen}
+                onOpenChange={setBulkStatusSelectOpen}
+                onValueChange={(value) => {
+                  selectedOrders.forEach(orderId => {
+                    updateOrderMutation.mutate({ orderId, status: value });
+                  });
+                  setSelectedOrders(new Set());
+                  setBulkStatusSelectOpen(false);
+                }}
+              >
+                <SelectTrigger className="w-40 h-8">
+                  <SelectValue placeholder="Alterar status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusColumns.map((status) => (
+                    <SelectItem key={status.id} value={status.id}>
+                      {status.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <Button
             variant={soundEnabled ? "default" : "outline"}
             size="sm"
@@ -421,11 +459,6 @@ export function OrdersKanban() {
             Filtros
           </Button>
 
-          {selectedOrders.size > 0 && (
-            <span className="text-sm font-medium">
-              {selectedOrders.size} selecionados
-            </span>
-          )}
         </div>
 
         {showFilters && (

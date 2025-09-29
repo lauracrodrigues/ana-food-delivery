@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   ShoppingBag, 
   Settings, 
@@ -17,7 +17,8 @@ import {
   ChevronRight,
   Store,
   Mail,
-  User
+  User,
+  CreditCard
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -75,6 +76,7 @@ const menuItems: MenuItem[] = [
       { title: "Categorias", url: "/categories", icon: Tag },
       { title: "Adicionais", url: "/extras", icon: Plus },
       { title: "Taxas de Entrega", url: "/delivery-fees", icon: MapPin },
+      { title: "Formas de Pagamento", url: "/payment-methods", icon: CreditCard },
     ],
   },
   {
@@ -90,11 +92,12 @@ const menuItems: MenuItem[] = [
 ];
 
 export function AppSidebar() {
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, setOpen } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const [isHovered, setIsHovered] = useState(false);
 
   // Load user and company info
   const { data: userInfo } = useQuery({

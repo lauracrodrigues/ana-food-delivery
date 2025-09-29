@@ -17,6 +17,8 @@ import { Categories } from "./pages/Categories";
 import { Extras } from "./pages/Extras";
 import { DeliveryFees } from "./pages/DeliveryFees";
 import { Settings } from "./pages/Settings";
+import PaymentMethods from "./pages/PaymentMethods";
+import WhatsApp from "./pages/WhatsApp";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 
@@ -34,14 +36,16 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/cadastro" element={<Registration />} />
             <Route path="/admin" element={<DashboardLayout><AdminDashboard /></DashboardLayout>} />
-            <Route path="/dashboard" element={<DashboardLayout><StoreDashboard /></DashboardLayout>} />
-            <Route path="/orders" element={<DashboardLayout><Orders /></DashboardLayout>} />
-            <Route path="/customers" element={<DashboardLayout><Customers /></DashboardLayout>} />
-            <Route path="/products" element={<DashboardLayout><Products /></DashboardLayout>} />
-            <Route path="/categories" element={<DashboardLayout><Categories /></DashboardLayout>} />
-            <Route path="/extras" element={<DashboardLayout><Extras /></DashboardLayout>} />
-            <Route path="/delivery-fees" element={<DashboardLayout><DeliveryFees /></DashboardLayout>} />
-            <Route path="/settings" element={<DashboardLayout><Settings /></DashboardLayout>} />
+        <Route path="/dashboard" element={<DashboardLayout><StoreDashboard /></DashboardLayout>} />
+        <Route path="/orders" element={<DashboardLayout><Orders /></DashboardLayout>} />
+        <Route path="/customers" element={<DashboardLayout><Customers /></DashboardLayout>} />
+        <Route path="/products" element={<DashboardLayout><Products /></DashboardLayout>} />
+        <Route path="/categories" element={<DashboardLayout><Categories /></DashboardLayout>} />
+        <Route path="/extras" element={<DashboardLayout><Extras /></DashboardLayout>} />
+        <Route path="/delivery-fees" element={<DashboardLayout><DeliveryFees /></DashboardLayout>} />
+        <Route path="/payment-methods" element={<DashboardLayout><PaymentMethods /></DashboardLayout>} />
+        <Route path="/whatsapp" element={<DashboardLayout><WhatsApp /></DashboardLayout>} />
+        <Route path="/settings" element={<DashboardLayout><Settings /></DashboardLayout>} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

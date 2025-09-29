@@ -232,10 +232,8 @@ export function Settings() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+          <TabsList className="grid grid-cols-2 w-full max-w-md">
             <TabsTrigger value="general">Geral</TabsTrigger>
-            <TabsTrigger value="delivery">Entrega</TabsTrigger>
-            <TabsTrigger value="notifications">Notificações</TabsTrigger>
             <TabsTrigger value="company">Empresa</TabsTrigger>
           </TabsList>
 
@@ -314,65 +312,10 @@ export function Settings() {
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
-          {/* Delivery Settings */}
-          <TabsContent value="delivery" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Truck className="h-5 w-5" />
-                  Configurações de Entrega
-                </CardTitle>
-                <CardDescription>
-                  Defina as regras e valores de entrega
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="delivery-fee">
-                    <DollarSign className="inline h-4 w-4 mr-2" />
-                    Taxa de Entrega Padrão (R$)
-                  </Label>
-                  <Input
-                    id="delivery-fee"
-                    type="number"
-                    step="0.01"
-                    value={storeSettings?.delivery_fee}
-                    onChange={(e) => handleSettingsUpdate("delivery_fee", parseFloat(e.target.value))}
-                    disabled={loadingSettings}
-                  />
-                </div>
+                <Separator />
 
-                <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-                  <p className="text-sm font-medium">Áreas de Entrega</p>
-                  <p className="text-sm text-muted-foreground">
-                    Configure taxas específicas por bairro ou distância na seção "Taxas de Entrega" do menu.
-                  </p>
-                  <Button variant="outline" size="sm" onClick={() => window.location.href = "/delivery-fees"}>
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Gerenciar Taxas de Entrega
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Notification Settings */}
-          <TabsContent value="notifications" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="h-5 w-5" />
-                  Configurações de Notificações
-                </CardTitle>
-                <CardDescription>
-                  Configure alertas e notificações do sistema
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+                {/* Notificações movidas para a aba Geral */}
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <Label htmlFor="sound-enabled">

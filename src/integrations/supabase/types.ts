@@ -371,6 +371,33 @@ export type Database = {
           },
         ]
       }
+      payment_methods: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       plans: {
         Row: {
           created_at: string
@@ -580,6 +607,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      whatsapp_sessions: {
+        Row: {
+          agent_name: string
+          agent_prompt: string | null
+          company_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          session_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          agent_name: string
+          agent_prompt?: string | null
+          company_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          session_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          agent_name?: string
+          agent_prompt?: string | null
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          session_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
