@@ -31,34 +31,13 @@ serve(async (req) => {
         token: EVOLUTION_API_KEY,
         qrcode: true,
         integration: 'WHATSAPP-BAILEYS',
-        reject_call: false,
-        msg_call: '',
-        groups_ignore: true,
-        always_online: false,
-        read_messages: false,
-        read_status: false,
-        sync_full_history: false,
-        webhook: {
-          enabled: false
-        },
-        websocket: {
-          enabled: false
-        },
-        rabbitmq: {
-          enabled: false
-        },
-        sqs: {
-          enabled: false
-        },
-        typebot: {
-          enabled: false
-        },
-        proxy: {
-          enabled: false
-        },
-        chatwoot: {
-          enabled: false
-        }
+        rejectCall: false,
+        msgCall: '',
+        groupsIgnore: true,
+        alwaysOnline: false,
+        readMessages: false,
+        readStatus: false,
+        syncFullHistory: false
       }),
     });
 
