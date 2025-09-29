@@ -18,7 +18,7 @@ interface PaymentMethod {
   created_at: string;
 }
 
-export default function PaymentMethods() {
+const PaymentMethods = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -310,4 +310,6 @@ export default function PaymentMethods() {
       </AlertDialog>
     </div>
   );
-}
+};
+
+export default PaymentMethods;
