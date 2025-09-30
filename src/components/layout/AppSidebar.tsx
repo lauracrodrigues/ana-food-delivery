@@ -172,8 +172,12 @@ export function AppSidebar() {
 
   return (
     <div
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => isCollapsed && setIsHovered(true)}
+      onMouseLeave={() => {
+        if (isCollapsed) {
+          setIsHovered(false);
+        }
+      }}
       className="relative"
     >
       <Sidebar 

@@ -1,14 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   ShoppingBag, 
-  BarChart3, 
   TrendingUp,
   DollarSign,
   Clock,
   Store,
   Menu,
-  CalendarIcon
+  CalendarIcon,
+  Users
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -18,8 +18,7 @@ import { MetricsCard } from "@/components/dashboard/MetricsCard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { TopProductsList } from "@/components/dashboard/TopProductsList";
 import { PaymentMethodsChart } from "@/components/dashboard/PaymentMethodsChart";
-import { AlertsWidget } from "@/components/dashboard/AlertsWidget";
-import { QuickActions } from "@/components/dashboard/QuickActions";
+import { TopCustomersList } from "@/components/dashboard/TopCustomersList";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -44,6 +43,8 @@ export default function StoreDashboard() {
   const [showTodayOnly, setShowTodayOnly] = useState(true);
   const [startDate, setStartDate] = useState<Date | undefined>(new Date());
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+  const endDateRef = useRef<HTMLButtonElement>(null);
   
 
   // Load company info
@@ -199,11 +200,13 @@ export default function StoreDashboard() {
     { name: 'Batata Frita', sales: 25, revenue: 375 },
   ];
 
-  // Recent alerts
-  const recentAlerts = [
-    { id: 1, type: 'order', message: 'Novo pedido recebido #1234', time: '2 min atrás' },
-    { id: 2, type: 'stock', message: 'Produto "Coca-Cola 2L" acabando', time: '15 min atrás' },
-    { id: 3, type: 'system', message: 'Impressora desconectada', time: '30 min atrás' },
+  // Top customers data
+  const topCustomers = [
+    { name: 'João Silva', orders: 28, totalSpent: 1850 },
+    { name: 'Maria Santos', orders: 22, totalSpent: 1420 },
+    { name: 'Pedro Oliveira', orders: 18, totalSpent: 1190 },
+    { name: 'Ana Costa', orders: 15, totalSpent: 890 },
+    { name: 'Carlos Pereira', orders: 12, totalSpent: 720 },
   ];
 
   const handleToggleStore = async () => {
@@ -293,7 +296,7 @@ export default function StoreDashboard() {
                 
                 {!showTodayOnly && (
                   <div className="flex items-center gap-2">
-                    <Popover>
+                    <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" size="sm" className="w-[120px] justify-start">
                           <CalendarIcon className="mr-2 h-4 w-4" />
@@ -304,7 +307,14 @@ export default function StoreDashboard() {
                         <Calendar
                           mode="single"
                           selected={startDate}
-                          onSelect={setStartDate}
+                          onSelect={(date) => {
+                            setStartDate(date);
+                            setDatePopoverOpen(false);
+                            // Auto open end date picker
+                            setTimeout(() => {
+                              endDateRef.current?.click();
+                            }, 100);
+                          }}
                           locale={ptBR}
                           className="pointer-events-auto"
                         />
@@ -315,7 +325,7 @@ export default function StoreDashboard() {
                     
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-[120px] justify-start">
+                        <Button ref={endDateRef} variant="outline" size="sm" className="w-[120px] justify-start">
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {endDate ? format(endDate, "dd/MM/yyyy") : "Data final"}
                         </Button>
@@ -324,7 +334,9 @@ export default function StoreDashboard() {
                         <Calendar
                           mode="single"
                           selected={endDate}
-                          onSelect={setEndDate}
+                          onSelect={(date) => {
+                            setEndDate(date);
+                          }}
                           locale={ptBR}
                           className="pointer-events-auto"
                         />
@@ -393,23 +405,9 @@ export default function StoreDashboard() {
           </div>
 
           {/* Bottom Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <TopProductsList products={topProducts.map(p => ({ name: p.name, quantity: p.sales, revenue: p.revenue }))} />
-            <AlertsWidget alerts={recentAlerts.map(a => ({ 
-              id: a.id.toString(), 
-              type: a.type === 'order' ? 'info' as const : a.type === 'stock' ? 'warning' as const : 'error' as const, 
-              title: a.type === 'order' ? 'Novo Pedido' : a.type === 'stock' ? 'Estoque Baixo' : 'Sistema',
-              description: a.message, 
-              time: a.time 
-            }))} />
-            <QuickActions
-              onToggleStore={handleToggleStore}
-              onToggleDelivery={handleToggleDelivery}
-              onBackup={handleBackup}
-              onSendBroadcast={handleBroadcast}
-              storeOpen={storeOpen}
-              deliveryActive={deliveryActive}
-            />
+            <TopCustomersList customers={topCustomers} />
           </div>
         </div>
       </div>
