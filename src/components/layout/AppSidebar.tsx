@@ -98,6 +98,7 @@ export function AppSidebar() {
   const { toast } = useToast();
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [isHovered, setIsHovered] = useState(false);
+  const [forceExpanded, setForceExpanded] = useState(false);
 
   // Load user and company info
   const { data: userInfo } = useQuery({
@@ -158,31 +159,41 @@ export function AppSidebar() {
     );
   };
 
-  const isCollapsed = state === "collapsed";
-  const shouldExpand = isCollapsed && isHovered;
-  const effectiveCollapsed = isCollapsed && !shouldExpand;
+  // Controle manual da expansão ao invés de depender do state do sidebar
+  const isManuallyCollapsed = state === "collapsed" && !forceExpanded;
+  const shouldBeExpanded = isManuallyCollapsed && isHovered;
+  const isEffectivelyCollapsed = isManuallyCollapsed && !shouldBeExpanded;
+
+  // Effect para forçar expansão quando hover
+  useEffect(() => {
+    if (state === "collapsed" && isHovered) {
+      setForceExpanded(true);
+    } else if (!isHovered) {
+      setForceExpanded(false);
+    }
+  }, [isHovered, state]);
 
   return (
     <div 
-      className="relative"
+      className="relative h-full"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <Sidebar 
-        className={`transition-all duration-300 ${effectiveCollapsed ? "w-16" : "w-64"}`} 
+        className={`transition-all duration-300 ${isEffectivelyCollapsed ? "w-16" : "w-64"}`} 
         collapsible="icon"
       >
       <SidebarHeader className="border-b border-border">
-        <div className={`${effectiveCollapsed ? "p-2" : "p-4"} transition-all relative`}>
-          {/* Collapse/Expand Button */}
-          {!isHovered && (
+        <div className={`${isEffectivelyCollapsed ? "p-2" : "p-4"} transition-all relative`}>
+          {/* Collapse/Expand Button - escondido durante hover */}
+          {!shouldBeExpanded && (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => toggleSidebar()}
               className="absolute right-2 top-2 h-6 w-6 z-10"
             >
-              {isCollapsed ? (
+              {isManuallyCollapsed ? (
                 <ChevronRight className="h-4 w-4" />
               ) : (
                 <ChevronLeft className="h-4 w-4" />
@@ -196,14 +207,14 @@ export function AppSidebar() {
               <img 
                 src={userInfo.company.logo_url} 
                 alt={userInfo.company.name}
-                className={`${effectiveCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg object-cover transition-all`}
+                className={`${isEffectivelyCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg object-cover transition-all`}
               />
             ) : (
-              <div className={`${effectiveCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg bg-gradient-primary flex items-center justify-center transition-all`}>
-                <Store className={`${effectiveCollapsed ? "w-4 h-4" : "w-5 h-5"} text-primary-foreground transition-all`} />
+              <div className={`${isEffectivelyCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg bg-gradient-primary flex items-center justify-center transition-all`}>
+                <Store className={`${isEffectivelyCollapsed ? "w-4 h-4" : "w-5 h-5"} text-primary-foreground transition-all`} />
               </div>
             )}
-            {!effectiveCollapsed && (
+            {!isEffectivelyCollapsed && (
               <div className="flex-1 min-w-0 animate-fade-in">
                 <p className="text-sm font-semibold truncate">
                   {userInfo?.company?.fantasy_name || userInfo?.company?.name || "AnaFood"}
@@ -213,7 +224,7 @@ export function AppSidebar() {
           </div>
 
           {/* User Info */}
-          {!effectiveCollapsed && (
+          {!isEffectivelyCollapsed && (
             <div className="space-y-1 animate-fade-in">
               <div className="flex items-center gap-2 text-sm">
                 <User className="w-4 h-4 text-muted-foreground" />
@@ -252,7 +263,7 @@ export function AppSidebar() {
                               className={hasActiveSubItem ? "font-medium" : ""}
                             >
                               <item.icon className="h-4 w-4" />
-                              {!effectiveCollapsed && (
+                              {!isEffectivelyCollapsed && (
                                 <>
                                   <span className="flex-1">{item.title}</span>
                                   <ChevronDown
@@ -264,7 +275,7 @@ export function AppSidebar() {
                               )}
                             </SidebarMenuButton>
                           </CollapsibleTrigger>
-                          {!effectiveCollapsed && (
+                          {!isEffectivelyCollapsed && (
                             <CollapsibleContent>
                               <SidebarMenuSub>
                                 {item.subItems?.map((subItem) => (
@@ -296,7 +307,7 @@ export function AppSidebar() {
                       >
                         <NavLink to={item.url!}>
                           <item.icon className="h-4 w-4" />
-                          {!effectiveCollapsed && <span>{item.title}</span>}
+                          {!isEffectivelyCollapsed && <span>{item.title}</span>}
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -312,12 +323,12 @@ export function AppSidebar() {
         <div className="p-4">
           <Button
             variant="ghost"
-            size={effectiveCollapsed ? "icon" : "default"}
+            size={isEffectivelyCollapsed ? "icon" : "default"}
             onClick={handleLogout}
             className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
           >
             <LogOut className="h-4 w-4" />
-            {!effectiveCollapsed && <span className="ml-2">Sair</span>}
+            {!isEffectivelyCollapsed && <span className="ml-2">Sair</span>}
           </Button>
         </div>
       </SidebarFooter>
