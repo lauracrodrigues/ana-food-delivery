@@ -175,19 +175,17 @@ export function AppSidebar() {
     );
   };
 
-  const isCollapsed = !isPinned && state === "collapsed";
-  const shouldExpand = isCollapsed && isHovered && !isMobile;
+  const isExpanded = isPinned || (isHovered && !isMobile);
+  const showContent = isExpanded;
   
   // Update sidebar state when hover or pin changes
   useEffect(() => {
-    if (isPinned) {
+    if (isPinned || (isHovered && !isMobile)) {
       setOpen(true);
-    } else if (shouldExpand) {
-      setOpen(true);
-    } else if (isCollapsed && !isHovered) {
+    } else {
       setOpen(false);
     }
-  }, [shouldExpand, isCollapsed, isHovered, isPinned, setOpen]);
+  }, [isHovered, isPinned, isMobile, setOpen]);
 
   // Mobile menu toggle button for screens < 1024px
   if (isMobile) {
@@ -338,12 +336,12 @@ export function AppSidebar() {
     >
       <Sidebar 
         className={`transition-all duration-300 ease-in-out ${
-          isPinned || shouldExpand ? "w-[250px]" : "w-[60px]"
+          isExpanded ? "w-[250px]" : "w-[60px]"
         } h-screen border-r border-border shadow-lg`}
         collapsible="icon"
       >
         <SidebarHeader className="border-b border-border">
-          <div className={`${isCollapsed && !shouldExpand ? "p-2" : "p-4"} transition-all duration-300 relative`}>
+          <div className={`${!showContent ? "p-2" : "p-4"} transition-all duration-300 relative`}>
             {/* Pin/Unpin Button */}
             <Button
               variant="ghost"
@@ -366,26 +364,26 @@ export function AppSidebar() {
                   src={userInfo.company.logo_url} 
                   alt={userInfo.company.name}
                   className={`${
-                    isCollapsed && !shouldExpand 
+                    !showContent 
                       ? "w-10 h-8" 
                       : "w-[150px] h-[100px]"
                   } object-contain transition-all duration-300 mb-3`}
                 />
               ) : (
                 <div className={`${
-                  isCollapsed && !shouldExpand 
+                  !showContent 
                     ? "w-10 h-10" 
                     : "w-[150px] h-[100px]"
                 } rounded-lg bg-gradient-primary flex items-center justify-center transition-all duration-300 mb-3`}>
                   <Store className={`${
-                    isCollapsed && !shouldExpand 
+                    !showContent 
                       ? "w-5 h-5" 
                       : "w-12 h-12"
                   } text-primary-foreground transition-all duration-300`} />
                 </div>
               )}
               
-              {(!isCollapsed || shouldExpand) && (
+              {showContent && (
                 <div className="text-center space-y-1 animate-fade-in">
                   <h2 className="text-base font-semibold truncate max-w-[200px]">
                     {userInfo?.company?.fantasy_name || userInfo?.company?.name || "AnaFood"}
@@ -400,7 +398,7 @@ export function AppSidebar() {
             </div>
 
             {/* User Info */}
-            {(!isCollapsed || shouldExpand) && (
+            {showContent && (
               <div className="mt-4 space-y-1 animate-fade-in">
                 <div className="flex items-center gap-2 text-sm">
                   <User className="w-4 h-4 text-muted-foreground" />
@@ -430,7 +428,7 @@ export function AppSidebar() {
                       return (
                         <Collapsible
                           key={item.title}
-                          open={isGroupOpen || shouldExpand}
+                          open={isGroupOpen}
                           onOpenChange={() => toggleGroup(item.title)}
                         >
                           <SidebarMenuItem>
@@ -442,7 +440,7 @@ export function AppSidebar() {
                                 title={item.title}
                               >
                                 <item.icon className="h-5 w-5 min-w-[20px]" />
-                                {(!isCollapsed || shouldExpand) && (
+                                {showContent && (
                                   <>
                                     <span className="flex-1 animate-fade-in">{item.title}</span>
                                     <ChevronDown
@@ -454,7 +452,7 @@ export function AppSidebar() {
                                 )}
                               </SidebarMenuButton>
                             </CollapsibleTrigger>
-                            {(!isCollapsed || shouldExpand) && (
+                            {showContent && (
                               <CollapsibleContent className="transition-all duration-300">
                                 <SidebarMenuSub>
                                   {item.subItems?.map((subItem) => (
@@ -487,7 +485,7 @@ export function AppSidebar() {
                         >
                           <NavLink to={item.url!}>
                             <item.icon className="h-5 w-5 min-w-[20px]" />
-                            {(!isCollapsed || shouldExpand) && (
+                            {showContent && (
                               <span className="animate-fade-in">{item.title}</span>
                             )}
                           </NavLink>
@@ -502,16 +500,16 @@ export function AppSidebar() {
         </SidebarContent>
 
         <SidebarFooter className="border-t border-border">
-          <div className={`${isCollapsed && !shouldExpand ? "p-2" : "p-4"} transition-all duration-300`}>
+          <div className={`${!showContent ? "p-2" : "p-4"} transition-all duration-300`}>
             <Button
               variant="ghost"
-              size={isCollapsed && !shouldExpand ? "icon" : "default"}
+              size={!showContent ? "icon" : "default"}
               onClick={handleLogout}
               className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
               title="Sair"
             >
-              <LogOut className={`${isCollapsed && !shouldExpand ? "h-5 w-5" : "h-4 w-4"}`} />
-              {(!isCollapsed || shouldExpand) && <span className="ml-2 animate-fade-in">Sair</span>}
+              <LogOut className={`${!showContent ? "h-5 w-5" : "h-4 w-4"}`} />
+              {showContent && <span className="ml-2 animate-fade-in">Sair</span>}
             </Button>
           </div>
         </SidebarFooter>
