@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, QrCode, RefreshCw, MessageSquare } from "lucide-react";
+import { Edit2, Trash2, QrCode, RefreshCw, MessageSquare, AlertCircle } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 interface WhatsAppSession {
   id: string;
@@ -35,6 +37,8 @@ export function WhatsAppSessionList({
   onConnect,
   onCheckStatus,
 }: WhatsAppSessionListProps) {
+  const { toast } = useToast();
+
   const getStatusBadge = (status?: string) => {
     switch (status) {
       case 'open':

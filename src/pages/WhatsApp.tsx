@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import QRCode from "qrcode";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare, Plus } from "lucide-react";
+import { MessageSquare, Plus, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppSessionList } from "@/components/whatsapp/WhatsAppSessionList";
 import { WhatsAppTestMessage } from "@/components/whatsapp/WhatsAppTestMessage";
@@ -270,9 +271,29 @@ export default function WhatsApp() {
     setDeleteId(null);
   };
 
-  // Verificar status da conexão
+  // Controle de limite de chamadas
+  const lastCheckRef = useRef<Record<string, number>>({});
+  const MIN_CHECK_INTERVAL = 10000; // 10 segundos entre verificações
+
+  // Verificar status da conexão com throttling
   const checkConnectionStatus = async (sessionName: string) => {
+    const now = Date.now();
+    const lastCheck = lastCheckRef.current[sessionName] || 0;
+    
+    // Verificar se já passou tempo suficiente desde a última verificação
+    if (now - lastCheck < MIN_CHECK_INTERVAL) {
+      const waitTime = Math.ceil((MIN_CHECK_INTERVAL - (now - lastCheck)) / 1000);
+      toast({
+        title: "Aguarde",
+        description: `Próxima verificação disponível em ${waitTime} segundos`,
+        variant: "default",
+      });
+      return sessions.find(s => s.session_name === sessionName)?.connection_status || 'unknown';
+    }
+
     setLoadingStatus(prev => ({ ...prev, [sessionName]: true }));
+    lastCheckRef.current[sessionName] = now;
+    
     try {
       const response = await supabase.functions.invoke('whatsapp-evolution', {
         body: { instanceName: sessionName, action: 'status' }
@@ -284,6 +305,11 @@ export default function WhatsApp() {
       return 'unknown';
     } catch (error) {
       console.error('Erro ao verificar status:', error);
+      toast({
+        title: "Erro ao verificar status",
+        description: "Não foi possível verificar o status da conexão",
+        variant: "destructive",
+      });
       return 'unknown';
     } finally {
       setLoadingStatus(prev => ({ ...prev, [sessionName]: false }));
@@ -388,6 +414,23 @@ export default function WhatsApp() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      {/* Aviso sobre limite de verificações */}
+      <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Limite de verificações de status
+              </p>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                Para evitar sobrecarga na API, as verificações de status têm um intervalo mínimo de 10 segundos entre cada chamada.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-6 w-6" />
