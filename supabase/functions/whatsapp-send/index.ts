@@ -23,8 +23,13 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Sending message via instance: ${instanceName} to number: ${number}`);
 
+    // URL correta da Evolution API
+    const evolutionUrl = `https://evo.anafood.vip/message/sendText/${instanceName}`;
+    
+    console.log(`Sending request to: ${evolutionUrl}`);
+
     // Enviar mensagem via Evolution API
-    const response = await fetch('https://evolution-api.grameenphone.com.br/message/sendText/Lovabledelivery', {
+    const response = await fetch(evolutionUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -35,7 +40,9 @@ Deno.serve(async (req: Request) => {
         options: {
           delay: 1200,
         },
-        text: message,
+        textMessage: {
+          text: message,
+        },
       }),
     });
 
