@@ -1,16 +1,10 @@
 import { useState, useEffect } from "react";
+import QRCode from "qrcode";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { MessageSquare, Plus, RefreshCw, QrCode, Edit2, Trash2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { MessageSquare, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppSessionList } from "@/components/whatsapp/WhatsAppSessionList";
 import { WhatsAppTestMessage } from "@/components/whatsapp/WhatsAppTestMessage";
@@ -18,7 +12,6 @@ import { WhatsAppStatusMessages } from "@/components/whatsapp/WhatsAppStatusMess
 import { WhatsAppSessionDialog } from "@/components/whatsapp/WhatsAppSessionDialog";
 import { WhatsAppQRCodeDialog } from "@/components/whatsapp/WhatsAppQRCodeDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import QRCode from "qrcode";
 
 interface WhatsAppSession {
   id: string;
@@ -395,25 +388,12 @@ export default function WhatsApp() {
     return () => clearInterval(interval);
   }, [sessions.length, companyId]);
 
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case 'open':
-        return <Badge className="bg-green-500">Conectado</Badge>;
-      case 'close':
-        return <Badge variant="destructive">Desconectado</Badge>;
-      case 'connecting':
-        return <Badge variant="secondary">Conectando...</Badge>;
-      default:
-        return <Badge variant="outline">Verificando...</Badge>;
-    }
-  };
-
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Sessões WhatsApp</h1>
+          <h1 className="text-2xl font-bold">Configurações WhatsApp</h1>
         </div>
         <Button onClick={handleOpenAddDialog}>
           <Plus className="h-4 w-4 mr-2" />
@@ -421,157 +401,45 @@ export default function WhatsApp() {
         </Button>
       </div>
 
-      {/* Sessions list */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sessões Configuradas</CardTitle>
-          <CardDescription>
-            Gerencie as sessões do WhatsApp da sua empresa
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p>Carregando...</p>
-          ) : sessions.length === 0 ? (
-            <div className="text-center py-8">
-              <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Nenhuma sessão configurada.</p>
-              <Button onClick={handleOpenAddDialog} className="mt-4">
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Primeira Sessão
-              </Button>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome da Sessão</TableHead>
-                  <TableHead>Nome do Agente</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Prompt</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sessions.map((session) => (
-                  <TableRow key={session.id}>
-                    <TableCell className="font-medium">{session.session_name}</TableCell>
-                    <TableCell>{session.agent_name}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(session.connection_status)}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => checkConnectionStatus(session.session_name)}
-                          disabled={loadingStatus[session.session_name]}
-                        >
-                          <RefreshCw className={`h-4 w-4 ${loadingStatus[session.session_name] ? 'animate-spin' : ''}`} />
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-muted-foreground">
-                        {session.agent_prompt ? 
-                          (session.agent_prompt.length > 50 ? 
-                            session.agent_prompt.substring(0, 50) + "..." : 
-                            session.agent_prompt) : 
-                          "Sem prompt definido"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-2 justify-end">
-                        {session.connection_status !== 'open' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleConnect(session.session_name)}
-                          >
-                            <QrCode className="h-4 w-4 mr-1" />
-                            Conectar
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleOpenEditDialog(session)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setDeleteId(session.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="sessions" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="sessions">Sessões</TabsTrigger>
+          <TabsTrigger value="test">Teste de Envio</TabsTrigger>
+          <TabsTrigger value="status">Mensagens de Status</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="sessions">
+          <WhatsAppSessionList
+            sessions={sessions}
+            isLoading={isLoading}
+            loadingStatus={loadingStatus}
+            onAddNew={handleOpenAddDialog}
+            onEdit={handleOpenEditDialog}
+            onDelete={(id) => setDeleteId(id)}
+            onConnect={handleConnect}
+            onCheckStatus={checkConnectionStatus}
+          />
+        </TabsContent>
+
+        <TabsContent value="test">
+          <WhatsAppTestMessage sessions={sessions} />
+        </TabsContent>
+
+        <TabsContent value="status">
+          <WhatsAppStatusMessages />
+        </TabsContent>
+      </Tabs>
 
       {/* Add/Edit Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>
-              {editingSession ? "Editar Sessão" : "Nova Sessão WhatsApp"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingSession ? 
-                "Atualize as informações da sessão WhatsApp." : 
-                "Configure uma nova sessão do WhatsApp para sua empresa."}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="session_name">Nome da Sessão *</Label>
-              <Input
-                id="session_name"
-                placeholder="Ex: Atendimento Principal"
-                value={formData.session_name}
-                onChange={(e) => setFormData({ ...formData, session_name: e.target.value })}
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="agent_name">Nome do Agente *</Label>
-              <Input
-                id="agent_name"
-                placeholder="Ex: Assistente Virtual"
-                value={formData.agent_name}
-                onChange={(e) => setFormData({ ...formData, agent_name: e.target.value })}
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="agent_prompt">Prompt do Agente</Label>
-              <Textarea
-                id="agent_prompt"
-                placeholder="Defina o comportamento e personalidade do agente..."
-                value={formData.agent_prompt}
-                onChange={(e) => setFormData({ ...formData, agent_prompt: e.target.value })}
-                rows={4}
-              />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCloseDialog}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave}>
-              {editingSession ? "Salvar Alterações" : "Adicionar Sessão"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <WhatsAppSessionDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        formData={formData}
+        onFormChange={setFormData}
+        onSave={handleSave}
+        onCancel={handleCloseDialog}
+        isEditing={!!editingSession}
+      />
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
@@ -595,42 +463,13 @@ export default function WhatsApp() {
       </AlertDialog>
 
       {/* QR Code Dialog */}
-      <Dialog open={qrCodeDialog.open} onOpenChange={(open) => setQrCodeDialog({ ...qrCodeDialog, open })}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Conectar WhatsApp</DialogTitle>
-            <DialogDescription>
-              Escaneie o QR Code abaixo com o WhatsApp da sessão: {qrCodeDialog.sessionName}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="flex flex-col items-center justify-center py-6">
-            {qrCodeDialog.qrCode && (
-              <img 
-                src={qrCodeDialog.qrCode} 
-                alt="QR Code WhatsApp" 
-                className="w-64 h-64 border-2 border-border rounded-lg"
-              />
-            )}
-            <p className="text-sm text-muted-foreground mt-4 text-center">
-              O QR Code expira em alguns minutos. Se necessário, clique em "Conectar" novamente.
-            </p>
-          </div>
-          
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setQrCodeDialog({ open: false, qrCode: '', sessionName: '' })}
-            >
-              Fechar
-            </Button>
-            <Button onClick={() => handleConnect(qrCodeDialog.sessionName)}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Gerar Novo QR Code
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <WhatsAppQRCodeDialog
+        open={qrCodeDialog.open}
+        qrCode={qrCodeDialog.qrCode}
+        sessionName={qrCodeDialog.sessionName}
+        onClose={() => setQrCodeDialog({ open: false, qrCode: '', sessionName: '' })}
+        onRefresh={handleConnect}
+      />
     </div>
   );
 }

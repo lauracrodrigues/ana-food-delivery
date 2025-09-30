@@ -42,15 +42,15 @@ export function WhatsAppStatusMessages() {
         if (profile?.company_id) {
           setCompanyId(profile.company_id);
           
-          // Load existing messages
-          const { data: messages } = await supabase
+          // Load existing messages - type-safe query
+          const { data: messages, error } = await supabase
             .from('whatsapp_status_messages')
             .select('*')
             .eq('company_id', profile.company_id);
           
-          if (messages && messages.length > 0) {
+          if (!error && messages && messages.length > 0) {
             const loadedMessages = statusMessages.map(sm => {
-              const found = messages.find(m => m.status === sm.status);
+              const found = messages.find((m: any) => m.status === sm.status);
               if (found) {
                 return {
                   ...sm,
