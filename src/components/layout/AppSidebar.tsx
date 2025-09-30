@@ -159,24 +159,44 @@ export function AppSidebar() {
   };
 
   const isCollapsed = state === "collapsed";
+  const shouldExpand = isCollapsed && isHovered;
+  
+  // Atualizar o estado do sidebar quando o hover acontece
+  useEffect(() => {
+    if (shouldExpand) {
+      setOpen(true);
+    } else if (isCollapsed && !isHovered) {
+      setOpen(false);
+    }
+  }, [shouldExpand, isCollapsed, isHovered, setOpen]);
 
   return (
-    <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="relative"
+    >
+      <Sidebar 
+        className={`transition-all duration-300 ${shouldExpand ? "w-64" : isCollapsed ? "w-16" : "w-64"}`} 
+        collapsible="icon"
+      >
       <SidebarHeader className="border-b border-border">
         <div className={`${isCollapsed ? "p-2" : "p-4"} transition-all relative`}>
-          {/* Collapse/Expand Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => toggleSidebar()}
-            className="absolute right-2 top-2 h-6 w-6 z-10"
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </Button>
+          {/* Collapse/Expand Button - Hide when hovering */}
+          {!isHovered && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => toggleSidebar()}
+              className="absolute right-2 top-2 h-6 w-6 z-10"
+            >
+              {isCollapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </Button>
+          )}
           
           {/* Company Logo and Name */}
           <div className="flex items-center gap-3 mb-4">
@@ -231,7 +251,7 @@ export function AppSidebar() {
                     return (
                       <Collapsible
                         key={item.title}
-                        open={isGroupOpen}
+                        open={isGroupOpen || shouldExpand}
                         onOpenChange={() => toggleGroup(item.title)}
                       >
                         <SidebarMenuItem>
@@ -309,6 +329,7 @@ export function AppSidebar() {
           </Button>
         </div>
       </SidebarFooter>
-    </Sidebar>
+      </Sidebar>
+    </div>
   );
 }

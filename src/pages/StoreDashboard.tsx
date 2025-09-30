@@ -7,7 +7,8 @@ import {
   DollarSign,
   Clock,
   Store,
-  Menu
+  Menu,
+  CalendarIcon
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +22,16 @@ import { AlertsWidget } from "@/components/dashboard/AlertsWidget";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function StoreDashboard() {
   const navigate = useNavigate();
@@ -30,6 +41,9 @@ export default function StoreDashboard() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [storeOpen, setStoreOpen] = useState(true);
   const [deliveryActive, setDeliveryActive] = useState(true);
+  const [showTodayOnly, setShowTodayOnly] = useState(true);
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date());
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   
 
   // Load company info
@@ -95,20 +109,37 @@ export default function StoreDashboard() {
   });
 
   // Calculate metrics for dashboard
-  const { data: todayOrders } = useQuery({
-    queryKey: ["today-orders", companyId],
+  const { data: filteredOrders } = useQuery({
+    queryKey: ["filtered-orders", companyId, showTodayOnly, startDate, endDate],
     queryFn: async () => {
       if (!companyId) return [];
       
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const { data } = await supabase
+      let query = supabase
         .from('orders')
         .select('*')
-        .eq('company_id', companyId)
-        .gte('created_at', today.toISOString())
-        .order('created_at', { ascending: false });
+        .eq('company_id', companyId);
+      
+      if (showTodayOnly) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        query = query
+          .gte('created_at', today.toISOString())
+          .lt('created_at', tomorrow.toISOString());
+      } else if (startDate && endDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        
+        query = query
+          .gte('created_at', start.toISOString())
+          .lte('created_at', end.toISOString());
+      }
+      
+      const { data } = await query.order('created_at', { ascending: false });
       
       return data || [];
     },
@@ -117,27 +148,27 @@ export default function StoreDashboard() {
   });
 
   const metrics = useMemo(() => {
-    if (!todayOrders) return {
-      todayOrders: 0,
-      todayRevenue: 0,
+    if (!filteredOrders) return {
+      totalOrders: 0,
+      totalRevenue: 0,
       averageTicket: 0,
       pendingOrders: 0,
     };
 
-    const totalOrders = todayOrders.length;
-    const totalRevenue = todayOrders.reduce((sum, order) => sum + Number(order.total), 0);
+    const totalOrders = filteredOrders.length;
+    const totalRevenue = filteredOrders.reduce((sum, order) => sum + Number(order.total), 0);
     const averageTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-    const pendingOrders = todayOrders.filter(order => 
+    const pendingOrders = filteredOrders.filter(order => 
       ['pending', 'preparing'].includes(order.status)
     ).length;
 
     return {
-      todayOrders: totalOrders,
-      todayRevenue: totalRevenue,
+      totalOrders,
+      totalRevenue,
       averageTicket,
       pendingOrders,
     };
-  }, [todayOrders]);
+  }, [filteredOrders]);
 
   // Revenue data for chart
   const revenueData = useMemo(() => {
@@ -246,7 +277,64 @@ export default function StoreDashboard() {
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
+              {/* Date Filter */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Checkbox 
+                    id="today-only"
+                    checked={showTodayOnly}
+                    onCheckedChange={(checked) => setShowTodayOnly(checked as boolean)}
+                  />
+                  <Label htmlFor="today-only" className="text-sm font-medium cursor-pointer">
+                    Apenas Hoje
+                  </Label>
+                </div>
+                
+                {!showTodayOnly && (
+                  <div className="flex items-center gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-[120px] justify-start">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {startDate ? format(startDate, "dd/MM/yyyy") : "Data inicial"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={startDate}
+                          onSelect={setStartDate}
+                          locale={ptBR}
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    
+                    <span className="text-sm text-muted-foreground">até</span>
+                    
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-[120px] justify-start">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {endDate ? format(endDate, "dd/MM/yyyy") : "Data final"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={endDate}
+                          onSelect={setEndDate}
+                          locale={ptBR}
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+              </div>
+              
+              {/* Store Status Button */}
               <Button
                 variant={storeOpen ? "default" : "destructive"}
                 size="sm"
@@ -266,25 +354,25 @@ export default function StoreDashboard() {
           {/* Metrics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricsCard
-              title="Pedidos Hoje"
-              value={metrics.todayOrders}
+              title={showTodayOnly ? "Pedidos Hoje" : "Total de Pedidos"}
+              value={metrics.totalOrders}
               icon={ShoppingBag}
-              trend={{ value: 12, isPositive: true }}
-              subtitle="vs. ontem"
+              trend={showTodayOnly ? { value: 12, isPositive: true } : undefined}
+              subtitle={showTodayOnly ? "vs. ontem" : "no período"}
             />
             <MetricsCard
               title="Faturamento"
-              value={`R$ ${metrics.todayRevenue.toFixed(2)}`}
+              value={`R$ ${metrics.totalRevenue.toFixed(2)}`}
               icon={DollarSign}
-              trend={{ value: 8, isPositive: true }}
-              subtitle="vs. ontem"
+              trend={showTodayOnly ? { value: 8, isPositive: true } : undefined}
+              subtitle={showTodayOnly ? "vs. ontem" : "no período"}
             />
             <MetricsCard
               title="Ticket Médio"
               value={`R$ ${metrics.averageTicket.toFixed(2)}`}
               icon={TrendingUp}
-              trend={{ value: 5, isPositive: true }}
-              subtitle="vs. média"
+              trend={showTodayOnly ? { value: 5, isPositive: true } : undefined}
+              subtitle={showTodayOnly ? "vs. média" : "no período"}
             />
             <MetricsCard
               title="Pedidos Pendentes"
