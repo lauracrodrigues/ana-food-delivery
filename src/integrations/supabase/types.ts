@@ -520,6 +520,7 @@ export type Database = {
           auto_accept: boolean | null
           company_id: string
           created_at: string | null
+          default_whatsapp_session: string | null
           delivery_fee: number | null
           delivery_time: number | null
           id: string
@@ -535,6 +536,7 @@ export type Database = {
           auto_accept?: boolean | null
           company_id: string
           created_at?: string | null
+          default_whatsapp_session?: string | null
           delivery_fee?: number | null
           delivery_time?: number | null
           id?: string
@@ -550,6 +552,7 @@ export type Database = {
           auto_accept?: boolean | null
           company_id?: string
           created_at?: string | null
+          default_whatsapp_session?: string | null
           delivery_fee?: number | null
           delivery_time?: number | null
           id?: string
