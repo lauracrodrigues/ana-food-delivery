@@ -18,7 +18,11 @@ import {
   Store,
   Mail,
   User,
-  CreditCard
+  CreditCard,
+  Pin,
+  PinOff,
+  X,
+  Menu
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -98,6 +102,19 @@ export function AppSidebar() {
   const { toast } = useToast();
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [isHovered, setIsHovered] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Load user and company info
   const { data: userInfo } = useQuery({
@@ -119,7 +136,7 @@ export function AppSidebar() {
       if (profile?.company_id) {
         const { data: company } = await supabase
           .from('companies')
-          .select('name, fantasy_name, logo_url')
+          .select('name, fantasy_name, logo_url, cnpj')
           .eq('id', profile.company_id)
           .single();
         companyData = company;
@@ -158,181 +175,346 @@ export function AppSidebar() {
     );
   };
 
-  const isCollapsed = state === "collapsed";
-  const shouldExpand = isCollapsed && isHovered;
+  const isCollapsed = !isPinned && state === "collapsed";
+  const shouldExpand = isCollapsed && isHovered && !isMobile;
   
-  // Atualizar o estado do sidebar quando o hover acontece
+  // Update sidebar state when hover or pin changes
   useEffect(() => {
-    if (shouldExpand) {
+    if (isPinned) {
+      setOpen(true);
+    } else if (shouldExpand) {
       setOpen(true);
     } else if (isCollapsed && !isHovered) {
       setOpen(false);
     }
-  }, [shouldExpand, isCollapsed, isHovered, setOpen]);
+  }, [shouldExpand, isCollapsed, isHovered, isPinned, setOpen]);
 
-  return (
-    <div
-      onMouseEnter={() => isCollapsed && setIsHovered(true)}
-      onMouseLeave={() => {
-        if (isCollapsed) {
-          setIsHovered(false);
-        }
-      }}
-      className="relative"
-    >
-      <Sidebar 
-        className={`transition-all duration-300 ${shouldExpand ? "w-64" : isCollapsed ? "w-16" : "w-64"}`} 
-        collapsible="icon"
-      >
-      <SidebarHeader className="border-b border-border">
-        <div className={`${isCollapsed ? "p-2" : "p-4"} transition-all relative`}>
-          {/* Collapse/Expand Button - Hide when hovering */}
-          {!isHovered && (
+  // Mobile menu toggle button for screens < 1024px
+  if (isMobile) {
+    return (
+      <>
+        {/* Mobile Menu Toggle Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsMobileOpen(true)}
+          className="fixed top-4 left-4 z-50 lg:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+
+        {/* Mobile Sidebar Overlay */}
+        {isMobileOpen && (
+          <div 
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 lg:hidden"
+            onClick={() => setIsMobileOpen(false)}
+          />
+        )}
+
+        {/* Mobile Sidebar */}
+        <aside
+          className={`fixed top-0 left-0 h-full w-[250px] bg-background border-r border-border z-50 transform transition-transform duration-300 ease-in-out lg:hidden ${
+            isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <div className="p-4 border-b border-border">
+            {/* Close Button */}
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => toggleSidebar()}
-              className="absolute right-2 top-2 h-6 w-6 z-10"
+              onClick={() => setIsMobileOpen(false)}
+              className="absolute right-2 top-2 h-8 w-8"
             >
-              {isCollapsed ? (
-                <ChevronRight className="h-4 w-4" />
+              <X className="h-4 w-4" />
+            </Button>
+
+            {/* Logo and Company Info */}
+            <div className="mb-4">
+              {userInfo?.company?.logo_url ? (
+                <img 
+                  src={userInfo.company.logo_url} 
+                  alt={userInfo.company.name}
+                  className="w-[150px] h-[100px] object-contain mx-auto mb-3"
+                />
               ) : (
-                <ChevronLeft className="h-4 w-4" />
+                <div className="w-[150px] h-[100px] rounded-lg bg-gradient-primary flex items-center justify-center mx-auto mb-3">
+                  <Store className="w-12 h-12 text-primary-foreground" />
+                </div>
+              )}
+              <h2 className="text-lg font-semibold text-center">
+                {userInfo?.company?.fantasy_name || userInfo?.company?.name || "AnaFood"}
+              </h2>
+              {userInfo?.company?.cnpj && (
+                <p className="text-xs text-muted-foreground text-center mt-1">
+                  CNPJ: {userInfo.company.cnpj}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          <ScrollArea className="h-[calc(100%-200px)]">
+            <nav className="p-4 space-y-1">
+              {menuItems.map((item) => {
+                const hasSubItems = item.subItems && item.subItems.length > 0;
+                const isGroupOpen = openGroups.includes(item.title);
+                const isItemActive = item.url ? isActive(item.url) : false;
+
+                if (hasSubItems) {
+                  return (
+                    <div key={item.title}>
+                      <button
+                        onClick={() => toggleGroup(item.title)}
+                        className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors duration-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          <item.icon className="h-5 w-5" />
+                          <span>{item.title}</span>
+                        </div>
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform duration-200 ${
+                            isGroupOpen ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+                      {isGroupOpen && (
+                        <div className="ml-8 mt-1 space-y-1">
+                          {item.subItems?.map((subItem) => (
+                            <NavLink
+                              key={subItem.url}
+                              to={subItem.url}
+                              onClick={() => setIsMobileOpen(false)}
+                              className={getNavItemClass(isActive(subItem.url)) + " block p-2 rounded-lg transition-colors duration-200"}
+                            >
+                              <div className="flex items-center gap-2">
+                                {subItem.icon && <subItem.icon className="h-4 w-4" />}
+                                <span className="text-sm">{subItem.title}</span>
+                              </div>
+                            </NavLink>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                return (
+                  <NavLink
+                    key={item.title}
+                    to={item.url!}
+                    onClick={() => setIsMobileOpen(false)}
+                    className={getNavItemClass(isItemActive) + " flex items-center gap-3 p-3 rounded-lg transition-colors duration-200"}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.title}</span>
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </ScrollArea>
+
+          {/* Mobile Logout Button */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
+            <Button
+              variant="ghost"
+              onClick={handleLogout}
+              className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              <span>Sair</span>
+            </Button>
+          </div>
+        </aside>
+      </>
+    );
+  }
+
+  // Desktop Sidebar
+  return (
+    <div
+      onMouseEnter={() => !isPinned && setIsHovered(true)}
+      onMouseLeave={() => !isPinned && setIsHovered(false)}
+      className="relative"
+    >
+      <Sidebar 
+        className={`transition-all duration-300 ease-in-out ${
+          isPinned || shouldExpand ? "w-[250px]" : "w-[60px]"
+        } h-screen border-r border-border shadow-lg`}
+        collapsible="icon"
+      >
+        <SidebarHeader className="border-b border-border">
+          <div className={`${isCollapsed && !shouldExpand ? "p-2" : "p-4"} transition-all duration-300 relative`}>
+            {/* Pin/Unpin Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsPinned(!isPinned)}
+              className="absolute right-2 top-2 h-8 w-8 z-10 hover:bg-muted/50 transition-colors duration-200"
+              title={isPinned ? "Desfixar" : "Fixar"}
+            >
+              {isPinned ? (
+                <PinOff className="h-4 w-4" />
+              ) : (
+                <Pin className="h-4 w-4" />
               )}
             </Button>
-          )}
-          
-          {/* Company Logo and Name */}
-          <div className="flex items-center gap-3 mb-4">
-            {userInfo?.company?.logo_url ? (
-              <img 
-                src={userInfo.company.logo_url} 
-                alt={userInfo.company.name}
-                className={`${isCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg object-cover transition-all`}
-              />
-            ) : (
-              <div className={`${isCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg bg-gradient-primary flex items-center justify-center transition-all`}>
-                <Store className={`${isCollapsed ? "w-4 h-4" : "w-5 h-5"} text-primary-foreground transition-all`} />
-              </div>
-            )}
-            {!isCollapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">
-                  {userInfo?.company?.fantasy_name || userInfo?.company?.name || "AnaFood"}
-                </p>
+            
+            {/* Company Logo and Name */}
+            <div className="flex flex-col items-center">
+              {userInfo?.company?.logo_url ? (
+                <img 
+                  src={userInfo.company.logo_url} 
+                  alt={userInfo.company.name}
+                  className={`${
+                    isCollapsed && !shouldExpand 
+                      ? "w-10 h-8" 
+                      : "w-[150px] h-[100px]"
+                  } object-contain transition-all duration-300 mb-3`}
+                />
+              ) : (
+                <div className={`${
+                  isCollapsed && !shouldExpand 
+                    ? "w-10 h-10" 
+                    : "w-[150px] h-[100px]"
+                } rounded-lg bg-gradient-primary flex items-center justify-center transition-all duration-300 mb-3`}>
+                  <Store className={`${
+                    isCollapsed && !shouldExpand 
+                      ? "w-5 h-5" 
+                      : "w-12 h-12"
+                  } text-primary-foreground transition-all duration-300`} />
+                </div>
+              )}
+              
+              {(!isCollapsed || shouldExpand) && (
+                <div className="text-center space-y-1 animate-fade-in">
+                  <h2 className="text-base font-semibold truncate max-w-[200px]">
+                    {userInfo?.company?.fantasy_name || userInfo?.company?.name || "AnaFood"}
+                  </h2>
+                  {userInfo?.company?.cnpj && (
+                    <p className="text-xs text-muted-foreground">
+                      CNPJ: {userInfo.company.cnpj}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* User Info */}
+            {(!isCollapsed || shouldExpand) && (
+              <div className="mt-4 space-y-1 animate-fade-in">
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                  <span className="truncate">{userInfo?.fullName}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Mail className="w-3 h-3" />
+                  <span className="truncate">{userInfo?.email}</span>
+                </div>
               </div>
             )}
           </div>
+        </SidebarHeader>
 
-          {/* User Info */}
-          {!isCollapsed && (
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-sm">
-                <User className="w-4 h-4 text-muted-foreground" />
-                <span className="truncate">{userInfo?.fullName}</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Mail className="w-3 h-3" />
-                <span className="truncate">{userInfo?.email}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </SidebarHeader>
+        <SidebarContent>
+          <ScrollArea className="flex-1">
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {menuItems.map((item) => {
+                    const hasSubItems = item.subItems && item.subItems.length > 0;
+                    const isGroupOpen = openGroups.includes(item.title);
+                    const isItemActive = item.url ? isActive(item.url) : false;
+                    const hasActiveSubItem = item.subItems?.some(sub => isActive(sub.url));
 
-      <SidebarContent>
-        <ScrollArea className="flex-1">
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {menuItems.map((item) => {
-                  const hasSubItems = item.subItems && item.subItems.length > 0;
-                  const isGroupOpen = openGroups.includes(item.title);
-                  const isItemActive = item.url ? isActive(item.url) : false;
-                  const hasActiveSubItem = item.subItems?.some(sub => isActive(sub.url));
+                    if (hasSubItems) {
+                      return (
+                        <Collapsible
+                          key={item.title}
+                          open={isGroupOpen || shouldExpand}
+                          onOpenChange={() => toggleGroup(item.title)}
+                        >
+                          <SidebarMenuItem>
+                            <CollapsibleTrigger asChild>
+                              <SidebarMenuButton
+                                className={`transition-all duration-300 ${
+                                  hasActiveSubItem ? "font-medium bg-primary/10" : "hover:bg-muted/50"
+                                }`}
+                                title={item.title}
+                              >
+                                <item.icon className="h-5 w-5 min-w-[20px]" />
+                                {(!isCollapsed || shouldExpand) && (
+                                  <>
+                                    <span className="flex-1 animate-fade-in">{item.title}</span>
+                                    <ChevronDown
+                                      className={`h-4 w-4 transition-transform duration-300 ${
+                                        isGroupOpen ? "rotate-180" : ""
+                                      }`}
+                                    />
+                                  </>
+                                )}
+                              </SidebarMenuButton>
+                            </CollapsibleTrigger>
+                            {(!isCollapsed || shouldExpand) && (
+                              <CollapsibleContent className="transition-all duration-300">
+                                <SidebarMenuSub>
+                                  {item.subItems?.map((subItem) => (
+                                    <SidebarMenuSubItem key={subItem.url}>
+                                      <SidebarMenuSubButton
+                                        asChild
+                                        className={`transition-all duration-200 ${getNavItemClass(isActive(subItem.url))}`}
+                                      >
+                                        <NavLink to={subItem.url} title={subItem.title}>
+                                          {subItem.icon && <subItem.icon className="h-4 w-4 mr-2" />}
+                                          <span className="animate-fade-in">{subItem.title}</span>
+                                        </NavLink>
+                                      </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                  ))}
+                                </SidebarMenuSub>
+                              </CollapsibleContent>
+                            )}
+                          </SidebarMenuItem>
+                        </Collapsible>
+                      );
+                    }
 
-                  if (hasSubItems) {
                     return (
-                      <Collapsible
-                        key={item.title}
-                        open={isGroupOpen || shouldExpand}
-                        onOpenChange={() => toggleGroup(item.title)}
-                      >
-                        <SidebarMenuItem>
-                          <CollapsibleTrigger asChild>
-                            <SidebarMenuButton
-                              className={hasActiveSubItem ? "font-medium" : ""}
-                            >
-                              <item.icon className="h-4 w-4" />
-                              {!isCollapsed && (
-                                <>
-                                  <span className="flex-1">{item.title}</span>
-                                  <ChevronDown
-                                    className={`h-4 w-4 transition-transform ${
-                                      isGroupOpen ? "rotate-180" : ""
-                                    }`}
-                                  />
-                                </>
-                              )}
-                            </SidebarMenuButton>
-                          </CollapsibleTrigger>
-                          {!isCollapsed && (
-                            <CollapsibleContent>
-                              <SidebarMenuSub>
-                                {item.subItems?.map((subItem) => (
-                                  <SidebarMenuSubItem key={subItem.url}>
-                                    <SidebarMenuSubButton
-                                      asChild
-                                      className={getNavItemClass(isActive(subItem.url))}
-                                    >
-                                      <NavLink to={subItem.url}>
-                                        {subItem.icon && <subItem.icon className="h-4 w-4 mr-2" />}
-                                        <span>{subItem.title}</span>
-                                      </NavLink>
-                                    </SidebarMenuSubButton>
-                                  </SidebarMenuSubItem>
-                                ))}
-                              </SidebarMenuSub>
-                            </CollapsibleContent>
-                          )}
-                        </SidebarMenuItem>
-                      </Collapsible>
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          asChild
+                          className={`transition-all duration-300 ${getNavItemClass(isItemActive)}`}
+                          title={item.title}
+                        >
+                          <NavLink to={item.url!}>
+                            <item.icon className="h-5 w-5 min-w-[20px]" />
+                            {(!isCollapsed || shouldExpand) && (
+                              <span className="animate-fade-in">{item.title}</span>
+                            )}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
                     );
-                  }
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </ScrollArea>
+        </SidebarContent>
 
-                  return (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        className={getNavItemClass(isItemActive)}
-                      >
-                        <NavLink to={item.url!}>
-                          <item.icon className="h-4 w-4" />
-                          {!isCollapsed && <span>{item.title}</span>}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </ScrollArea>
-      </SidebarContent>
-
-      <SidebarFooter className="border-t border-border">
-        <div className="p-4">
-          <Button
-            variant="ghost"
-            size={isCollapsed ? "icon" : "default"}
-            onClick={handleLogout}
-            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-          >
-            <LogOut className="h-4 w-4" />
-            {!isCollapsed && <span className="ml-2">Sair</span>}
-          </Button>
-        </div>
-      </SidebarFooter>
+        <SidebarFooter className="border-t border-border">
+          <div className={`${isCollapsed && !shouldExpand ? "p-2" : "p-4"} transition-all duration-300`}>
+            <Button
+              variant="ghost"
+              size={isCollapsed && !shouldExpand ? "icon" : "default"}
+              onClick={handleLogout}
+              className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
+              title="Sair"
+            >
+              <LogOut className={`${isCollapsed && !shouldExpand ? "h-5 w-5" : "h-4 w-4"}`} />
+              {(!isCollapsed || shouldExpand) && <span className="ml-2 animate-fade-in">Sair</span>}
+            </Button>
+          </div>
+        </SidebarFooter>
       </Sidebar>
     </div>
   );
