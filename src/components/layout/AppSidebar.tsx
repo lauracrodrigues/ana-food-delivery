@@ -98,7 +98,6 @@ export function AppSidebar() {
   const { toast } = useToast();
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [isHovered, setIsHovered] = useState(false);
-  const [forceExpanded, setForceExpanded] = useState(false);
 
   // Load user and company info
   const { data: userInfo } = useQuery({
@@ -159,47 +158,25 @@ export function AppSidebar() {
     );
   };
 
-  // Controle manual da expansão ao invés de depender do state do sidebar
-  const isManuallyCollapsed = state === "collapsed" && !forceExpanded;
-  const shouldBeExpanded = isManuallyCollapsed && isHovered;
-  const isEffectivelyCollapsed = isManuallyCollapsed && !shouldBeExpanded;
-
-  // Effect para forçar expansão quando hover
-  useEffect(() => {
-    if (state === "collapsed" && isHovered) {
-      setForceExpanded(true);
-    } else if (!isHovered) {
-      setForceExpanded(false);
-    }
-  }, [isHovered, state]);
+  const isCollapsed = state === "collapsed";
 
   return (
-    <div 
-      className="relative h-full"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <Sidebar 
-        className={`transition-all duration-300 ${isEffectivelyCollapsed ? "w-16" : "w-64"}`} 
-        collapsible="icon"
-      >
+    <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       <SidebarHeader className="border-b border-border">
-        <div className={`${isEffectivelyCollapsed ? "p-2" : "p-4"} transition-all relative`}>
-          {/* Collapse/Expand Button - escondido durante hover */}
-          {!shouldBeExpanded && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => toggleSidebar()}
-              className="absolute right-2 top-2 h-6 w-6 z-10"
-            >
-              {isManuallyCollapsed ? (
-                <ChevronRight className="h-4 w-4" />
-              ) : (
-                <ChevronLeft className="h-4 w-4" />
-              )}
-            </Button>
-          )}
+        <div className={`${isCollapsed ? "p-2" : "p-4"} transition-all relative`}>
+          {/* Collapse/Expand Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => toggleSidebar()}
+            className="absolute right-2 top-2 h-6 w-6 z-10"
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
           
           {/* Company Logo and Name */}
           <div className="flex items-center gap-3 mb-4">
@@ -207,15 +184,15 @@ export function AppSidebar() {
               <img 
                 src={userInfo.company.logo_url} 
                 alt={userInfo.company.name}
-                className={`${isEffectivelyCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg object-cover transition-all`}
+                className={`${isCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg object-cover transition-all`}
               />
             ) : (
-              <div className={`${isEffectivelyCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg bg-gradient-primary flex items-center justify-center transition-all`}>
-                <Store className={`${isEffectivelyCollapsed ? "w-4 h-4" : "w-5 h-5"} text-primary-foreground transition-all`} />
+              <div className={`${isCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg bg-gradient-primary flex items-center justify-center transition-all`}>
+                <Store className={`${isCollapsed ? "w-4 h-4" : "w-5 h-5"} text-primary-foreground transition-all`} />
               </div>
             )}
-            {!isEffectivelyCollapsed && (
-              <div className="flex-1 min-w-0 animate-fade-in">
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">
                   {userInfo?.company?.fantasy_name || userInfo?.company?.name || "AnaFood"}
                 </p>
@@ -224,8 +201,8 @@ export function AppSidebar() {
           </div>
 
           {/* User Info */}
-          {!isEffectivelyCollapsed && (
-            <div className="space-y-1 animate-fade-in">
+          {!isCollapsed && (
+            <div className="space-y-1">
               <div className="flex items-center gap-2 text-sm">
                 <User className="w-4 h-4 text-muted-foreground" />
                 <span className="truncate">{userInfo?.fullName}</span>
@@ -263,7 +240,7 @@ export function AppSidebar() {
                               className={hasActiveSubItem ? "font-medium" : ""}
                             >
                               <item.icon className="h-4 w-4" />
-                              {!isEffectivelyCollapsed && (
+                              {!isCollapsed && (
                                 <>
                                   <span className="flex-1">{item.title}</span>
                                   <ChevronDown
@@ -275,7 +252,7 @@ export function AppSidebar() {
                               )}
                             </SidebarMenuButton>
                           </CollapsibleTrigger>
-                          {!isEffectivelyCollapsed && (
+                          {!isCollapsed && (
                             <CollapsibleContent>
                               <SidebarMenuSub>
                                 {item.subItems?.map((subItem) => (
@@ -307,7 +284,7 @@ export function AppSidebar() {
                       >
                         <NavLink to={item.url!}>
                           <item.icon className="h-4 w-4" />
-                          {!isEffectivelyCollapsed && <span>{item.title}</span>}
+                          {!isCollapsed && <span>{item.title}</span>}
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -323,16 +300,15 @@ export function AppSidebar() {
         <div className="p-4">
           <Button
             variant="ghost"
-            size={isEffectivelyCollapsed ? "icon" : "default"}
+            size={isCollapsed ? "icon" : "default"}
             onClick={handleLogout}
             className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
           >
             <LogOut className="h-4 w-4" />
-            {!isEffectivelyCollapsed && <span className="ml-2">Sair</span>}
+            {!isCollapsed && <span className="ml-2">Sair</span>}
           </Button>
         </div>
       </SidebarFooter>
-      </Sidebar>
-    </div>
+    </Sidebar>
   );
 }
