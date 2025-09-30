@@ -370,7 +370,7 @@ export default function WhatsApp() {
     }
   };
 
-  // Atualizar status periodicamente
+  // Atualizar status apenas ao entrar na tela
   useEffect(() => {
     if (sessions.length === 0) return;
 
@@ -383,9 +383,7 @@ export default function WhatsApp() {
     };
 
     updateStatuses();
-    const interval = setInterval(updateStatuses, 30000); // Atualiza a cada 30 segundos
-
-    return () => clearInterval(interval);
+    // Removido o polling automático de 30 segundos para evitar sobrecarga na API
   }, [sessions.length, companyId]);
 
   return (
