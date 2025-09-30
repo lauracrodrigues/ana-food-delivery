@@ -341,24 +341,26 @@ export function AppSidebar() {
         collapsible="icon"
       >
         <SidebarHeader className="border-b border-border">
-          <div className={`${!showContent ? "p-2" : "p-4"} transition-all duration-300 relative`}>
-            {/* Pin/Unpin Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsPinned(!isPinned)}
-              className="absolute right-2 top-2 h-8 w-8 z-10 hover:bg-muted/50 transition-colors duration-200"
-              title={isPinned ? "Desfixar" : "Fixar"}
-            >
-              {isPinned ? (
-                <PinOff className="h-4 w-4" />
-              ) : (
-                <Pin className="h-4 w-4" />
-              )}
-            </Button>
+          <div className={`${!showContent ? "p-2" : "p-4"} transition-all duration-300`}>
+            {/* Pin/Unpin Button - positioned differently when collapsed */}
+            {showContent && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsPinned(!isPinned)}
+                className="absolute right-2 top-2 h-8 w-8 z-10 hover:bg-muted/50 transition-colors duration-200"
+                title={isPinned ? "Desfixar" : "Fixar"}
+              >
+                {isPinned ? (
+                  <PinOff className="h-4 w-4" />
+                ) : (
+                  <Pin className="h-4 w-4" />
+                )}
+              </Button>
+            )}
             
             {/* Company Logo and Name */}
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center relative">
               {userInfo?.company?.logo_url ? (
                 <img 
                   src={userInfo.company.logo_url} 
@@ -394,6 +396,23 @@ export function AppSidebar() {
                     </p>
                   )}
                 </div>
+              )}
+              
+              {/* Pin button when collapsed - below logo */}
+              {!showContent && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsPinned(!isPinned)}
+                  className="h-8 w-8 mt-2 hover:bg-muted/50 transition-colors duration-200"
+                  title={isPinned ? "Desfixar" : "Fixar"}
+                >
+                  {isPinned ? (
+                    <PinOff className="h-4 w-4" />
+                  ) : (
+                    <Pin className="h-4 w-4" />
+                  )}
+                </Button>
               )}
             </div>
 
