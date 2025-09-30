@@ -159,24 +159,33 @@ export function AppSidebar() {
   };
 
   const isCollapsed = state === "collapsed";
+  const shouldExpand = isCollapsed && isHovered;
+  const effectiveCollapsed = isCollapsed && !shouldExpand;
 
   return (
-    <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
+    <Sidebar 
+      className={effectiveCollapsed ? "w-16" : "w-64"} 
+      collapsible="icon"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <SidebarHeader className="border-b border-border">
-        <div className={`${isCollapsed ? "p-2" : "p-4"} transition-all relative`}>
+        <div className={`${effectiveCollapsed ? "p-2" : "p-4"} transition-all relative`}>
           {/* Collapse/Expand Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => toggleSidebar()}
-            className="absolute right-2 top-2 h-6 w-6 z-10"
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </Button>
+          {!isHovered && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => toggleSidebar()}
+              className="absolute right-2 top-2 h-6 w-6 z-10"
+            >
+              {isCollapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </Button>
+          )}
           
           {/* Company Logo and Name */}
           <div className="flex items-center gap-3 mb-4">
@@ -184,15 +193,15 @@ export function AppSidebar() {
               <img 
                 src={userInfo.company.logo_url} 
                 alt={userInfo.company.name}
-                className={`${isCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg object-cover transition-all`}
+                className={`${effectiveCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg object-cover transition-all`}
               />
             ) : (
-              <div className={`${isCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg bg-gradient-primary flex items-center justify-center transition-all`}>
-                <Store className={`${isCollapsed ? "w-4 h-4" : "w-5 h-5"} text-primary-foreground transition-all`} />
+              <div className={`${effectiveCollapsed ? "w-8 h-8" : "w-10 h-10"} rounded-lg bg-gradient-primary flex items-center justify-center transition-all`}>
+                <Store className={`${effectiveCollapsed ? "w-4 h-4" : "w-5 h-5"} text-primary-foreground transition-all`} />
               </div>
             )}
-            {!isCollapsed && (
-              <div className="flex-1 min-w-0">
+            {!effectiveCollapsed && (
+              <div className="flex-1 min-w-0 animate-fade-in">
                 <p className="text-sm font-semibold truncate">
                   {userInfo?.company?.fantasy_name || userInfo?.company?.name || "AnaFood"}
                 </p>
@@ -201,8 +210,8 @@ export function AppSidebar() {
           </div>
 
           {/* User Info */}
-          {!isCollapsed && (
-            <div className="space-y-1">
+          {!effectiveCollapsed && (
+            <div className="space-y-1 animate-fade-in">
               <div className="flex items-center gap-2 text-sm">
                 <User className="w-4 h-4 text-muted-foreground" />
                 <span className="truncate">{userInfo?.fullName}</span>
@@ -240,7 +249,7 @@ export function AppSidebar() {
                               className={hasActiveSubItem ? "font-medium" : ""}
                             >
                               <item.icon className="h-4 w-4" />
-                              {!isCollapsed && (
+                              {!effectiveCollapsed && (
                                 <>
                                   <span className="flex-1">{item.title}</span>
                                   <ChevronDown
@@ -252,7 +261,7 @@ export function AppSidebar() {
                               )}
                             </SidebarMenuButton>
                           </CollapsibleTrigger>
-                          {!isCollapsed && (
+                          {!effectiveCollapsed && (
                             <CollapsibleContent>
                               <SidebarMenuSub>
                                 {item.subItems?.map((subItem) => (
@@ -284,7 +293,7 @@ export function AppSidebar() {
                       >
                         <NavLink to={item.url!}>
                           <item.icon className="h-4 w-4" />
-                          {!isCollapsed && <span>{item.title}</span>}
+                          {!effectiveCollapsed && <span>{item.title}</span>}
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -300,12 +309,12 @@ export function AppSidebar() {
         <div className="p-4">
           <Button
             variant="ghost"
-            size={isCollapsed ? "icon" : "default"}
+            size={effectiveCollapsed ? "icon" : "default"}
             onClick={handleLogout}
             className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
           >
             <LogOut className="h-4 w-4" />
-            {!isCollapsed && <span className="ml-2">Sair</span>}
+            {!effectiveCollapsed && <span className="ml-2">Sair</span>}
           </Button>
         </div>
       </SidebarFooter>
