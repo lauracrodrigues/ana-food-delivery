@@ -163,12 +163,15 @@ export function AppSidebar() {
   const effectiveCollapsed = isCollapsed && !shouldExpand;
 
   return (
-    <Sidebar 
-      className={effectiveCollapsed ? "w-16" : "w-64"} 
-      collapsible="icon"
+    <div 
+      className="relative"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      <Sidebar 
+        className={`transition-all duration-300 ${effectiveCollapsed ? "w-16" : "w-64"}`} 
+        collapsible="icon"
+      >
       <SidebarHeader className="border-b border-border">
         <div className={`${effectiveCollapsed ? "p-2" : "p-4"} transition-all relative`}>
           {/* Collapse/Expand Button */}
@@ -318,6 +321,7 @@ export function AppSidebar() {
           </Button>
         </div>
       </SidebarFooter>
-    </Sidebar>
+      </Sidebar>
+    </div>
   );
 }
