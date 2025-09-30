@@ -37,11 +37,9 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         number: number,
+        text: message,
         options: {
           delay: 1200,
-        },
-        textMessage: {
-          text: message,
         },
       }),
     });
