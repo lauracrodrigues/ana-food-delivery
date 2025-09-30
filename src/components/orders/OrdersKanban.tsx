@@ -171,8 +171,18 @@ export function OrdersKanban() {
         setSoundEnabled(data.sound_enabled ?? true);
         setDeliveryTime(data.delivery_time ?? 30);
         setPickupTime(data.pickup_time ?? 45);
+        // Aplicar valores do banco apenas se forem válidos, senão usar padrões
         if (data.visible_columns && typeof data.visible_columns === 'object') {
-          setVisibleColumns(data.visible_columns as typeof visibleColumns);
+          const storedColumns = data.visible_columns as typeof visibleColumns;
+          // Garantir que todos os status iniciem habilitados, exceto cancelamento
+          setVisibleColumns({
+            pending: storedColumns.pending ?? true,
+            preparing: storedColumns.preparing ?? true,
+            ready: storedColumns.ready ?? true,
+            delivering: storedColumns.delivering ?? true,
+            completed: storedColumns.completed ?? true,
+            cancelled: storedColumns.cancelled ?? false, // Sempre false por padrão
+          });
         }
       }
 
