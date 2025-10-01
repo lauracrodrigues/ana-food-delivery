@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AnaFood - Plataforma de Delivery Multi-Tenant</title>
+    
+    <!-- Resource hints for faster loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://lovable.dev" crossorigin>
+    <link rel="dns-prefetch" href="https://lovable.dev">
     <meta name="description" content="Crie sua loja de delivery online em minutos. Plataforma completa para gerenciar pedidos, produtos e clientes." />
     <meta name="author" content="AnaFood" />
 
@@ -19,6 +25,6 @@
 
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx" fetchpriority="high"></script>
   </body>
 </html>
