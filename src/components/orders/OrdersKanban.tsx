@@ -119,15 +119,22 @@ export function OrdersKanban() {
   const { data: orders = [], isLoading, refetch } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error("No user found");
+        return [];
+      }
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
-        .eq("id", (await supabase.auth.getUser()).data.user?.id)
+        .eq("id", user.id)
         .single();
 
       if (!profile?.company_id) {
         console.log("No company_id found for orders query");
-        throw new Error("Company not found");
+        return [];
       }
 
       console.log("Fetching orders for company:", profile.company_id);
@@ -151,40 +158,69 @@ export function OrdersKanban() {
       console.log("Normalized orders:", normalizedOrders);
       return normalizedOrders;
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: false, // Disable automatic refetch - we'll use realtime
+    refetchOnWindowFocus: false, // Disable refetch on window focus
   });
 
   // Setup real-time subscription for orders
   useEffect(() => {
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
-          schema: 'public',
-          table: 'orders'
-        },
-        (payload) => {
-          console.log('Real-time update received:', payload);
-          refetch(); // Refetch orders when any change occurs
-        }
-      )
-      .subscribe();
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return;
 
-    return () => {
-      supabase.removeChannel(channel);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.company_id) return;
+
+      const channel = supabase
+        .channel('orders-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+            schema: 'public',
+            table: 'orders',
+            filter: `company_id=eq.${profile.company_id}` // Only listen to orders from this company
+          },
+          (payload) => {
+            console.log('Real-time update received:', payload);
+            
+            // Play sound for new orders if enabled
+            if (soundEnabled && payload.eventType === 'INSERT') {
+              const audio = new Audio('/notification.mp3');
+              audio.play().catch(e => console.log('Could not play sound:', e));
+            }
+            
+            refetch(); // Refetch orders when any change occurs
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     };
-  }, [refetch]);
+
+    setupRealtime();
+  }, [refetch, soundEnabled]);
 
   // Load settings from Supabase
   useQuery({
     queryKey: ["store-settings"],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return null;
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
-        .eq("id", (await supabase.auth.getUser()).data.user?.id)
+        .eq("id", user.id)
         .single();
 
       if (!profile?.company_id) return null;
@@ -218,6 +254,8 @@ export function OrdersKanban() {
 
       return data;
     },
+    refetchInterval: false, // Disable automatic refetch
+    refetchOnWindowFocus: false, // Disable refetch on window focus
   });
 
   // Update order status mutation
