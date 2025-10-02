@@ -153,6 +153,7 @@ export type Database = {
       coupons: {
         Row: {
           code: string
+          company_id: string | null
           created_at: string
           created_by: string | null
           discount_type: string
@@ -164,6 +165,7 @@ export type Database = {
         }
         Insert: {
           code: string
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           discount_type: string
@@ -175,6 +177,7 @@ export type Database = {
         }
         Update: {
           code?: string
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           discount_type?: string
@@ -184,7 +187,15 @@ export type Database = {
           uses_count?: number | null
           valid_until?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "coupons_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customers: {
         Row: {
