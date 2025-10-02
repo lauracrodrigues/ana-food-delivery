@@ -31,6 +31,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { qzPrinter } from "@/lib/qz-tray";
 
 interface OrderItem {
   id?: string;
@@ -98,6 +99,7 @@ export function OrdersKanban() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [isPrinting, setIsPrinting] = useState(false);
   
   // Settings states
   const [storeOpen, setStoreOpen] = useState(true);
@@ -308,6 +310,26 @@ export function OrdersKanban() {
       queryClient.invalidateQueries({ queryKey: ["store-settings"] });
     },
   });
+
+  // Print order function
+  const handlePrintOrder = async (order: Order) => {
+    setIsPrinting(true);
+    try {
+      await qzPrinter.printOrder(order);
+      toast({
+        title: "Impressão enviada",
+        description: "O pedido foi enviado para a impressora com sucesso.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao imprimir",
+        description: error.message || "Verifique se o QZ Tray está instalado e em execução.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPrinting(false);
+    }
+  };
 
   const handleDragStart = (e: React.DragEvent, order: Order) => {
     setDraggedOrder(order);
@@ -710,6 +732,16 @@ export function OrdersKanban() {
                                 <Eye className="w-3 h-3" />
                               </Button>
 
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePrintOrder(order)}
+                                disabled={isPrinting}
+                                className="flex-1"
+                              >
+                                <Printer className="w-3 h-3" />
+                              </Button>
+
                               {order.status !== "completed" && order.status !== "cancelled" && (
                                 <Button
                                   size="sm"
@@ -744,8 +776,19 @@ export function OrdersKanban() {
       <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>
-              Pedido #{selectedOrder?.order_number || selectedOrder?.id.slice(0, 8)}
+            <DialogTitle className="flex items-center justify-between">
+              <span>Pedido #{selectedOrder?.order_number || selectedOrder?.id.slice(0, 8)}</span>
+              {selectedOrder && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePrintOrder(selectedOrder)}
+                  disabled={isPrinting}
+                >
+                  <Printer className="w-4 h-4 mr-2" />
+                  Imprimir
+                </Button>
+              )}
             </DialogTitle>
           </DialogHeader>
           {selectedOrder && (
@@ -785,7 +828,23 @@ export function OrdersKanban() {
               </div>
 
               <div className="border-t pt-3">
-                <div className="flex justify-between font-semibold">
+                <div className="flex justify-between mb-2">
+                  <span className="font-medium">Forma de Pagamento</span>
+                  <span className="capitalize">
+                    {selectedOrder.payment_method?.replace(/_/g, ' ') || 'Não informado'}
+                  </span>
+                </div>
+                
+                {selectedOrder.observations && (
+                  <div className="mb-2">
+                    <span className="font-medium">Observações</span>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {selectedOrder.observations}
+                    </p>
+                  </div>
+                )}
+                
+                <div className="flex justify-between font-semibold text-lg">
                   <span>Total</span>
                   <span>
                     R$ {(
