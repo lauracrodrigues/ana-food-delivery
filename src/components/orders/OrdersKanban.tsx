@@ -49,7 +49,7 @@ interface Order {
   payment_method: string;
   address?: string;
   observations?: string;
-  status: "pending" | "preparing" | "ready" | "delivering" | "completed" | "cancelled";
+  status: string; // Can be in Portuguese or English
   type: "delivery" | "pickup";
   created_at: string;
   delivery_fee?: number;
@@ -64,6 +64,30 @@ const statusColumns = [
   { id: "completed", title: "Concluído", color: "bg-muted" },
   { id: "cancelled", title: "Cancelado", color: "bg-red-500" },
 ];
+
+// Map Portuguese status to English for compatibility
+const statusMap: Record<string, string> = {
+  'novo': 'pending',
+  'pendente': 'pending',
+  'pending': 'pending',
+  'preparando': 'preparing',
+  'preparing': 'preparing',
+  'pronto': 'ready',
+  'ready': 'ready',
+  'em_entrega': 'delivering',
+  'delivering': 'delivering',
+  'entregando': 'delivering',
+  'concluido': 'completed',
+  'concluída': 'completed',
+  'completed': 'completed',
+  'cancelado': 'cancelled',
+  'cancelled': 'cancelled',
+};
+
+const normalizeStatus = (status: string): string => {
+  const normalized = statusMap[status?.toLowerCase()] || status;
+  return normalized;
+};
 
 export function OrdersKanban() {
   const { toast } = useToast();
@@ -119,7 +143,13 @@ export function OrdersKanban() {
       }
       
       console.log("Orders fetched:", data);
-      return data as Order[];
+      // Normalize status from Portuguese to English
+      const normalizedOrders = (data as Order[]).map(order => ({
+        ...order,
+        status: normalizeStatus(order.status) as any
+      }));
+      console.log("Normalized orders:", normalizedOrders);
+      return normalizedOrders;
     },
     refetchInterval: 30000, // Refresh every 30 seconds
   });
@@ -509,7 +539,7 @@ export function OrdersKanban() {
             })
             .map((column) => {
               const columnOrders = filteredOrders.filter(
-                (order) => order.status === column.id
+                (order) => normalizeStatus(order.status) === column.id
               );
 
               return (
