@@ -302,6 +302,8 @@ export function OrdersKanban() {
         .upsert({
           company_id: profile.company_id,
           ...settings,
+        }, {
+          onConflict: 'company_id'
         });
 
       if (error) throw error;
@@ -313,18 +315,32 @@ export function OrdersKanban() {
 
   // Print order function
   const handlePrintOrder = async (order: Order) => {
-    console.log('🖨️ Botão de impressão clicado para pedido:', order.order_number);
+    console.log('='.repeat(50));
+    console.log('🖨️ INÍCIO DO PROCESSO DE IMPRESSÃO');
+    console.log('Pedido:', order.order_number);
+    console.log('Status atual:', order.status);
+    console.log('QZ Tray disponível?', typeof window !== 'undefined' && typeof (window as any).qz !== 'undefined');
+    
     setIsPrinting(true);
+    
     try {
+      console.log('Chamando qzPrinter.printOrder...');
       await qzPrinter.printOrder(order);
+      
+      console.log('✅ Impressão concluída com sucesso!');
       toast({
         title: "✅ Impressão enviada",
         description: "O pedido foi enviado para a impressora com sucesso.",
       });
     } catch (error: any) {
-      console.error("❌ Erro completo ao imprimir:", error);
+      console.error('='.repeat(50));
+      console.error("❌ ERRO AO IMPRIMIR");
+      console.error("Tipo do erro:", typeof error);
+      console.error("Erro completo:", error);
+      console.error("Stack:", error?.stack);
+      console.error('='.repeat(50));
       
-      const errorMessage = error?.message || "Erro desconhecido";
+      const errorMessage = error?.message || String(error) || "Erro desconhecido ao imprimir";
       
       toast({
         title: "❌ Erro ao imprimir",
@@ -334,6 +350,7 @@ export function OrdersKanban() {
     } finally {
       setIsPrinting(false);
       console.log('✓ Processo de impressão finalizado');
+      console.log('='.repeat(50));
     }
   };
 

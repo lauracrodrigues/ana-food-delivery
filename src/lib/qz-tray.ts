@@ -5,9 +5,19 @@ declare global {
   }
 }
 
+console.log('📦 qz-tray.ts carregado');
+
 // Helper function to check if QZ Tray is available
 const isQZAvailable = (): boolean => {
-  return typeof window !== 'undefined' && typeof window.qz !== 'undefined';
+  const available = typeof window !== 'undefined' && typeof window.qz !== 'undefined';
+  console.log('🔍 Verificando disponibilidade do QZ Tray:', available);
+  if (!available) {
+    console.warn('⚠️ window.qz não está definido. Certifique-se de que:');
+    console.warn('1. O script qz-tray.js está carregado no index.html');
+    console.warn('2. O QZ Tray está instalado e rodando no Windows');
+    console.warn('3. A página foi recarregada após abrir o QZ Tray');
+  }
+  return available;
 };
 
 export class QZTrayPrinter {
@@ -26,7 +36,9 @@ export class QZTrayPrinter {
 
   // Initialize QZ Tray connection
   async connect(): Promise<boolean> {
-    console.log('🖨️ Tentando conectar ao QZ Tray...');
+    console.log('='.repeat(60));
+    console.log('🖨️ INICIANDO CONEXÃO COM QZ TRAY');
+    console.log('='.repeat(60));
     
     if (!isQZAvailable()) {
       const error = 'QZ Tray não foi carregado. Verifique se:\n1. O QZ Tray está instalado no Windows\n2. O aplicativo QZ Tray está em execução\n3. Reinicie a página após abrir o QZ Tray';
@@ -35,6 +47,8 @@ export class QZTrayPrinter {
     }
 
     console.log('✓ QZ Tray library carregada');
+    console.log('window.qz disponível:', typeof window.qz);
+    console.log('window.qz.websocket disponível:', typeof window.qz?.websocket);
 
     try {
       // Check if already connected
@@ -43,24 +57,35 @@ export class QZTrayPrinter {
         return true;
       }
 
+      console.log('🔧 Configurando certificados...');
       // Set up signing (for production, you should use proper certificates)
       window.qz.security.setCertificatePromise(() => {
-        console.log('📜 Configurando certificado...');
+        console.log('📜 Retornando certificado...');
         return Promise.resolve(this.certificate || this.getDefaultCertificate());
       });
 
       window.qz.security.setSignaturePromise((toSign: string) => {
-        console.log('🔏 Configurando assinatura...');
+        console.log('🔏 Assinando dados...');
         return Promise.resolve(this.sign(toSign));
       });
 
       // Connect to QZ Tray
-      console.log('🔌 Conectando ao WebSocket...');
+      console.log('🔌 Tentando conectar ao WebSocket do QZ Tray...');
+      console.log('Timeout: 10 segundos');
+      
       await window.qz.websocket.connect();
-      console.log('✅ QZ Tray conectado com sucesso!');
+      
+      console.log('✅ QZ TRAY CONECTADO COM SUCESSO!');
+      console.log('='.repeat(60));
       return true;
     } catch (error: any) {
-      console.error('❌ Erro ao conectar com QZ Tray:', error);
+      console.error('='.repeat(60));
+      console.error('❌ ERRO AO CONECTAR COM QZ TRAY');
+      console.error('Tipo:', typeof error);
+      console.error('Mensagem:', error?.message);
+      console.error('Stack:', error?.stack);
+      console.error('='.repeat(60));
+      
       const errorMessage = error?.message || 'Erro desconhecido';
       throw new Error(`Falha na conexão: ${errorMessage}\n\nVerifique se o QZ Tray está rodando no Windows.`);
     }

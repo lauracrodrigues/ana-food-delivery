@@ -93,6 +93,8 @@ export function WhatsAppTestMessage({ sessions }: WhatsAppTestMessageProps) {
         .upsert({
           company_id: companyId,
           default_whatsapp_session: sessionName,
+        }, {
+          onConflict: 'company_id'
         });
       
       if (error) throw error;

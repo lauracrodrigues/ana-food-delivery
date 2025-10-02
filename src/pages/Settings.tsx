@@ -162,27 +162,16 @@ export function Settings() {
     mutationFn: async (data: Partial<StoreSettings>) => {
       if (!profile?.company_id) throw new Error("Company ID not found");
       
-      // Check if settings exist
-      const { data: existing } = await supabase
+      const { error } = await supabase
         .from("store_settings")
-        .select("id")
-        .eq("company_id", profile.company_id)
-        .single();
+        .upsert({
+          company_id: profile.company_id,
+          ...data
+        }, {
+          onConflict: 'company_id'
+        });
       
-      if (existing) {
-        const { error } = await supabase
-          .from("store_settings")
-          .update(data)
-          .eq("company_id", profile.company_id);
-        
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("store_settings")
-          .insert([{ ...data, company_id: profile.company_id }]);
-        
-        if (error) throw error;
-      }
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["store-settings"] });
