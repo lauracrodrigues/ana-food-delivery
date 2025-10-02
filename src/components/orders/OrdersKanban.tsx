@@ -313,21 +313,27 @@ export function OrdersKanban() {
 
   // Print order function
   const handlePrintOrder = async (order: Order) => {
+    console.log('🖨️ Botão de impressão clicado para pedido:', order.order_number);
     setIsPrinting(true);
     try {
       await qzPrinter.printOrder(order);
       toast({
-        title: "Impressão enviada",
+        title: "✅ Impressão enviada",
         description: "O pedido foi enviado para a impressora com sucesso.",
       });
     } catch (error: any) {
+      console.error("❌ Erro completo ao imprimir:", error);
+      
+      const errorMessage = error?.message || "Erro desconhecido";
+      
       toast({
-        title: "Erro ao imprimir",
-        description: error.message || "Verifique se o QZ Tray está instalado e em execução.",
+        title: "❌ Erro ao imprimir",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsPrinting(false);
+      console.log('✓ Processo de impressão finalizado');
     }
   };
 
