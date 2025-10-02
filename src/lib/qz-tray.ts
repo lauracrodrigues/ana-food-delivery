@@ -282,3 +282,9 @@ DwAwggIKAoICAQC5W8rE2KPzokHgOVGdV5rnrGaGZQHMKvQqmKBfJTkC5GtYh8DW
 }
 
 export const qzPrinter = QZTrayPrinter.getInstance();
+
+// Export helper function to get printers
+export const getPrinters = async (): Promise<string[]> => {
+  console.log('🖨️ Buscando lista de impressoras...');
+  return await qzPrinter.getPrinters();
+};
