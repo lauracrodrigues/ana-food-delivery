@@ -176,91 +176,93 @@ export class QZTrayPrinter {
   // Format order data for thermal printer (ESC/POS)
   private formatOrderReceipt(order: any): any[] {
     const ESC = '\x1B';
-    const data = [];
+    const GS = '\x1D';
     
-    // Initialize printer
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}@` }); // Reset printer
+    // Build receipt string
+    let receipt = '';
     
-    // Header - centered and bold
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}a1` }); // Center align
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}E1` }); // Bold on
-    data.push({ type: 'raw', format: 'plain', data: '================================\n' });
-    data.push({ type: 'raw', format: 'plain', data: 'COMPROVANTE DO PEDIDO\n' });
-    data.push({ type: 'raw', format: 'plain', data: '================================\n' });
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}E0` }); // Bold off
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}a0` }); // Left align
-    data.push({ type: 'raw', format: 'plain', data: '\n' });
+    // Initialize printer and header
+    receipt += `${ESC}@`; // Reset printer
+    receipt += `${ESC}a\x01`; // Center align
+    receipt += `${ESC}E\x01`; // Bold on
+    receipt += '================================\n';
+    receipt += 'COMPROVANTE DO PEDIDO\n';
+    receipt += '================================\n';
+    receipt += `${ESC}E\x00`; // Bold off
+    receipt += `${ESC}a\x00`; // Left align
+    receipt += '\n';
 
     // Order info
-    data.push({ type: 'raw', format: 'plain', data: `Pedido: #${order.order_number || order.id.slice(0, 8)}\n` });
-    data.push({ type: 'raw', format: 'plain', data: `Data: ${new Date(order.created_at).toLocaleString('pt-BR')}\n` });
-    data.push({ type: 'raw', format: 'plain', data: `Tipo: ${order.type === 'delivery' ? 'Entrega' : 'Retirada'}\n` });
-    data.push({ type: 'raw', format: 'plain', data: '--------------------------------\n' });
+    receipt += `Pedido: #${order.order_number || order.id.slice(0, 8)}\n`;
+    receipt += `Data: ${new Date(order.created_at).toLocaleString('pt-BR')}\n`;
+    receipt += `Tipo: ${order.type === 'delivery' ? 'Entrega' : 'Retirada'}\n`;
+    receipt += '--------------------------------\n';
 
     // Customer info
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}E1` }); // Bold on
-    data.push({ type: 'raw', format: 'plain', data: 'CLIENTE:\n' });
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}E0` }); // Bold off
-    data.push({ type: 'raw', format: 'plain', data: `Nome: ${order.customer_name}\n` });
+    receipt += `${ESC}E\x01`; // Bold on
+    receipt += 'CLIENTE:\n';
+    receipt += `${ESC}E\x00`; // Bold off
+    receipt += `Nome: ${order.customer_name}\n`;
     if (order.customer_phone) {
-      data.push({ type: 'raw', format: 'plain', data: `Telefone: ${order.customer_phone}\n` });
+      receipt += `Telefone: ${order.customer_phone}\n`;
     }
     if (order.address && order.type === 'delivery') {
-      data.push({ type: 'raw', format: 'plain', data: `Endereço: ${order.address}\n` });
+      receipt += `Endereco: ${order.address}\n`;
     }
-    data.push({ type: 'raw', format: 'plain', data: '--------------------------------\n' });
+    receipt += '--------------------------------\n';
 
     // Items
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}E1` }); // Bold on
-    data.push({ type: 'raw', format: 'plain', data: 'ITENS:\n' });
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}E0` }); // Bold off
+    receipt += `${ESC}E\x01`; // Bold on
+    receipt += 'ITENS:\n';
+    receipt += `${ESC}E\x00`; // Bold off
     
     let subtotal = 0;
     (order.items || []).forEach((item: any) => {
       const itemTotal = (item.price || 0) * (item.quantity || 1);
       subtotal += itemTotal;
       
-      data.push({ type: 'raw', format: 'plain', data: `${item.quantity}x ${item.name}\n` });
-      data.push({ type: 'raw', format: 'plain', data: `   R$ ${item.price.toFixed(2)} = R$ ${itemTotal.toFixed(2)}\n` });
+      receipt += `${item.quantity}x ${item.name}\n`;
+      receipt += `   R$ ${item.price.toFixed(2)} = R$ ${itemTotal.toFixed(2)}\n`;
       
       if (item.observations) {
-        data.push({ type: 'raw', format: 'plain', data: `   Obs: ${item.observations}\n` });
+        receipt += `   Obs: ${item.observations}\n`;
       }
     });
     
-    data.push({ type: 'raw', format: 'plain', data: '--------------------------------\n' });
+    receipt += '--------------------------------\n';
 
     // Totals
-    data.push({ type: 'raw', format: 'plain', data: `Subtotal: R$ ${subtotal.toFixed(2)}\n` });
+    receipt += `Subtotal: R$ ${subtotal.toFixed(2)}\n`;
     if (order.delivery_fee && order.delivery_fee > 0) {
-      data.push({ type: 'raw', format: 'plain', data: `Taxa de entrega: R$ ${order.delivery_fee.toFixed(2)}\n` });
+      receipt += `Taxa de entrega: R$ ${order.delivery_fee.toFixed(2)}\n`;
     }
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}E1` }); // Bold on
+    receipt += `${ESC}E\x01`; // Bold on
     const total = subtotal + (order.delivery_fee || 0);
-    data.push({ type: 'raw', format: 'plain', data: `TOTAL: R$ ${total.toFixed(2)}\n` });
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}E0` }); // Bold off
-    data.push({ type: 'raw', format: 'plain', data: '--------------------------------\n' });
+    receipt += `TOTAL: R$ ${total.toFixed(2)}\n`;
+    receipt += `${ESC}E\x00`; // Bold off
+    receipt += '--------------------------------\n';
 
     // Payment method
-    data.push({ type: 'raw', format: 'plain', data: `Forma de pagamento: ${this.formatPaymentMethod(order.payment_method)}\n` });
+    receipt += `Forma de pagamento: ${this.formatPaymentMethod(order.payment_method)}\n`;
     
     // Observations
     if (order.observations) {
-      data.push({ type: 'raw', format: 'plain', data: '--------------------------------\n' });
-      data.push({ type: 'raw', format: 'plain', data: `Observações: ${order.observations}\n` });
+      receipt += '--------------------------------\n';
+      receipt += `Observacoes: ${order.observations}\n`;
     }
 
     // Footer
-    data.push({ type: 'raw', format: 'plain', data: '================================\n' });
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}a1` }); // Center align
-    data.push({ type: 'raw', format: 'plain', data: 'Obrigado pela preferência!\n' });
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}a0` }); // Left align
+    receipt += '================================\n';
+    receipt += `${ESC}a\x01`; // Center align
+    receipt += 'Obrigado pela preferencia!\n';
+    receipt += `${ESC}a\x00`; // Left align
     
     // Cut paper
-    data.push({ type: 'raw', format: 'plain', data: '\n\n\n\n' });
-    data.push({ type: 'raw', format: 'plain', data: `${ESC}m` }); // Partial cut
+    receipt += '\n\n\n\n';
+    receipt += `${GS}V\x00`; // Full cut
 
-    return data;
+    // Return as array with single string (QZ Tray format)
+    return [receipt];
   }
 
   // Format payment method
