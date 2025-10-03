@@ -107,8 +107,20 @@ serve(async (req) => {
 
 function pemToArrayBuffer(pem: string): ArrayBuffer {
   try {
+    // Remove Bag Attributes and Key Attributes lines (from PKCS#12 format)
+    let cleaned = pem
+      .split('\n')
+      .filter(line => {
+        const trimmed = line.trim();
+        return !trimmed.startsWith('Bag Attributes') &&
+               !trimmed.startsWith('localKeyID:') &&
+               !trimmed.startsWith('friendlyName:') &&
+               !trimmed.startsWith('Key Attributes:');
+      })
+      .join('\n');
+
     // Remove all PEM headers and footers
-    let b64 = pem
+    let b64 = cleaned
       .replace(/-----BEGIN PRIVATE KEY-----/g, '')
       .replace(/-----END PRIVATE KEY-----/g, '')
       .replace(/-----BEGIN RSA PRIVATE KEY-----/g, '')
