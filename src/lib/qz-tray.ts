@@ -51,18 +51,19 @@ export class QZTrayPrinter {
       // Configure certificate promise - load from public folder
       window.qz.security.setCertificatePromise(function(resolve: any, reject: any) {
         fetch("/override.crt")
-          .then(res => res.text())
-          .then(resolve)
+          .then(res => {
+            if (!res.ok) {
+              throw new Error(`Erro ao carregar certificado: ${res.statusText}`);
+            }
+            return res.text();
+          })
+          .then((cert) => {
+            console.log('✅ Certificado carregado com sucesso');
+            resolve(cert);
+          })
           .catch((err) => {
-            console.warn('⚠️ Não foi possível carregar override.crt, usando certificado padrão');
-            console.error(err);
-            // Fallback to default certificate if custom one is not available
-            resolve(`-----BEGIN CERTIFICATE-----
-MIIFAzCCAuugAwIBAgIUJSWYOq9SLSvZaZApOeMXKLs9m7wwDQYJKoZIhvcNAQEL
-BQAwETEPMA0GA1UEAwwGUVogVHJheTAeFw0yNDAxMDEwMDAwMDBaFw0zNDAxMDEw
-MDAwMDBaMBExDzANBgNVBAMMBlFaIFRyYXkwggIiMA0GCSqGSIb3DQEBAQUAA4IC
-DwAwggIKAoICAQC5W8rE2KPzokHgOVGdV5rnrGaGZQHMKvQqmKBfJTkC5GtYh8DW
------END CERTIFICATE-----`);
+            console.error('❌ Erro ao carregar certificado override.crt:', err);
+            reject(err);
           });
       });
 
@@ -82,7 +83,10 @@ DwAwggIKAoICAQC5W8rE2KPzokHgOVGdV5rnrGaGZQHMKvQqmKBfJTkC5GtYh8DW
             }
             return res.text();
           })
-          .then(resolve)
+          .then((signature) => {
+            console.log('✅ Dados assinados com sucesso');
+            resolve(signature);
+          })
           .catch((err) => {
             console.error('❌ Erro ao assinar dados:', err);
             reject(err);
@@ -90,11 +94,14 @@ DwAwggIKAoICAQC5W8rE2KPzokHgOVGdV5rnrGaGZQHMKvQqmKBfJTkC5GtYh8DW
         };
       });
 
-      // Connect to QZ Tray silently - no more authorization popup
-      await window.qz.websocket.connect();
+      // Connect to QZ Tray
+      console.log('🔌 Conectando ao QZ Tray...');
+      await window.qz.websocket.connect({ retries: 3, delay: 1 });
+      console.log('✅ Conectado ao QZ Tray com sucesso');
       return true;
     } catch (error: any) {
       const errorMessage = error?.message || 'Erro desconhecido';
+      console.error('❌ Erro na conexão com QZ Tray:', errorMessage);
       throw new Error(`Falha na conexão: ${errorMessage}\n\nVerifique se o QZ Tray está rodando no Windows.`);
     }
   }
