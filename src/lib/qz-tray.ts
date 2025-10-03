@@ -48,36 +48,49 @@ export class QZTrayPrinter {
         return true;
       }
 
-      // Set up signing (for production, you should use proper certificates)
-      window.qz.security.setCertificatePromise(() => {
-        return Promise.resolve(this.certificate || this.getDefaultCertificate());
+      // Configure certificate promise - load from public folder
+      window.qz.security.setCertificatePromise(function(resolve: any, reject: any) {
+        fetch("/override.crt")
+          .then(res => res.text())
+          .then(resolve)
+          .catch((err) => {
+            console.warn('⚠️ Não foi possível carregar override.crt, usando certificado padrão');
+            console.error(err);
+            // Fallback to default certificate if custom one is not available
+            resolve(`-----BEGIN CERTIFICATE-----
+MIIFAzCCAuugAwIBAgIUJSWYOq9SLSvZaZApOeMXKLs9m7wwDQYJKoZIhvcNAQEL
+BQAwETEPMA0GA1UEAwwGUVogVHJheTAeFw0yNDAxMDEwMDAwMDBaFw0zNDAxMDEw
+MDAwMDBaMBExDzANBgNVBAMMBlFaIFRyYXkwggIiMA0GCSqGSIb3DQEBAQUAA4IC
+DwAwggIKAoICAQC5W8rE2KPzokHgOVGdV5rnrGaGZQHMKvQqmKBfJTkC5GtYh8DW
+-----END CERTIFICATE-----`);
+          });
       });
 
-      window.qz.security.setSignaturePromise(async (toSign: string) => {
-        try {
-          const response = await fetch(
-            'https://jgdyklzrxygvwuhlnbat.supabase.co/functions/v1/qz-sign',
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'text/plain',
-              },
-              body: toSign,
+      // Configure signature promise - call edge function to sign with private key
+      window.qz.security.setSignaturePromise(function(toSign: string) {
+        return function(resolve: any, reject: any) {
+          fetch('https://jgdyklzrxygvwuhlnbat.supabase.co/functions/v1/qz-sign', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'text/plain',
+            },
+            body: toSign,
+          })
+          .then(res => {
+            if (!res.ok) {
+              throw new Error(`Erro ao assinar: ${res.statusText}`);
             }
-          );
-
-          if (!response.ok) {
-            throw new Error(`Erro ao assinar: ${response.statusText}`);
-          }
-
-          return await response.text();
-        } catch (error) {
-          console.error('❌ Erro ao assinar dados:', error);
-          throw error;
-        }
+            return res.text();
+          })
+          .then(resolve)
+          .catch((err) => {
+            console.error('❌ Erro ao assinar dados:', err);
+            reject(err);
+          });
+        };
       });
 
-      // Connect to QZ Tray silently
+      // Connect to QZ Tray silently - no more authorization popup
       await window.qz.websocket.connect();
       return true;
     } catch (error: any) {
