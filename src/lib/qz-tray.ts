@@ -36,36 +36,24 @@ export class QZTrayPrinter {
 
   // Initialize QZ Tray connection
   async connect(): Promise<boolean> {
-    console.log('='.repeat(60));
-    console.log('🖨️ INICIANDO CONEXÃO COM QZ TRAY');
-    console.log('='.repeat(60));
-    
     if (!isQZAvailable()) {
       const error = 'QZ Tray não foi carregado. Verifique se:\n1. O QZ Tray está instalado no Windows\n2. O aplicativo QZ Tray está em execução\n3. Reinicie a página após abrir o QZ Tray';
       console.error('❌', error);
       throw new Error(error);
     }
 
-    console.log('✓ QZ Tray library carregada');
-    console.log('window.qz disponível:', typeof window.qz);
-    console.log('window.qz.websocket disponível:', typeof window.qz?.websocket);
-
     try {
       // Check if already connected
       if (window.qz.websocket && window.qz.websocket.isActive()) {
-        console.log('✓ QZ Tray já está conectado');
         return true;
       }
 
-      console.log('🔧 Configurando certificados...');
       // Set up signing (for production, you should use proper certificates)
       window.qz.security.setCertificatePromise(() => {
-        console.log('📜 Retornando certificado...');
         return Promise.resolve(this.certificate || this.getDefaultCertificate());
       });
 
       window.qz.security.setSignaturePromise(async (toSign: string) => {
-        console.log('🔏 Assinando dados via API...');
         try {
           const response = await fetch(
             'https://jgdyklzrxygvwuhlnbat.supabase.co/functions/v1/qz-sign',
@@ -82,32 +70,17 @@ export class QZTrayPrinter {
             throw new Error(`Erro ao assinar: ${response.statusText}`);
           }
 
-          const signature = await response.text();
-          console.log('✅ Dados assinados com sucesso');
-          return signature;
+          return await response.text();
         } catch (error) {
           console.error('❌ Erro ao assinar dados:', error);
           throw error;
         }
       });
 
-      // Connect to QZ Tray
-      console.log('🔌 Tentando conectar ao WebSocket do QZ Tray...');
-      console.log('Timeout: 10 segundos');
-      
+      // Connect to QZ Tray silently
       await window.qz.websocket.connect();
-      
-      console.log('✅ QZ TRAY CONECTADO COM SUCESSO!');
-      console.log('='.repeat(60));
       return true;
     } catch (error: any) {
-      console.error('='.repeat(60));
-      console.error('❌ ERRO AO CONECTAR COM QZ TRAY');
-      console.error('Tipo:', typeof error);
-      console.error('Mensagem:', error?.message);
-      console.error('Stack:', error?.stack);
-      console.error('='.repeat(60));
-      
       const errorMessage = error?.message || 'Erro desconhecido';
       throw new Error(`Falha na conexão: ${errorMessage}\n\nVerifique se o QZ Tray está rodando no Windows.`);
     }
@@ -115,66 +88,58 @@ export class QZTrayPrinter {
 
   // Get available printers
   async getPrinters(): Promise<string[]> {
-    console.log('🔍 Buscando impressoras disponíveis...');
     try {
       await this.connect();
       const printers = await window.qz.printers.find();
-      console.log('✓ Impressoras encontradas:', printers);
       return printers;
     } catch (error) {
-      console.error("❌ Erro ao buscar impressoras:", error);
+      console.error("Erro ao buscar impressoras:", error);
       throw error;
     }
   }
 
   // Get default printer
   async getDefaultPrinter(): Promise<string> {
-    console.log('🔍 Buscando impressora padrão...');
     try {
       await this.connect();
       const printer = await window.qz.printers.getDefault();
-      console.log('✓ Impressora padrão:', printer);
       return printer;
     } catch (error) {
-      console.error("❌ Erro ao buscar impressora padrão:", error);
+      console.error("Erro ao buscar impressora padrão:", error);
       throw error;
     }
   }
 
   // Print order receipt
   async printOrder(order: any, printerName?: string): Promise<void> {
-    console.log('🖨️ Iniciando impressão do pedido:', order.order_number || order.id);
-    
     try {
-      console.log('1️⃣ Conectando ao QZ Tray...');
       await this.connect();
 
-      console.log('2️⃣ Selecionando impressora...');
       // Use default printer if not specified
       const printer = printerName || await this.getDefaultPrinter();
-      console.log('✓ Impressora selecionada:', printer);
 
-      console.log('3️⃣ Criando configuração de impressão...');
       // Configure printer
       const config = window.qz.configs.create(printer);
 
-      console.log('4️⃣ Formatando dados do pedido...');
       // Format receipt data
-      const data = this.formatOrderReceipt(order);
-      console.log('✓ Dados formatados');
+      const receipt = this.formatOrderReceipt(order);
 
-      console.log('5️⃣ Enviando para impressora...');
-      // Print
+      // Print with proper format for QZ Tray 2.x
+      const data = [{
+        type: 'raw',
+        format: 'command',
+        data: receipt
+      }];
+      
       await window.qz.print(config, data);
-      console.log('✅ Pedido impresso com sucesso!');
     } catch (error: any) {
-      console.error('❌ Erro ao imprimir:', error);
+      console.error('Erro ao imprimir:', error);
       throw new Error(error?.message || 'Erro ao imprimir pedido');
     }
   }
 
   // Format order data for thermal printer (ESC/POS)
-  private formatOrderReceipt(order: any): any[] {
+  private formatOrderReceipt(order: any): string {
     const ESC = '\x1B';
     const GS = '\x1D';
     
@@ -261,8 +226,8 @@ export class QZTrayPrinter {
     receipt += '\n\n\n\n';
     receipt += `${GS}V\x00`; // Full cut
 
-    // Return as array with single string (QZ Tray format)
-    return [receipt];
+    // Return receipt string (will be wrapped in object by printOrder)
+    return receipt;
   }
 
   // Format payment method

@@ -143,26 +143,36 @@ export function Settings() {
   useEffect(() => {
     if (storeSettings?.printer_settings) {
       setPrinterSettings(storeSettings.printer_settings);
+      
+      // Se já tem impressoras configuradas, buscar as disponíveis automaticamente
+      const hasPrinters = Object.values(storeSettings.printer_settings).some(p => p);
+      if (hasPrinters && availablePrinters.length === 0) {
+        fetchPrinters();
+      }
     }
   }, [storeSettings]);
 
-  // Fetch available printers when printer tab is opened
-  const fetchPrinters = async () => {
+  // Fetch available printers - only shows toast if manual
+  const fetchPrinters = async (showToast = true) => {
     setLoadingPrinters(true);
     try {
       const printers = await qzPrinter.getPrinters();
       setAvailablePrinters(printers);
-      toast({
-        title: "Sucesso",
-        description: `${printers.length} impressora(s) encontrada(s)`,
-      });
+      if (showToast) {
+        toast({
+          title: "Sucesso",
+          description: `${printers.length} impressora(s) encontrada(s)`,
+        });
+      }
     } catch (error) {
       console.error("Erro ao buscar impressoras:", error);
-      toast({
-        title: "Erro",
-        description: "Certifique-se que o QZ Tray está aberto e rodando",
-        variant: "destructive",
-      });
+      if (showToast) {
+        toast({
+          title: "Erro",
+          description: "Certifique-se que o QZ Tray está aberto e rodando",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoadingPrinters(false);
     }
@@ -269,7 +279,7 @@ export function Settings() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid grid-cols-3 w-full max-w-2xl">
             <TabsTrigger value="general">Geral</TabsTrigger>
-            <TabsTrigger value="printer" onClick={fetchPrinters}>Impressão</TabsTrigger>
+            <TabsTrigger value="printer">Impressão</TabsTrigger>
             <TabsTrigger value="company">Empresa</TabsTrigger>
           </TabsList>
 
@@ -412,7 +422,7 @@ export function Settings() {
                       : "Clique em buscar para encontrar impressoras"}
                   </p>
                   <Button
-                    onClick={fetchPrinters}
+                    onClick={() => fetchPrinters(true)}
                     disabled={loadingPrinters}
                     variant="outline"
                     size="sm"
