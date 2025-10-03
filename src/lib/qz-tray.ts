@@ -64,9 +64,31 @@ export class QZTrayPrinter {
         return Promise.resolve(this.certificate || this.getDefaultCertificate());
       });
 
-      window.qz.security.setSignaturePromise((toSign: string) => {
-        console.log('🔏 Assinando dados...');
-        return Promise.resolve(this.sign(toSign));
+      window.qz.security.setSignaturePromise(async (toSign: string) => {
+        console.log('🔏 Assinando dados via API...');
+        try {
+          const response = await fetch(
+            'https://jgdyklzrxygvwuhlnbat.supabase.co/functions/v1/qz-sign',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'text/plain',
+              },
+              body: toSign,
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(`Erro ao assinar: ${response.statusText}`);
+          }
+
+          const signature = await response.text();
+          console.log('✅ Dados assinados com sucesso');
+          return signature;
+        } catch (error) {
+          console.error('❌ Erro ao assinar dados:', error);
+          throw error;
+        }
       });
 
       // Connect to QZ Tray
