@@ -142,7 +142,13 @@ export function Settings() {
   // Load printer settings when store settings are available
   useEffect(() => {
     if (storeSettings?.printer_settings) {
-      setPrinterSettings(storeSettings.printer_settings);
+      // Garantir que todos os valores sejam strings definidas
+      setPrinterSettings({
+        caixa: storeSettings.printer_settings.caixa || "",
+        cozinha1: storeSettings.printer_settings.cozinha1 || "",
+        cozinha2: storeSettings.printer_settings.cozinha2 || "",
+        copa_bar: storeSettings.printer_settings.copa_bar || ""
+      });
       
       // Se já tem impressoras configuradas, buscar as disponíveis automaticamente
       const hasPrinters = Object.values(storeSettings.printer_settings).some(p => p);
@@ -339,8 +345,8 @@ export function Settings() {
                     <Input
                       id="pickup-time"
                       type="number"
-                      value={storeSettings?.pickup_time}
-                      onChange={(e) => handleSettingsUpdate("pickup_time", parseInt(e.target.value))}
+                      value={storeSettings?.pickup_time ?? 45}
+                      onChange={(e) => handleSettingsUpdate("pickup_time", parseInt(e.target.value) || 45)}
                       disabled={loadingSettings}
                     />
                   </div>
@@ -352,8 +358,8 @@ export function Settings() {
                     <Input
                       id="delivery-time"
                       type="number"
-                      value={storeSettings?.delivery_time}
-                      onChange={(e) => handleSettingsUpdate("delivery_time", parseInt(e.target.value))}
+                      value={storeSettings?.delivery_time ?? 30}
+                      onChange={(e) => handleSettingsUpdate("delivery_time", parseInt(e.target.value) || 30)}
                       disabled={loadingSettings}
                     />
                   </div>
@@ -390,8 +396,8 @@ export function Settings() {
                   <Input
                     id="alert-time"
                     type="number"
-                    value={storeSettings?.alert_time}
-                    onChange={(e) => handleSettingsUpdate("alert_time", parseInt(e.target.value))}
+                    value={storeSettings?.alert_time ?? 60}
+                    onChange={(e) => handleSettingsUpdate("alert_time", parseInt(e.target.value) || 60)}
                     disabled={loadingSettings}
                   />
                   <p className="text-sm text-muted-foreground">
@@ -438,7 +444,7 @@ export function Settings() {
                   <div className="space-y-2">
                     <Label htmlFor="printer-caixa">Impressora - CAIXA</Label>
                     <Select
-                      value={printerSettings.caixa}
+                      value={printerSettings.caixa || ""}
                       onValueChange={(value) => handlePrinterUpdate("caixa", value)}
                       disabled={availablePrinters.length === 0}
                     >
@@ -458,7 +464,7 @@ export function Settings() {
                   <div className="space-y-2">
                     <Label htmlFor="printer-cozinha1">Impressora - Cozinha 1</Label>
                     <Select
-                      value={printerSettings.cozinha1}
+                      value={printerSettings.cozinha1 || ""}
                       onValueChange={(value) => handlePrinterUpdate("cozinha1", value)}
                       disabled={availablePrinters.length === 0}
                     >
@@ -478,7 +484,7 @@ export function Settings() {
                   <div className="space-y-2">
                     <Label htmlFor="printer-cozinha2">Impressora - Cozinha 2</Label>
                     <Select
-                      value={printerSettings.cozinha2}
+                      value={printerSettings.cozinha2 || ""}
                       onValueChange={(value) => handlePrinterUpdate("cozinha2", value)}
                       disabled={availablePrinters.length === 0}
                     >
@@ -498,7 +504,7 @@ export function Settings() {
                   <div className="space-y-2">
                     <Label htmlFor="printer-copa-bar">Impressora - Copa/Bar</Label>
                     <Select
-                      value={printerSettings.copa_bar}
+                      value={printerSettings.copa_bar || ""}
                       onValueChange={(value) => handlePrinterUpdate("copa_bar", value)}
                       disabled={availablePrinters.length === 0}
                     >
