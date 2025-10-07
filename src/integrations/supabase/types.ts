@@ -715,6 +715,7 @@ export type Database = {
           is_active: boolean | null
           session_name: string
           updated_at: string | null
+          webhook_url: string | null
         }
         Insert: {
           agent_name: string
@@ -725,6 +726,7 @@ export type Database = {
           is_active?: boolean | null
           session_name: string
           updated_at?: string | null
+          webhook_url?: string | null
         }
         Update: {
           agent_name?: string
@@ -735,6 +737,7 @@ export type Database = {
           is_active?: boolean | null
           session_name?: string
           updated_at?: string | null
+          webhook_url?: string | null
         }
         Relationships: []
       }
