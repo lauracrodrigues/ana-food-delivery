@@ -107,6 +107,7 @@ export function OrdersKanban() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [deliveryTime, setDeliveryTime] = useState(30);
   const [pickupTime, setPickupTime] = useState(45);
+  const [alertTime, setAlertTime] = useState(10);
   const [visibleColumns, setVisibleColumns] = useState({
     pending: true,
     preparing: true,
@@ -239,6 +240,7 @@ export function OrdersKanban() {
         setSoundEnabled(data.sound_enabled ?? true);
         setDeliveryTime(data.delivery_time ?? 30);
         setPickupTime(data.pickup_time ?? 45);
+        setAlertTime(data.alert_time ?? 10);
         // Aplicar valores do banco apenas se forem válidos, senão usar padrões
         if (data.visible_columns && typeof data.visible_columns === 'object') {
           const storedColumns = data.visible_columns as typeof visibleColumns;
@@ -524,6 +526,23 @@ export function OrdersKanban() {
             </select>
           </div>
 
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-destructive" />
+            <select
+              value={alertTime}
+              onChange={(e) => {
+                const time = Number(e.target.value);
+                setAlertTime(time);
+                updateSettingsMutation.mutate({ alert_time: time });
+              }}
+              className="text-sm border rounded px-2 py-1"
+            >
+              {[5, 10, 15, 20, 30].map((time) => (
+                <option key={time} value={time}>Alerta {time} min</option>
+              ))}
+            </select>
+          </div>
+
           <input
             type="text"
             placeholder="Buscar pedidos..."
@@ -639,18 +658,23 @@ export function OrdersKanban() {
                   </div>
 
                   <div className="bg-card border border-border min-h-[400px] p-2 rounded-b-lg space-y-2">
-                    {columnOrders.map((order) => {
+                     {columnOrders.map((order) => {
                       const isExpanded = expandedItems.has(order.id);
                       const items = order.items || [];
                       const itemsToShow = isExpanded ? items : items.slice(0, 2);
                       const elapsedMinutes = Math.floor(
                         (Date.now() - new Date(order.created_at).getTime()) / 60000
                       );
+                      const isDelayed = elapsedMinutes >= alertTime && 
+                                       order.status !== "completed" && 
+                                       order.status !== "cancelled";
 
                       return (
                         <Card
                           key={order.id}
-                          className="cursor-move hover:shadow-lg transition-shadow"
+                          className={`cursor-move hover:shadow-lg transition-shadow ${
+                            isDelayed ? "border-destructive border-2" : ""
+                          }`}
                           draggable
                           onDragStart={(e) => handleDragStart(e, order)}
                           onDragEnd={handleDragEnd}
@@ -666,9 +690,19 @@ export function OrdersKanban() {
                                   #{order.order_number || order.id.slice(0, 8)}
                                 </CardTitle>
                               </div>
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Clock className="w-3 h-3" />
-                                {elapsedMinutes} min
+                              <div className="flex items-center gap-1">
+                                {isDelayed && (
+                                  <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-destructive/10 text-destructive">
+                                    <AlertTriangle className="w-3 h-3" />
+                                    <span className="text-xs font-medium">Atrasado</span>
+                                  </div>
+                                )}
+                                <div className={`flex items-center gap-1 text-xs ${
+                                  isDelayed ? "text-destructive font-medium" : "text-muted-foreground"
+                                }`}>
+                                  <Clock className="w-3 h-3" />
+                                  {elapsedMinutes} min
+                                </div>
                               </div>
                             </div>
                             <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
