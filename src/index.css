@@ -6,24 +6,24 @@
 
 @layer base {
   :root {
-    /* Core Colors - Purple/Violet Theme */
-    --background: 240 10% 3.9%;
+    /* Core Colors - Purple/Violet Theme - Suavizado */
+    --background: 240 8% 12%;
     --foreground: 0 0% 95%;
 
-    --card: 240 10% 5.9%;
+    --card: 240 8% 16%;
     --card-foreground: 0 0% 95%;
 
-    --popover: 240 10% 5.9%;
+    --popover: 240 8% 16%;
     --popover-foreground: 0 0% 95%;
 
     --primary: 263 70% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 5% 13%;
+    --secondary: 240 6% 22%;
     --secondary-foreground: 0 0% 95%;
 
-    --muted: 240 5% 13%;
-    --muted-foreground: 240 5% 65%;
+    --muted: 240 6% 22%;
+    --muted-foreground: 240 5% 70%;
 
     --accent: 271 91% 65%;
     --accent-foreground: 0 0% 100%;
@@ -31,7 +31,7 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 6% 20%;
+    --border: 240 6% 28%;
     --input: 240 6% 20%;
     --ring: 263 70% 50%;
 
@@ -50,9 +50,9 @@
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(263 70% 50%), hsl(271 91% 65%));
     --gradient-accent: linear-gradient(135deg, hsl(271 91% 65%), hsl(280 84% 70%));
-    --gradient-dark: linear-gradient(180deg, hsl(240 10% 3.9%), hsl(240 10% 6%));
-    --gradient-card: linear-gradient(135deg, hsl(240 10% 8%), hsl(240 10% 10%));
-    --gradient-bg: linear-gradient(135deg, hsl(240 10% 5%), hsl(240 10% 8%));
+    --gradient-dark: linear-gradient(180deg, hsl(240 8% 12%), hsl(240 8% 14%));
+    --gradient-card: linear-gradient(135deg, hsl(240 8% 16%), hsl(240 8% 18%));
+    --gradient-bg: linear-gradient(135deg, hsl(240 8% 14%), hsl(240 8% 16%));
 
     /* Shadows */
     --shadow-sm: 0 2px 4px hsl(0 0% 0% / 0.05);
