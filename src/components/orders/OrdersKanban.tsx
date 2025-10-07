@@ -657,7 +657,7 @@ export function OrdersKanban() {
                     </h3>
                   </div>
 
-                  <div className="bg-card border border-border min-h-[400px] p-2 rounded-b-lg space-y-2">
+                  <div className="bg-card border border-border min-h-[400px] max-h-[calc(100vh-300px)] overflow-y-auto p-2 rounded-b-lg space-y-2">
                      {columnOrders.map((order) => {
                       const isExpanded = expandedItems.has(order.id);
                       const items = order.items || [];
