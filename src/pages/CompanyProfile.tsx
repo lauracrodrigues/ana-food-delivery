@@ -118,6 +118,7 @@ export default function CompanyProfile() {
   useEffect(() => {
     if (company) {
       const addressData = company.address as any || {};
+      
       setFormData({
         name: company.name || '',
         fantasy_name: company.fantasy_name || '',
@@ -129,13 +130,13 @@ export default function CompanyProfile() {
         segment: company.segment || '',
         logo_url: company.logo_url || '',
         address: {
-          cep: addressData.cep || '',
-          logradouro: addressData.logradouro || '',
-          numero: addressData.numero || '',
+          cep: addressData.cep || addressData.zip_code || '',
+          logradouro: addressData.logradouro || addressData.street || '',
+          numero: addressData.numero || addressData.number || '',
           complemento: addressData.complemento || '',
-          bairro: addressData.bairro || '',
-          cidade: addressData.cidade || '',
-          estado: addressData.estado || '',
+          bairro: addressData.bairro || addressData.neighborhood || '',
+          cidade: addressData.cidade || addressData.city || '',
+          estado: addressData.estado || addressData.state || '',
           latitude: company.latitude || undefined,
           longitude: company.longitude || undefined,
         },

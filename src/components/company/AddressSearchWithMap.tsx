@@ -32,11 +32,22 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
 
-  // Mapbox token - você precisa adicionar este secret no Supabase
-  const MAPBOX_TOKEN = 'pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbTNhbzNpaHYwM253MnNvdjF4a3l4OTJnIn0.WmXSE0pqruJWZXd3fq_xpg';
+  // Mapbox token - Use sua própria chave API
+  // Obtenha gratuitamente em: https://www.mapbox.com/
+  const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
+
+    // Verificar se há token do Mapbox
+    if (!MAPBOX_TOKEN) {
+      toast({
+        title: "Aviso",
+        description: "Token do Mapbox não configurado. O mapa não será exibido.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
@@ -44,42 +55,55 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
       ? [address.longitude, address.latitude]
       : [-46.6333, -23.5505]; // São Paulo default
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: initialCenter,
-      zoom: 15,
-    });
+    try {
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: initialCenter,
+        zoom: 15,
+      });
 
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-    marker.current = new mapboxgl.Marker({ draggable: true })
-      .setLngLat(initialCenter)
-      .addTo(map.current);
+      marker.current = new mapboxgl.Marker({ draggable: true })
+        .setLngLat(initialCenter)
+        .addTo(map.current);
 
-    marker.current.on('dragend', () => {
-      const lngLat = marker.current?.getLngLat();
-      if (lngLat) {
+      marker.current.on('dragend', () => {
+        const lngLat = marker.current?.getLngLat();
+        if (lngLat) {
+          onChange({
+            ...address,
+            latitude: lngLat.lat,
+            longitude: lngLat.lng,
+          });
+        }
+      });
+
+      map.current.on('click', (e) => {
+        marker.current?.setLngLat([e.lngLat.lng, e.lngLat.lat]);
         onChange({
           ...address,
-          latitude: lngLat.lat,
-          longitude: lngLat.lng,
+          latitude: e.lngLat.lat,
+          longitude: e.lngLat.lng,
         });
-      }
-    });
-
-    map.current.on('click', (e) => {
-      marker.current?.setLngLat([e.lngLat.lng, e.lngLat.lat]);
-      onChange({
-        ...address,
-        latitude: e.lngLat.lat,
-        longitude: e.lngLat.lng,
       });
-    });
 
-    map.current.on('load', () => {
-      setMapLoaded(true);
-    });
+      map.current.on('load', () => {
+        setMapLoaded(true);
+      });
+
+      map.current.on('error', (e) => {
+        console.error('Erro ao carregar o mapa:', e);
+        toast({
+          title: "Erro no mapa",
+          description: "Não foi possível carregar o mapa. Verifique o token do Mapbox.",
+          variant: "destructive",
+        });
+      });
+    } catch (error) {
+      console.error('Erro ao inicializar o mapa:', error);
+    }
 
     return () => {
       map.current?.remove();
@@ -270,13 +294,37 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
           <MapPin className="h-4 w-4" />
           Localização no Mapa
         </Label>
-        <p className="text-xs text-muted-foreground">
-          Clique no mapa ou arraste o marcador para ajustar a localização exata
-        </p>
-        <div 
-          ref={mapContainer} 
-          className="w-full h-[400px] rounded-lg border"
-        />
+        {!MAPBOX_TOKEN ? (
+          <div className="w-full h-[400px] rounded-lg border bg-muted flex items-center justify-center">
+            <div className="text-center p-4">
+              <MapPin className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground mb-2">
+                Para habilitar o mapa interativo, configure o token do Mapbox
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Obtenha gratuitamente em:{" "}
+                <a 
+                  href="https://www.mapbox.com/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary underline"
+                >
+                  mapbox.com
+                </a>
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Clique no mapa ou arraste o marcador para ajustar a localização exata
+            </p>
+            <div 
+              ref={mapContainer} 
+              className="w-full h-[400px] rounded-lg border"
+            />
+          </>
+        )}
       </div>
 
       {address.latitude && address.longitude && (
