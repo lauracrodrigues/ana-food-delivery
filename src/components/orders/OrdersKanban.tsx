@@ -359,6 +359,19 @@ export function OrdersKanban() {
   const handleDragStart = (e: React.DragEvent, order: Order) => {
     setDraggedOrder(order);
     e.dataTransfer.effectAllowed = "move";
+    
+    // Criar preview mais suave do drag
+    if (e.dataTransfer.setDragImage && e.currentTarget instanceof HTMLElement) {
+      const ghost = e.currentTarget.cloneNode(true) as HTMLElement;
+      ghost.style.opacity = '0.6';
+      ghost.style.transform = 'rotate(-2deg) scale(1.02)';
+      ghost.style.transition = 'none';
+      document.body.appendChild(ghost);
+      ghost.style.position = 'absolute';
+      ghost.style.top = '-9999px';
+      e.dataTransfer.setDragImage(ghost, 0, 0);
+      setTimeout(() => document.body.removeChild(ghost), 0);
+    }
   };
 
   const handleDragEnd = () => {
@@ -367,6 +380,7 @@ export function OrdersKanban() {
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = "move";
   };
 
@@ -672,7 +686,11 @@ export function OrdersKanban() {
                       return (
                         <Card
                           key={order.id}
-                          className={`cursor-move hover:shadow-lg transition-shadow ${
+                          className={`cursor-grab active:cursor-grabbing hover:shadow-lg transition-all duration-75 ease-out select-none ${
+                            draggedOrder?.id === order.id 
+                              ? 'opacity-40 scale-95 shadow-none' 
+                              : 'opacity-100 scale-100 hover:scale-[1.01]'
+                          } ${
                             isDelayed ? "border-destructive border-2" : ""
                           }`}
                           draggable
