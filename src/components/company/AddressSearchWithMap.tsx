@@ -72,21 +72,39 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
       marker.current.on('dragend', () => {
         const lngLat = marker.current?.getLngLat();
         if (lngLat) {
-          onChange({
-            ...address,
+          // Preserva TODOS os campos do endereço atual
+          const updatedAddress = {
+            cep: address.cep || '',
+            logradouro: address.logradouro || '',
+            numero: address.numero || '',
+            complemento: address.complemento || '',
+            bairro: address.bairro || '',
+            cidade: address.cidade || '',
+            estado: address.estado || '',
             latitude: lngLat.lat,
             longitude: lngLat.lng,
-          });
+          };
+          console.log('Marcador arrastado - mantendo endereço:', updatedAddress);
+          onChange(updatedAddress);
         }
       });
 
       map.current.on('click', (e) => {
         marker.current?.setLngLat([e.lngLat.lng, e.lngLat.lat]);
-        onChange({
-          ...address,
+        // Preserva TODOS os campos do endereço atual
+        const updatedAddress = {
+          cep: address.cep || '',
+          logradouro: address.logradouro || '',
+          numero: address.numero || '',
+          complemento: address.complemento || '',
+          bairro: address.bairro || '',
+          cidade: address.cidade || '',
+          estado: address.estado || '',
           latitude: e.lngLat.lat,
           longitude: e.lngLat.lng,
-        });
+        };
+        console.log('Mapa clicado - mantendo endereço:', updatedAddress);
+        onChange(updatedAddress);
       });
 
       map.current.on('load', () => {

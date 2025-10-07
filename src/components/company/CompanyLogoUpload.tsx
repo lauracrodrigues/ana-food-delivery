@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Upload, X, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,11 @@ export function CompanyLogoUpload({
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentLogoUrl || null);
   const { toast } = useToast();
+
+  // Atualiza o preview quando currentLogoUrl muda
+  useEffect(() => {
+    setPreviewUrl(currentLogoUrl || null);
+  }, [currentLogoUrl]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
