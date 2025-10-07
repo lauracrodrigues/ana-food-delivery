@@ -223,22 +223,23 @@ export default function CompanyProfile() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-6">
+    <div className="py-4 sm:py-6 max-w-6xl mx-auto">
+      <div className="mb-4 sm:mb-6">
         <Button
           variant="ghost"
           onClick={() => navigate(-1)}
-          className="mb-4"
+          className="mb-3 sm:mb-4"
+          size="sm"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Voltar
         </Button>
 
-        <div className="flex items-center gap-3">
-          <Building2 className="h-8 w-8 text-primary" />
+        <div className="flex items-start gap-3">
+          <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-primary flex-shrink-0 mt-1" />
           <div>
-            <h1 className="text-3xl font-bold">Perfil da Empresa</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Perfil da Empresa</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">
               Gerencie as informações completas da sua empresa
             </p>
           </div>
@@ -276,7 +277,7 @@ export default function CompanyProfile() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="name">Razão Social *</Label>
                   <Input
@@ -299,7 +300,7 @@ export default function CompanyProfile() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="cnpj">CNPJ</Label>
                   <Input
@@ -341,7 +342,7 @@ export default function CompanyProfile() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="email">E-mail</Label>
                   <Input
@@ -423,11 +424,12 @@ export default function CompanyProfile() {
           </Card>
 
           {/* Botão de Salvar */}
-          <div className="flex justify-end">
+          <div className="flex justify-end sticky bottom-0 bg-background py-4 border-t border-border mt-6 -mx-4 px-4 sm:mx-0 sm:px-0 sm:border-0 sm:static">
             <Button
               type="submit"
               size="lg"
               disabled={updateMutation.isPending}
+              className="w-full sm:w-auto"
             >
               {updateMutation.isPending ? (
                 <>
