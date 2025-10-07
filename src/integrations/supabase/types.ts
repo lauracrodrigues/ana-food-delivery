@@ -84,11 +84,15 @@ export type Database = {
           address: Json | null
           cnpj: string | null
           created_at: string | null
+          delivery_mode: string | null
+          description: string | null
           email: string | null
           fantasy_name: string | null
           id: string
           is_active: boolean | null
+          latitude: number | null
           logo_url: string | null
+          longitude: number | null
           name: string
           owner_id: string | null
           phone: string | null
@@ -104,11 +108,15 @@ export type Database = {
           address?: Json | null
           cnpj?: string | null
           created_at?: string | null
+          delivery_mode?: string | null
+          description?: string | null
           email?: string | null
           fantasy_name?: string | null
           id?: string
           is_active?: boolean | null
+          latitude?: number | null
           logo_url?: string | null
+          longitude?: number | null
           name: string
           owner_id?: string | null
           phone?: string | null
@@ -124,11 +132,15 @@ export type Database = {
           address?: Json | null
           cnpj?: string | null
           created_at?: string | null
+          delivery_mode?: string | null
+          description?: string | null
           email?: string | null
           fantasy_name?: string | null
           id?: string
           is_active?: boolean | null
+          latitude?: number | null
           logo_url?: string | null
+          longitude?: number | null
           name?: string
           owner_id?: string | null
           phone?: string | null

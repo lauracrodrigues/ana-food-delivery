@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Edit, Plus, MapPin } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Trash2, Edit, Plus, MapPin, Map } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -26,6 +27,7 @@ interface DeliveryFee {
 export function DeliveryFees() {
   const [showModal, setShowModal] = useState(false);
   const [editingFee, setEditingFee] = useState<DeliveryFee | null>(null);
+  const [deliveryMode, setDeliveryMode] = useState<'zones' | 'radius'>('zones');
   const [formData, setFormData] = useState<Partial<DeliveryFee>>({
     zone_name: "",
     delivery_fee: 0,
@@ -37,7 +39,7 @@ export function DeliveryFees() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Get company ID from user profile
+  // Get company ID and delivery mode from user profile
   const { data: profile } = useQuery({
     queryKey: ["profile"],
     queryFn: async () => {
@@ -53,6 +55,31 @@ export function DeliveryFees() {
       if (error) throw error;
       return data;
     },
+  });
+
+  // Get company info including delivery mode
+  const { data: company } = useQuery({
+    queryKey: ["company", profile?.company_id],
+    queryFn: async () => {
+      if (!profile?.company_id) return null;
+
+      const { data, error } = await supabase
+        .from("companies")
+        .select("delivery_mode")
+        .eq("id", profile.company_id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile?.company_id,
+  });
+
+  // Update local delivery mode when company data loads
+  useState(() => {
+    if (company?.delivery_mode) {
+      setDeliveryMode(company.delivery_mode as 'zones' | 'radius');
+    }
   });
 
   // Fetch delivery fees
@@ -212,19 +239,61 @@ export function DeliveryFees() {
     saveMutation.mutate(formData);
   };
 
+  const handleDeliveryModeChange = async (mode: 'zones' | 'radius') => {
+    if (!profile?.company_id) return;
+
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .update({ delivery_mode: mode })
+        .eq('id', profile.company_id);
+
+      if (error) throw error;
+
+      setDeliveryMode(mode);
+      queryClient.invalidateQueries({ queryKey: ["company"] });
+
+      toast({
+        title: "Sucesso",
+        description: `Modo de cálculo alterado para ${mode === 'zones' ? 'Por Zonas' : 'Por Raio'}`,
+      });
+    } catch (error) {
+      console.error('Error updating delivery mode:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao alterar modo de cálculo",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="p-6">
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle className="flex items-center gap-2">
+          <div className="flex justify-between items-start">
+            <div className="flex-1">
+              <CardTitle className="flex items-center gap-2 mb-2">
                 <MapPin className="h-5 w-5" />
                 Taxas de Entrega
               </CardTitle>
               <CardDescription>
-                Gerencie as taxas de entrega por zona
+                Configure as taxas de entrega por zona ou raio de distância
               </CardDescription>
+              
+              {/* Seletor de Modo */}
+              <Tabs value={deliveryMode} onValueChange={(v) => handleDeliveryModeChange(v as 'zones' | 'radius')} className="mt-4">
+                <TabsList>
+                  <TabsTrigger value="zones" className="gap-2">
+                    <Map className="h-4 w-4" />
+                    Por Zonas/Bairros
+                  </TabsTrigger>
+                  <TabsTrigger value="radius" className="gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Por Raio (km)
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
             <Button onClick={() => setShowModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -309,15 +378,36 @@ export function DeliveryFees() {
           <form onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="zone_name">Nome da Zona *</Label>
+                <Label htmlFor="zone_name">
+                  {deliveryMode === 'zones' ? 'Nome da Zona/Bairro *' : 'Descrição do Raio *'}
+                </Label>
                 <Input
                   id="zone_name"
                   value={formData.zone_name}
                   onChange={(e) => setFormData({ ...formData, zone_name: e.target.value })}
-                  placeholder="Ex: Centro, Bairro Sul"
+                  placeholder={deliveryMode === 'zones' ? 'Ex: Centro, Bairro Sul' : 'Ex: Até 2km, Até 5km'}
                   required
                 />
               </div>
+
+              {deliveryMode === 'radius' && (
+                <div>
+                  <Label htmlFor="max_distance_km">Distância Máxima (km) *</Label>
+                  <Input
+                    id="max_distance_km"
+                    type="number"
+                    step="0.1"
+                    value={formData.max_distance_km || ""}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      max_distance_km: e.target.value ? parseFloat(e.target.value) : undefined 
+                    })}
+                    placeholder="Ex: 2.0, 5.0"
+                    required
+                  />
+                </div>
+              )}
+
               <div>
                 <Label htmlFor="delivery_fee">Taxa de Entrega (R$) *</Label>
                 <Input
@@ -330,6 +420,7 @@ export function DeliveryFees() {
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="min_order_value">Valor Mínimo do Pedido (R$)</Label>
                 <Input
@@ -344,20 +435,7 @@ export function DeliveryFees() {
                   placeholder="Opcional"
                 />
               </div>
-              <div>
-                <Label htmlFor="max_distance_km">Distância Máxima (km)</Label>
-                <Input
-                  id="max_distance_km"
-                  type="number"
-                  step="0.1"
-                  value={formData.max_distance_km || ""}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    max_distance_km: e.target.value ? parseFloat(e.target.value) : undefined 
-                  })}
-                  placeholder="Opcional"
-                />
-              </div>
+
               <div className="flex items-center space-x-2">
                 <Switch
                   id="is_active"

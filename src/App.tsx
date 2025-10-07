@@ -27,6 +27,7 @@ const PaymentMethods = lazy(() => import("./pages/PaymentMethods"));
 const WhatsApp = lazy(() => import("./pages/WhatsApp"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
 
 const queryClient = new QueryClient();
 
@@ -82,6 +83,7 @@ const App = () => (
               <Route path="/payment-methods" element={<PaymentMethods />} />
               <Route path="/whatsapp" element={<WhatsApp />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/company-profile" element={<CompanyProfile />} />
             </Route>
 
             <Route path="/auth/callback" element={
