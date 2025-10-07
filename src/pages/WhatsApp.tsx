@@ -69,10 +69,11 @@ export default function WhatsApp() {
     loadCompany();
   }, []);
 
-  // Load WhatsApp sessions
+  // Load WhatsApp sessions with optimized caching
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ["whatsapp-sessions", companyId],
     queryFn: async () => {
+      console.log('[WhatsApp] 🔄 Carregando sessões para empresa:', companyId);
       if (!companyId) return [];
       
       const { data, error } = await supabase
@@ -81,10 +82,16 @@ export default function WhatsApp() {
         .eq('company_id', companyId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[WhatsApp] ❌ Erro ao carregar sessões:', error);
+        throw error;
+      }
+      console.log('[WhatsApp] ✅ Sessões carregadas:', data?.length || 0);
       return data as WhatsAppSession[];
     },
     enabled: !!companyId,
+    staleTime: 30000, // Cache por 30s
+    gcTime: 60000, // Manter em cache por 1min
   });
 
   // Add/Update mutation
@@ -275,19 +282,23 @@ export default function WhatsApp() {
   const lastCheckRef = useRef<Record<string, number>>({});
   const MIN_CHECK_INTERVAL = 10000; // 10 segundos entre verificações
 
-  // Verificar status da conexão com throttling
-  const checkConnectionStatus = async (sessionName: string) => {
+  // Verificar status da conexão com logs detalhados
+  const checkConnectionStatus = async (sessionName: string, silent: boolean = false) => {
+    console.log(`[WhatsApp] 🔍 Verificando status da instância: ${sessionName}`);
     const now = Date.now();
     const lastCheck = lastCheckRef.current[sessionName] || 0;
     
     // Verificar se já passou tempo suficiente desde a última verificação
-    if (now - lastCheck < MIN_CHECK_INTERVAL) {
+    if (!silent && now - lastCheck < MIN_CHECK_INTERVAL) {
       const waitTime = Math.ceil((MIN_CHECK_INTERVAL - (now - lastCheck)) / 1000);
-      toast({
-        title: "Aguarde",
-        description: `Próxima verificação disponível em ${waitTime} segundos`,
-        variant: "default",
-      });
+      console.log(`[WhatsApp] ⏳ Throttle ativo. Aguardar ${waitTime}s`);
+      if (!silent) {
+        toast({
+          title: "Aguarde",
+          description: `Próxima verificação disponível em ${waitTime} segundos`,
+          variant: "default",
+        });
+      }
       return sessions.find(s => s.session_name === sessionName)?.connection_status || 'unknown';
     }
 
@@ -295,50 +306,131 @@ export default function WhatsApp() {
     lastCheckRef.current[sessionName] = now;
     
     try {
+      console.log(`[WhatsApp] 📡 Enviando requisição de status para: ${sessionName}`);
       const response = await supabase.functions.invoke('whatsapp-evolution', {
         body: { instanceName: sessionName, action: 'status' }
       });
 
-      if (response.data?.success) {
-        return response.data.data.instance.state;
+      console.log(`[WhatsApp] 📥 Resposta recebida:`, response);
+
+      if (response.error) {
+        console.error(`[WhatsApp] ❌ Erro na resposta:`, response.error);
+        throw new Error(response.error.message || 'Erro ao verificar status');
       }
+
+      if (response.data?.success) {
+        const status = response.data.data.instance.state;
+        console.log(`[WhatsApp] ✅ Status da instância ${sessionName}: ${status}`);
+        return status;
+      }
+      
+      console.warn(`[WhatsApp] ⚠️ Resposta sem sucesso:`, response.data);
       return 'unknown';
     } catch (error) {
-      console.error('Erro ao verificar status:', error);
-      toast({
-        title: "Erro ao verificar status",
-        description: "Não foi possível verificar o status da conexão",
-        variant: "destructive",
-      });
+      console.error(`[WhatsApp] ❌ Erro ao verificar status de ${sessionName}:`, error);
+      if (!silent) {
+        toast({
+          title: "Erro ao verificar status",
+          description: error instanceof Error ? error.message : "Não foi possível verificar o status da conexão",
+          variant: "destructive",
+        });
+      }
       return 'unknown';
     } finally {
       setLoadingStatus(prev => ({ ...prev, [sessionName]: false }));
     }
   };
 
-  // Conectar/Reconectar via QR Code
-  const handleConnect = async (sessionName: string) => {
+  // Verificar e recriar instância se necessário
+  const ensureInstanceExists = async (sessionName: string) => {
+    console.log(`[WhatsApp] 🔧 Verificando existência da instância: ${sessionName}`);
+    
     try {
+      // Primeiro verifica o status
+      const response = await supabase.functions.invoke('whatsapp-evolution', {
+        body: { instanceName: sessionName, action: 'status' }
+      });
+
+      console.log(`[WhatsApp] 📥 Resposta de verificação:`, response);
+
+      // Se a instância não existe (404), tenta criar
+      if (response.error || !response.data?.success) {
+        console.warn(`[WhatsApp] ⚠️ Instância não existe, tentando criar: ${sessionName}`);
+        
+        const session = sessions.find(s => s.session_name === sessionName);
+        if (!session) {
+          throw new Error('Sessão não encontrada no banco de dados');
+        }
+
+        // Criar a instância na Evolution API
+        const createResponse = await supabase.functions.invoke('whatsapp-evolution', {
+          body: {
+            sessionName: session.session_name,
+            agentName: session.agent_name,
+            agentPrompt: session.agent_prompt || '',
+          }
+        });
+
+        console.log(`[WhatsApp] 📥 Resposta de criação:`, createResponse);
+
+        if (createResponse.error) {
+          throw new Error(createResponse.error.message || 'Erro ao criar instância');
+        }
+
+        console.log(`[WhatsApp] ✅ Instância criada com sucesso: ${sessionName}`);
+        return true;
+      }
+
+      console.log(`[WhatsApp] ✅ Instância já existe: ${sessionName}`);
+      return true;
+    } catch (error) {
+      console.error(`[WhatsApp] ❌ Erro ao verificar/criar instância ${sessionName}:`, error);
+      throw error;
+    }
+  };
+
+  // Conectar/Reconectar via QR Code com validação
+  const handleConnect = async (sessionName: string) => {
+    console.log(`[WhatsApp] 🔌 Iniciando conexão para: ${sessionName}`);
+    
+    try {
+      toast({
+        title: "Verificando instância",
+        description: "Validando comunicação com Evolution API...",
+      });
+
+      // Primeiro, garantir que a instância existe
+      console.log(`[WhatsApp] 🔧 Garantindo que instância existe: ${sessionName}`);
+      await ensureInstanceExists(sessionName);
+
       toast({
         title: "Gerando QR Code",
         description: "Aguarde enquanto geramos o QR Code...",
       });
 
+      console.log(`[WhatsApp] 📡 Solicitando QR Code para: ${sessionName}`);
       const response = await supabase.functions.invoke('whatsapp-evolution', {
         body: { instanceName: sessionName, action: 'connect' }
       });
 
+      console.log(`[WhatsApp] 📥 Resposta do QR Code:`, response);
+
       if (response.error) {
-        throw new Error(response.error.message);
+        console.error(`[WhatsApp] ❌ Erro na resposta:`, response.error);
+        throw new Error(response.error.message || 'Edge Function returned a non-2xx status code');
       }
 
       if (response.data?.success && response.data.data?.code) {
+        console.log(`[WhatsApp] ✅ QR Code recebido com sucesso`);
+        
         // Gerar imagem do QR Code a partir do código
         try {
           const qrCodeDataUrl = await QRCode.toDataURL(response.data.data.code, {
             width: 300,
             margin: 2,
           });
+          
+          console.log(`[WhatsApp] 🎨 QR Code renderizado com sucesso`);
           
           setQrCodeDialog({
             open: true,
@@ -347,10 +439,13 @@ export default function WhatsApp() {
           });
 
           // Iniciar polling do status da conexão
+          console.log(`[WhatsApp] 🔄 Iniciando polling de status`);
           const pollInterval = setInterval(async () => {
-            const status = await checkConnectionStatus(sessionName);
+            const status = await checkConnectionStatus(sessionName, true);
+            console.log(`[WhatsApp] 📊 Status atual: ${status}`);
             
             if (status === 'open') {
+              console.log(`[WhatsApp] ✅ Conexão estabelecida com sucesso!`);
               clearInterval(pollInterval);
               setQrCodeDialog({ open: false, qrCode: '', sessionName: '' });
               toast({
@@ -359,6 +454,7 @@ export default function WhatsApp() {
               });
               queryClient.invalidateQueries({ queryKey: ["whatsapp-sessions"] });
             } else if (status === 'close') {
+              console.warn(`[WhatsApp] ⚠️ Conexão fechada`);
               clearInterval(pollInterval);
               toast({
                 title: "Erro na conexão",
@@ -372,6 +468,7 @@ export default function WhatsApp() {
           setTimeout(() => {
             clearInterval(pollInterval);
             if (qrCodeDialog.open) {
+              console.warn(`[WhatsApp] ⏰ Timeout do QR Code`);
               toast({
                 title: "Tempo esgotado",
                 description: "O QR Code expirou. Por favor, tente novamente.",
@@ -380,36 +477,56 @@ export default function WhatsApp() {
             }
           }, 120000);
         } catch (qrError) {
-          console.error('Erro ao gerar QR Code:', qrError);
+          console.error('[WhatsApp] ❌ Erro ao gerar QR Code:', qrError);
           throw new Error('Erro ao gerar imagem do QR Code');
         }
       } else {
+        console.error(`[WhatsApp] ❌ QR Code não disponível na resposta`);
         throw new Error('QR Code não disponível');
       }
     } catch (error) {
-      console.error('Erro ao conectar:', error);
+      console.error('[WhatsApp] ❌ Erro ao conectar:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : "Não foi possível gerar o QR Code.";
+      console.error(`[WhatsApp] 💬 Mensagem de erro: ${errorMessage}`);
+      
       toast({
         title: "Erro ao gerar QR Code",
-        description: error instanceof Error ? error.message : "Não foi possível gerar o QR Code.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
   };
 
-  // Atualizar status apenas ao entrar na tela
+  // Verificar status em background após carregar sessões
   useEffect(() => {
-    if (sessions.length === 0) return;
+    if (sessions.length === 0 || !companyId) return;
+
+    console.log(`[WhatsApp] 🚀 Iniciando verificação em background de ${sessions.length} sessões`);
 
     const updateStatuses = async () => {
-      for (const session of sessions) {
-        const status = await checkConnectionStatus(session.session_name);
-        session.connection_status = status;
+      const updatedSessions = [...sessions];
+      
+      for (const session of updatedSessions) {
+        try {
+          console.log(`[WhatsApp] 🔍 Verificando em background: ${session.session_name}`);
+          const status = await checkConnectionStatus(session.session_name, true);
+          session.connection_status = status;
+          console.log(`[WhatsApp] ✅ Status atualizado: ${session.session_name} = ${status}`);
+        } catch (error) {
+          console.error(`[WhatsApp] ❌ Erro ao verificar ${session.session_name}:`, error);
+          session.connection_status = 'unknown';
+        }
       }
-      queryClient.setQueryData(["whatsapp-sessions", companyId], sessions);
+      
+      queryClient.setQueryData(["whatsapp-sessions", companyId], updatedSessions);
+      console.log(`[WhatsApp] ✅ Verificação em background concluída`);
     };
 
-    updateStatuses();
-    // Removido o polling automático de 30 segundos para evitar sobrecarga na API
+    // Executar após um pequeno delay para não bloquear a UI inicial
+    const timeoutId = setTimeout(updateStatuses, 1000);
+    
+    return () => clearTimeout(timeoutId);
   }, [sessions.length, companyId]);
 
   return (
