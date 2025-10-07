@@ -109,15 +109,28 @@ export default function CompanyProfile() {
         .eq("id", profile.company_id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao carregar empresa:', error);
+        throw error;
+      }
+      
+      console.log('Empresa carregada:', data);
       return data;
     },
     enabled: !!profile?.company_id,
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
   });
 
   useEffect(() => {
     if (company) {
       const addressData = company.address as any || {};
+      
+      console.log('Carregando dados da empresa:', {
+        company,
+        addressData,
+        latitude: company.latitude,
+        longitude: company.longitude
+      });
       
       setFormData({
         name: company.name || '',
@@ -137,8 +150,8 @@ export default function CompanyProfile() {
           bairro: addressData.bairro || addressData.neighborhood || '',
           cidade: addressData.cidade || addressData.city || '',
           estado: addressData.estado || addressData.state || '',
-          latitude: company.latitude || undefined,
-          longitude: company.longitude || undefined,
+          latitude: company.latitude ? Number(company.latitude) : undefined,
+          longitude: company.longitude ? Number(company.longitude) : undefined,
         },
       });
     }
