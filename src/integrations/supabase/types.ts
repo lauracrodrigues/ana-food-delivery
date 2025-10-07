@@ -98,6 +98,7 @@ export type Database = {
           subscription_status: string | null
           trial_ends_at: string | null
           updated_at: string | null
+          whatsapp: string | null
         }
         Insert: {
           address?: Json | null
@@ -117,6 +118,7 @@ export type Database = {
           subscription_status?: string | null
           trial_ends_at?: string | null
           updated_at?: string | null
+          whatsapp?: string | null
         }
         Update: {
           address?: Json | null
@@ -136,6 +138,7 @@ export type Database = {
           subscription_status?: string | null
           trial_ends_at?: string | null
           updated_at?: string | null
+          whatsapp?: string | null
         }
         Relationships: [
           {
