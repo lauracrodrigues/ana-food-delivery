@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { masks } from "@/lib/masks";
 import { 
   Settings as SettingsIcon, 
   Store, 
@@ -57,10 +58,29 @@ interface CompanyInfo {
   cnpj?: string;
   email?: string;
   phone?: string;
+  whatsapp?: string;
   address?: any;
   subdomain: string;
   segment?: string;
 }
+
+const deliverySegments = [
+  "Restaurantes",
+  "Pizzarias",
+  "Hamburguerias",
+  "Marmitarias",
+  "Comida japonesa",
+  "Açaiterias",
+  "Lanchonetes",
+  "Padarias",
+  "Docerias",
+  "Sorveterias",
+  "Pastelarias",
+  "Churrascarias",
+  "Comida árabe",
+  "Comida fitness",
+  "Comida mexicana"
+];
 
 export function Settings() {
   const { toast } = useToast();
@@ -74,6 +94,9 @@ export function Settings() {
     cozinha2: "",
     copa_bar: ""
   });
+  
+  // Temporary state for company form
+  const [companyForm, setCompanyForm] = useState<Partial<CompanyInfo>>({});
 
   // Get company ID from user profile
   const { data: profile } = useQuery({
@@ -110,6 +133,13 @@ export function Settings() {
     },
     enabled: !!profile?.company_id,
   });
+
+  // Initialize form when company data loads
+  useEffect(() => {
+    if (companyInfo) {
+      setCompanyForm(companyInfo);
+    }
+  }, [companyInfo]);
 
   // Fetch store settings
   const { data: storeSettings, isLoading: loadingSettings } = useQuery({
@@ -246,8 +276,12 @@ export function Settings() {
     },
   });
 
-  const handleCompanyUpdate = (field: string, value: any) => {
-    updateCompanyMutation.mutate({ [field]: value });
+  const handleCompanyFormChange = (field: string, value: any) => {
+    setCompanyForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCompanySave = () => {
+    updateCompanyMutation.mutate(companyForm);
   };
 
   const handleSettingsUpdate = (field: string, value: any) => {
@@ -561,8 +595,8 @@ export function Settings() {
                     <Label htmlFor="company-name">Razão Social</Label>
                     <Input
                       id="company-name"
-                      value={companyInfo?.name || ""}
-                      onChange={(e) => handleCompanyUpdate("name", e.target.value)}
+                      value={companyForm?.name || ""}
+                      onChange={(e) => handleCompanyFormChange("name", e.target.value)}
                       disabled={loadingCompany}
                     />
                   </div>
@@ -570,8 +604,8 @@ export function Settings() {
                     <Label htmlFor="fantasy-name">Nome Fantasia</Label>
                     <Input
                       id="fantasy-name"
-                      value={companyInfo?.fantasy_name || ""}
-                      onChange={(e) => handleCompanyUpdate("fantasy_name", e.target.value)}
+                      value={companyForm?.fantasy_name || ""}
+                      onChange={(e) => handleCompanyFormChange("fantasy_name", e.target.value)}
                       disabled={loadingCompany}
                     />
                   </div>
@@ -582,36 +616,47 @@ export function Settings() {
                     <Label htmlFor="cnpj">CNPJ</Label>
                     <Input
                       id="cnpj"
-                      value={companyInfo?.cnpj || ""}
-                      onChange={(e) => handleCompanyUpdate("cnpj", e.target.value)}
+                      value={companyForm?.cnpj || ""}
+                      onChange={(e) => handleCompanyFormChange("cnpj", e.target.value)}
                       disabled={loadingCompany}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="segment">Segmento</Label>
-                    <Input
-                      id="segment"
-                      value={companyInfo?.segment || ""}
-                      onChange={(e) => handleCompanyUpdate("segment", e.target.value)}
+                    <Select
+                      value={companyForm?.segment || ""}
+                      onValueChange={(value) => handleCompanyFormChange("segment", value)}
                       disabled={loadingCompany}
-                    />
+                    >
+                      <SelectTrigger id="segment">
+                        <SelectValue placeholder="Selecione o segmento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {deliverySegments.map((segment) => (
+                          <SelectItem key={segment} value={segment}>
+                            {segment}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="email">
+                    <Mail className="inline h-4 w-4 mr-2" />
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={companyForm?.email || ""}
+                    onChange={(e) => handleCompanyFormChange("email", e.target.value)}
+                    disabled={loadingCompany}
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">
-                      <Mail className="inline h-4 w-4 mr-2" />
-                      Email
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={companyInfo?.email || ""}
-                      onChange={(e) => handleCompanyUpdate("email", e.target.value)}
-                      disabled={loadingCompany}
-                    />
-                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">
                       <Phone className="inline h-4 w-4 mr-2" />
@@ -619,9 +664,23 @@ export function Settings() {
                     </Label>
                     <Input
                       id="phone"
-                      value={companyInfo?.phone || ""}
-                      onChange={(e) => handleCompanyUpdate("phone", e.target.value)}
+                      value={companyForm?.phone || ""}
+                      onChange={(e) => handleCompanyFormChange("phone", masks.phone(e.target.value))}
                       disabled={loadingCompany}
+                      placeholder="(00) 0000-0000"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsapp">
+                      <Phone className="inline h-4 w-4 mr-2" />
+                      WhatsApp
+                    </Label>
+                    <Input
+                      id="whatsapp"
+                      value={companyForm?.whatsapp || ""}
+                      onChange={(e) => handleCompanyFormChange("whatsapp", masks.phone(e.target.value))}
+                      disabled={loadingCompany}
+                      placeholder="(00) 00000-0000"
                     />
                   </div>
                 </div>
@@ -631,60 +690,27 @@ export function Settings() {
                     <Globe className="inline h-4 w-4 mr-2" />
                     Subdomínio
                   </Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     <Input
                       id="subdomain"
-                      value={companyInfo?.subdomain || ""}
-                      onChange={(e) => handleCompanyUpdate("subdomain", e.target.value)}
+                      value={companyForm?.subdomain || ""}
+                      onChange={(e) => handleCompanyFormChange("subdomain", e.target.value)}
                       disabled={loadingCompany}
+                      className="max-w-[200px]"
                     />
-                    <span className="flex items-center text-sm text-muted-foreground">.anafood.vip</span>
+                    <span className="text-sm text-muted-foreground">.anafood.vip</span>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Configurações Avançadas
-                </CardTitle>
-                <CardDescription>
-                  Configurações de segurança e integrações
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-                  <p className="text-sm font-medium">Impressora Térmica</p>
-                  <p className="text-sm text-muted-foreground">
-                    Configure a impressora para imprimir pedidos automaticamente
-                  </p>
-                  <Button variant="outline" size="sm">
-                    <Printer className="h-4 w-4 mr-2" />
-                    Configurar Impressora
-                  </Button>
-                </div>
+                <Separator />
 
-                <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-                  <p className="text-sm font-medium">WhatsApp</p>
-                  <p className="text-sm text-muted-foreground">
-                    Configure a integração com WhatsApp para receber pedidos
-                  </p>
-                  <Button variant="outline" size="sm">
-                    <Wifi className="h-4 w-4 mr-2" />
-                    Configurar WhatsApp
-                  </Button>
-                </div>
-
-                <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-                  <p className="text-sm font-medium">Formas de Pagamento</p>
-                  <p className="text-sm text-muted-foreground">
-                    Configure as formas de pagamento aceitas pela loja
-                  </p>
-                  <Button variant="outline" size="sm">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Gerenciar Pagamentos
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={handleCompanySave}
+                    disabled={loadingCompany || updateCompanyMutation.isPending}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {updateCompanyMutation.isPending ? "Salvando..." : "Salvar Alterações"}
                   </Button>
                 </div>
               </CardContent>
