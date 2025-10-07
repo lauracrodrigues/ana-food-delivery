@@ -14,7 +14,10 @@ import {
   Truck, 
   Clock, 
   Volume2,
-  RefreshCw
+  RefreshCw,
+  Palette,
+  Sun,
+  Moon
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +25,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { qzPrinter } from "@/lib/qz-tray";
+import { useTheme } from "@/components/theme-provider";
+import { useColorPalette, type ColorPalette } from "@/hooks/use-color-palette";
 
 interface StoreSettings {
   id?: string;
@@ -41,6 +46,8 @@ interface StoreSettings {
 export function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { theme, setTheme } = useTheme();
+  const { palette, setPalette, palettes } = useColorPalette();
   const [activeTab, setActiveTab] = useState("general");
   const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
   const [loadingPrinters, setLoadingPrinters] = useState(false);
@@ -208,8 +215,9 @@ export function Settings() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-2 w-full max-w-2xl">
+          <TabsList className="grid grid-cols-3 w-full max-w-3xl">
             <TabsTrigger value="general">Geral</TabsTrigger>
+            <TabsTrigger value="appearance">Aparência</TabsTrigger>
             <TabsTrigger value="printer">Impressão</TabsTrigger>
           </TabsList>
 
@@ -326,6 +334,106 @@ export function Settings() {
                   />
                   <p className="text-sm text-muted-foreground">
                     Tempo de exibição das notificações na tela
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Appearance Settings */}
+          <TabsContent value="appearance" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5" />
+                  Tema
+                </CardTitle>
+                <CardDescription>
+                  Escolha entre tema claro ou escuro
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <Label>Modo de Tema</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Button
+                      variant={theme === "light" ? "default" : "outline"}
+                      className="h-auto flex-col gap-2 p-4"
+                      onClick={() => setTheme("light")}
+                    >
+                      <Sun className="h-6 w-6" />
+                      <span>Claro</span>
+                    </Button>
+                    <Button
+                      variant={theme === "dark" ? "default" : "outline"}
+                      className="h-auto flex-col gap-2 p-4"
+                      onClick={() => setTheme("dark")}
+                    >
+                      <Moon className="h-6 w-6" />
+                      <span>Escuro</span>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5" />
+                  Paleta de Cores
+                </CardTitle>
+                <CardDescription>
+                  Personalize as cores do sistema escolhendo uma paleta
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <Label>Escolha uma Paleta</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <Button
+                      variant={palette === "purple" ? "default" : "outline"}
+                      className="h-auto flex-col gap-3 p-4"
+                      onClick={() => setPalette("purple")}
+                    >
+                      <div className="w-full h-12 rounded-md bg-gradient-to-br from-purple-500 to-purple-600" />
+                      <span className="text-sm font-medium">Roxo</span>
+                    </Button>
+                    <Button
+                      variant={palette === "blue" ? "default" : "outline"}
+                      className="h-auto flex-col gap-3 p-4"
+                      onClick={() => setPalette("blue")}
+                    >
+                      <div className="w-full h-12 rounded-md bg-gradient-to-br from-blue-500 to-blue-600" />
+                      <span className="text-sm font-medium">Azul</span>
+                    </Button>
+                    <Button
+                      variant={palette === "green" ? "default" : "outline"}
+                      className="h-auto flex-col gap-3 p-4"
+                      onClick={() => setPalette("green")}
+                    >
+                      <div className="w-full h-12 rounded-md bg-gradient-to-br from-green-500 to-green-600" />
+                      <span className="text-sm font-medium">Verde</span>
+                    </Button>
+                    <Button
+                      variant={palette === "orange" ? "default" : "outline"}
+                      className="h-auto flex-col gap-3 p-4"
+                      onClick={() => setPalette("orange")}
+                    >
+                      <div className="w-full h-12 rounded-md bg-gradient-to-br from-orange-500 to-orange-600" />
+                      <span className="text-sm font-medium">Laranja</span>
+                    </Button>
+                    <Button
+                      variant={palette === "pink" ? "default" : "outline"}
+                      className="h-auto flex-col gap-3 p-4"
+                      onClick={() => setPalette("pink")}
+                    >
+                      <div className="w-full h-12 rounded-md bg-gradient-to-br from-pink-500 to-pink-600" />
+                      <span className="text-sm font-medium">Rosa</span>
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    A paleta de cores será aplicada em todos os elementos do sistema
                   </p>
                 </div>
               </CardContent>
