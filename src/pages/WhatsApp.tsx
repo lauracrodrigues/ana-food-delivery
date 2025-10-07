@@ -292,13 +292,11 @@ export default function WhatsApp() {
     if (!silent && now - lastCheck < MIN_CHECK_INTERVAL) {
       const waitTime = Math.ceil((MIN_CHECK_INTERVAL - (now - lastCheck)) / 1000);
       console.log(`[WhatsApp] ⏳ Throttle ativo. Aguardar ${waitTime}s`);
-      if (!silent) {
-        toast({
-          title: "Aguarde",
-          description: `Próxima verificação disponível em ${waitTime} segundos`,
-          variant: "default",
-        });
-      }
+      toast({
+        title: "Aguarde",
+        description: `Próxima verificação disponível em ${waitTime} segundos`,
+        variant: "default",
+      });
       return sessions.find(s => s.session_name === sessionName)?.connection_status || 'unknown';
     }
 
@@ -321,6 +319,22 @@ export default function WhatsApp() {
       if (response.data?.success) {
         const status = response.data.data.instance.state;
         console.log(`[WhatsApp] ✅ Status da instância ${sessionName}: ${status}`);
+        
+        // Atualizar o cache do React Query com o novo status
+        const updatedSessions = sessions.map(s => 
+          s.session_name === sessionName 
+            ? { ...s, connection_status: status }
+            : s
+        );
+        queryClient.setQueryData(["whatsapp-sessions", companyId], updatedSessions);
+        
+        if (!silent) {
+          toast({
+            title: "Status atualizado",
+            description: `Status da sessão: ${status === 'open' ? 'Conectado' : status === 'close' ? 'Desconectado' : 'Conectando...'}`,
+          });
+        }
+        
         return status;
       }
       
@@ -498,36 +512,7 @@ export default function WhatsApp() {
     }
   };
 
-  // Verificar status em background após carregar sessões
-  useEffect(() => {
-    if (sessions.length === 0 || !companyId) return;
-
-    console.log(`[WhatsApp] 🚀 Iniciando verificação em background de ${sessions.length} sessões`);
-
-    const updateStatuses = async () => {
-      const updatedSessions = [...sessions];
-      
-      for (const session of updatedSessions) {
-        try {
-          console.log(`[WhatsApp] 🔍 Verificando em background: ${session.session_name}`);
-          const status = await checkConnectionStatus(session.session_name, true);
-          session.connection_status = status;
-          console.log(`[WhatsApp] ✅ Status atualizado: ${session.session_name} = ${status}`);
-        } catch (error) {
-          console.error(`[WhatsApp] ❌ Erro ao verificar ${session.session_name}:`, error);
-          session.connection_status = 'unknown';
-        }
-      }
-      
-      queryClient.setQueryData(["whatsapp-sessions", companyId], updatedSessions);
-      console.log(`[WhatsApp] ✅ Verificação em background concluída`);
-    };
-
-    // Executar após um pequeno delay para não bloquear a UI inicial
-    const timeoutId = setTimeout(updateStatuses, 1000);
-    
-    return () => clearTimeout(timeoutId);
-  }, [sessions.length, companyId]);
+  // Remover verificação em background - status será verificado apenas manualmente
 
   return (
     <div className="container mx-auto py-6 space-y-6">
