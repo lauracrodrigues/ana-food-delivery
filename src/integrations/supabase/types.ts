@@ -667,109 +667,73 @@ export type Database = {
           },
         ]
       }
-      whatsapp_alerts: {
+      whatsapp_config: {
         Row: {
+          agent_name: string | null
+          agent_prompt: string | null
           company_id: string
-          created_at: string | null
-          customer_name: string
+          config_type: string
+          connection_status: string | null
+          created_at: string
+          customer_name: string | null
           id: string
+          is_active: boolean | null
           message: string | null
-          phone: string
+          message_template: string | null
+          phone: string | null
           read: boolean | null
+          session_name: string | null
+          status: string | null
+          updated_at: string
+          webhook_url: string | null
         }
         Insert: {
+          agent_name?: string | null
+          agent_prompt?: string | null
           company_id: string
-          created_at?: string | null
-          customer_name: string
+          config_type: string
+          connection_status?: string | null
+          created_at?: string
+          customer_name?: string | null
           id?: string
+          is_active?: boolean | null
           message?: string | null
-          phone: string
+          message_template?: string | null
+          phone?: string | null
           read?: boolean | null
+          session_name?: string | null
+          status?: string | null
+          updated_at?: string
+          webhook_url?: string | null
         }
         Update: {
+          agent_name?: string | null
+          agent_prompt?: string | null
           company_id?: string
-          created_at?: string | null
-          customer_name?: string
+          config_type?: string
+          connection_status?: string | null
+          created_at?: string
+          customer_name?: string | null
           id?: string
+          is_active?: boolean | null
           message?: string | null
-          phone?: string
+          message_template?: string | null
+          phone?: string | null
           read?: boolean | null
+          session_name?: string | null
+          status?: string | null
+          updated_at?: string
+          webhook_url?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "whatsapp_alerts_company_id_fkey"
+            foreignKeyName: "whatsapp_config_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
-      }
-      whatsapp_sessions: {
-        Row: {
-          agent_name: string
-          agent_prompt: string | null
-          company_id: string
-          created_at: string | null
-          id: string
-          is_active: boolean | null
-          session_name: string
-          updated_at: string | null
-          webhook_url: string | null
-        }
-        Insert: {
-          agent_name: string
-          agent_prompt?: string | null
-          company_id: string
-          created_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          session_name: string
-          updated_at?: string | null
-          webhook_url?: string | null
-        }
-        Update: {
-          agent_name?: string
-          agent_prompt?: string | null
-          company_id?: string
-          created_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          session_name?: string
-          updated_at?: string | null
-          webhook_url?: string | null
-        }
-        Relationships: []
-      }
-      whatsapp_status_messages: {
-        Row: {
-          company_id: string
-          created_at: string | null
-          id: string
-          is_enabled: boolean | null
-          message_template: string
-          status: string
-          updated_at: string | null
-        }
-        Insert: {
-          company_id: string
-          created_at?: string | null
-          id?: string
-          is_enabled?: boolean | null
-          message_template: string
-          status: string
-          updated_at?: string | null
-        }
-        Update: {
-          company_id?: string
-          created_at?: string | null
-          id?: string
-          is_enabled?: boolean | null
-          message_template?: string
-          status?: string
-          updated_at?: string | null
-        }
-        Relationships: []
       }
     }
     Views: {

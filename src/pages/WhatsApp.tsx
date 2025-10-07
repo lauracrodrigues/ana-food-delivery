@@ -77,9 +77,10 @@ export default function WhatsApp() {
       if (!companyId) return [];
       
       const { data, error } = await supabase
-        .from('whatsapp_sessions')
+        .from('whatsapp_config')
         .select('*')
         .eq('company_id', companyId)
+        .eq('config_type', 'session')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -100,7 +101,7 @@ export default function WhatsApp() {
       if (data.id) {
         // Update existing session
         const { error } = await supabase
-          .from('whatsapp_sessions')
+          .from('whatsapp_config')
           .update({
             session_name: data.session_name,
             agent_name: data.agent_name,
@@ -113,9 +114,10 @@ export default function WhatsApp() {
       } else {
         // Add new session
         const { error } = await supabase
-          .from('whatsapp_sessions')
+          .from('whatsapp_config')
           .insert({ 
             company_id: companyId,
+            config_type: 'session',
             session_name: data.session_name,
             agent_name: data.agent_name,
             agent_prompt: data.agent_prompt || null,
@@ -176,7 +178,7 @@ export default function WhatsApp() {
       
       // Deletar do banco de dados
       const { error } = await supabase
-        .from('whatsapp_sessions')
+        .from('whatsapp_config')
         .delete()
         .eq('id', id);
 

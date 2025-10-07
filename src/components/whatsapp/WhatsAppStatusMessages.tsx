@@ -44,9 +44,10 @@ export function WhatsAppStatusMessages() {
           
           // Load existing messages - type-safe query
           const { data: messages, error } = await supabase
-            .from('whatsapp_status_messages')
+            .from('whatsapp_config')
             .select('*')
-            .eq('company_id', profile.company_id);
+            .eq('company_id', profile.company_id)
+            .eq('config_type', 'status_message');
           
           if (!error && messages && messages.length > 0) {
             const loadedMessages = statusMessages.map(sm => {
@@ -55,7 +56,7 @@ export function WhatsAppStatusMessages() {
                 return {
                   ...sm,
                   message: found.message_template,
-                  enabled: found.is_enabled
+                  enabled: found.is_active
                 };
               }
               return sm;
@@ -95,14 +96,15 @@ export function WhatsAppStatusMessages() {
       // Upsert all messages
       for (const msg of statusMessages) {
         const { error } = await supabase
-          .from('whatsapp_status_messages')
+          .from('whatsapp_config')
           .upsert({
             company_id: companyId,
+            config_type: 'status_message',
             status: msg.status,
             message_template: msg.message,
-            is_enabled: msg.enabled,
+            is_active: msg.enabled,
           }, {
-            onConflict: 'company_id,status'
+            onConflict: 'company_id,status,config_type'
           });
 
         if (error) throw error;

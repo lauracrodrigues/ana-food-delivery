@@ -217,7 +217,7 @@ serve(async (req) => {
         
         const webhookUrl = `https://n8n.anafood.vip/webhook/${sessionName}`;
         
-        const updateResponse = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_sessions?session_name=eq.${sessionName}`, {
+        const updateResponse = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_config?session_name=eq.${sessionName}&config_type=eq.session`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
