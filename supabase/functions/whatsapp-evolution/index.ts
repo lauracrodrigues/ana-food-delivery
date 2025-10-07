@@ -130,11 +130,71 @@ serve(async (req) => {
 
     console.log('Sessão criada com sucesso na Evolution API:', data);
 
+    // Configurar webhook automaticamente após criação
+    try {
+      console.log('Configurando webhook para instância:', sessionName);
+      
+      const webhookResponse = await fetch(`https://evo.anafood.vip/instance/${sessionName}/settings`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': EVOLUTION_API_KEY,
+        },
+        body: JSON.stringify({
+          webhookEnabled: true,
+          webhookEvents: ['MESSAGES_UPSERT'],
+          webhookBase64: true
+        }),
+      });
+
+      if (webhookResponse.ok) {
+        console.log('Webhook configurado com sucesso para:', sessionName);
+      } else {
+        const webhookError = await webhookResponse.json();
+        console.error('Erro ao configurar webhook:', webhookError);
+      }
+    } catch (webhookError) {
+      console.error('Falha ao configurar webhook (não crítico):', webhookError);
+    }
+
+    // Atualizar Supabase com webhook_url
+    try {
+      const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      
+      if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+        console.log('Atualizando webhook_url no Supabase para:', sessionName);
+        
+        const webhookUrl = `https://n8n.anafood.vip/webhook/${sessionName}`;
+        
+        const updateResponse = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_sessions?session_name=eq.${sessionName}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          },
+          body: JSON.stringify({
+            webhook_url: webhookUrl
+          }),
+        });
+
+        if (updateResponse.ok) {
+          console.log('Webhook URL atualizado no Supabase:', webhookUrl);
+        } else {
+          const updateError = await updateResponse.text();
+          console.error('Erro ao atualizar webhook_url no Supabase:', updateError);
+        }
+      }
+    } catch (supabaseError) {
+      console.error('Falha ao atualizar Supabase (não crítico):', supabaseError);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         data,
-        message: 'Sessão criada com sucesso na Evolution API'
+        message: 'Sessão criada e configurada com sucesso'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
