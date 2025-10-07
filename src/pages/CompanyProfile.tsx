@@ -46,6 +46,7 @@ export default function CompanyProfile() {
     description: string;
     segment: string;
     logo_url: string;
+    subdomain: string;
     address: {
       cep: string;
       logradouro: string;
@@ -67,6 +68,7 @@ export default function CompanyProfile() {
     description: '',
     segment: '',
     logo_url: '',
+    subdomain: '',
     address: {
       cep: '',
       logradouro: '',
@@ -142,6 +144,7 @@ export default function CompanyProfile() {
         description: company.description || '',
         segment: company.segment || '',
         logo_url: company.logo_url || '',
+        subdomain: company.subdomain || '',
         address: {
           cep: addressData.cep || addressData.zip_code || '',
           logradouro: addressData.logradouro || addressData.street || '',
@@ -351,23 +354,37 @@ export default function CompanyProfile() {
                 </div>
 
                 <div>
-                  <Label htmlFor="segment">Segmento *</Label>
-                  <Select
-                    value={formData.segment}
-                    onValueChange={(value) => setFormData({ ...formData, segment: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o segmento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {deliverySegments.map((segment) => (
-                        <SelectItem key={segment} value={segment}>
-                          {segment}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="subdomain">Subdomínio</Label>
+                  <Input
+                    id="subdomain"
+                    value={formData.subdomain}
+                    onChange={(e) => setFormData({ ...formData, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                    placeholder="minha-empresa"
+                    disabled
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Seu endereço: {formData.subdomain || 'minha-empresa'}.lovable.app
+                  </p>
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="segment">Segmento *</Label>
+                <Select
+                  value={formData.segment}
+                  onValueChange={(value) => setFormData({ ...formData, segment: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o segmento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {deliverySegments.map((segment) => (
+                      <SelectItem key={segment} value={segment}>
+                        {segment}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
