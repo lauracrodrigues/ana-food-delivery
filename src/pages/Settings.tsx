@@ -9,25 +9,11 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { masks } from "@/lib/masks";
 import { 
-  Settings as SettingsIcon, 
   Store, 
-  Bell, 
   Printer, 
   Truck, 
   Clock, 
-  DollarSign,
-  Save,
-  Wifi,
   Volume2,
-  FileText,
-  Shield,
-  Key,
-  Globe,
-  Building2,
-  Phone,
-  Mail,
-  MapPin,
-  CreditCard,
   RefreshCw
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -51,36 +37,6 @@ interface StoreSettings {
   visible_columns?: any;
 }
 
-interface CompanyInfo {
-  id: string;
-  name: string;
-  fantasy_name?: string;
-  cnpj?: string;
-  email?: string;
-  phone?: string;
-  whatsapp?: string;
-  address?: any;
-  subdomain: string;
-  segment?: string;
-}
-
-const deliverySegments = [
-  "Restaurantes",
-  "Pizzarias",
-  "Hamburguerias",
-  "Marmitarias",
-  "Comida japonesa",
-  "Açaiterias",
-  "Lanchonetes",
-  "Padarias",
-  "Docerias",
-  "Sorveterias",
-  "Pastelarias",
-  "Churrascarias",
-  "Comida árabe",
-  "Comida fitness",
-  "Comida mexicana"
-];
 
 export function Settings() {
   const { toast } = useToast();
@@ -94,9 +50,6 @@ export function Settings() {
     cozinha2: "",
     copa_bar: ""
   });
-  
-  // Temporary state for company form
-  const [companyForm, setCompanyForm] = useState<Partial<CompanyInfo>>({});
 
   // Get company ID from user profile
   const { data: profile } = useQuery({
@@ -115,31 +68,6 @@ export function Settings() {
       return data;
     },
   });
-
-  // Fetch company info
-  const { data: companyInfo, isLoading: loadingCompany } = useQuery({
-    queryKey: ["company-info", profile?.company_id],
-    queryFn: async () => {
-      if (!profile?.company_id) return null;
-      
-      const { data, error } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("id", profile.company_id)
-        .single();
-      
-      if (error) throw error;
-      return data as CompanyInfo;
-    },
-    enabled: !!profile?.company_id,
-  });
-
-  // Initialize form when company data loads
-  useEffect(() => {
-    if (companyInfo) {
-      setCompanyForm(companyInfo);
-    }
-  }, [companyInfo]);
 
   // Fetch store settings
   const { data: storeSettings, isLoading: loadingSettings } = useQuery({
@@ -214,35 +142,6 @@ export function Settings() {
     }
   };
 
-  // Update company info mutation
-  const updateCompanyMutation = useMutation({
-    mutationFn: async (data: Partial<CompanyInfo>) => {
-      if (!profile?.company_id) throw new Error("Company ID not found");
-      
-      const { error } = await supabase
-        .from("companies")
-        .update(data)
-        .eq("id", profile.company_id);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["company-info"] });
-      toast({
-        title: "Sucesso",
-        description: "Informações da empresa atualizadas",
-      });
-    },
-    onError: (error) => {
-      console.error("Error updating company:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao atualizar informações da empresa",
-        variant: "destructive",
-      });
-    },
-  });
-
   // Update store settings mutation
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: Partial<StoreSettings>) => {
@@ -275,14 +174,6 @@ export function Settings() {
       });
     },
   });
-
-  const handleCompanyFormChange = (field: string, value: any) => {
-    setCompanyForm(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleCompanySave = () => {
-    updateCompanyMutation.mutate(companyForm);
-  };
 
   const handleSettingsUpdate = (field: string, value: any) => {
     updateSettingsMutation.mutate({ [field]: value });
@@ -317,10 +208,9 @@ export function Settings() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-3 w-full max-w-2xl">
+          <TabsList className="grid grid-cols-2 w-full max-w-2xl">
             <TabsTrigger value="general">Geral</TabsTrigger>
             <TabsTrigger value="printer">Impressão</TabsTrigger>
-            <TabsTrigger value="company">Empresa</TabsTrigger>
           </TabsList>
 
           {/* General Settings */}
@@ -577,145 +467,6 @@ export function Settings() {
             </Card>
           </TabsContent>
 
-          {/* Company Settings */}
-          <TabsContent value="company" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  Informações da Empresa
-                </CardTitle>
-                <CardDescription>
-                  Dados cadastrais e informações legais
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="company-name">Razão Social</Label>
-                    <Input
-                      id="company-name"
-                      value={companyForm?.name || ""}
-                      onChange={(e) => handleCompanyFormChange("name", e.target.value)}
-                      disabled={loadingCompany}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fantasy-name">Nome Fantasia</Label>
-                    <Input
-                      id="fantasy-name"
-                      value={companyForm?.fantasy_name || ""}
-                      onChange={(e) => handleCompanyFormChange("fantasy_name", e.target.value)}
-                      disabled={loadingCompany}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cnpj">CNPJ</Label>
-                    <Input
-                      id="cnpj"
-                      value={companyForm?.cnpj || ""}
-                      onChange={(e) => handleCompanyFormChange("cnpj", e.target.value)}
-                      disabled={loadingCompany}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="segment">Segmento</Label>
-                    <Select
-                      value={companyForm?.segment || ""}
-                      onValueChange={(value) => handleCompanyFormChange("segment", value)}
-                      disabled={loadingCompany}
-                    >
-                      <SelectTrigger id="segment">
-                        <SelectValue placeholder="Selecione o segmento" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {deliverySegments.map((segment) => (
-                          <SelectItem key={segment} value={segment}>
-                            {segment}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">
-                    <Mail className="inline h-4 w-4 mr-2" />
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={companyForm?.email || ""}
-                    onChange={(e) => handleCompanyFormChange("email", e.target.value)}
-                    disabled={loadingCompany}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">
-                      <Phone className="inline h-4 w-4 mr-2" />
-                      Telefone
-                    </Label>
-                    <Input
-                      id="phone"
-                      value={companyForm?.phone || ""}
-                      onChange={(e) => handleCompanyFormChange("phone", masks.phone(e.target.value))}
-                      disabled={loadingCompany}
-                      placeholder="(00) 0000-0000"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="whatsapp">
-                      <Phone className="inline h-4 w-4 mr-2" />
-                      WhatsApp
-                    </Label>
-                    <Input
-                      id="whatsapp"
-                      value={companyForm?.whatsapp || ""}
-                      onChange={(e) => handleCompanyFormChange("whatsapp", masks.phone(e.target.value))}
-                      disabled={loadingCompany}
-                      placeholder="(00) 00000-0000"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="subdomain">
-                    <Globe className="inline h-4 w-4 mr-2" />
-                    Subdomínio
-                  </Label>
-                  <div className="flex gap-2 items-center">
-                    <Input
-                      id="subdomain"
-                      value={companyForm?.subdomain || ""}
-                      onChange={(e) => handleCompanyFormChange("subdomain", e.target.value)}
-                      disabled={loadingCompany}
-                      className="max-w-[200px]"
-                    />
-                    <span className="text-sm text-muted-foreground">.anafood.vip</span>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="flex justify-end">
-                  <Button 
-                    onClick={handleCompanySave}
-                    disabled={loadingCompany || updateCompanyMutation.isPending}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {updateCompanyMutation.isPending ? "Salvando..." : "Salvar Alterações"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
     </div>
