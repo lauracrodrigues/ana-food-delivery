@@ -181,16 +181,19 @@ serve(async (req) => {
     try {
       console.log('[Evolution] ⚙️ Configurando webhook para instância:', sessionName);
       
-      const webhookResponse = await fetch(`https://evo.anafood.vip/instance/${sessionName}/settings`, {
-        method: 'PATCH',
+      const webhookUrl = `https://n8n.anafood.vip/webhook/${sessionName}`;
+      
+      const webhookResponse = await fetch(`https://evo.anafood.vip/webhook/set/${sessionName}`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'apikey': EVOLUTION_API_KEY,
         },
         body: JSON.stringify({
-          webhookEnabled: true,
-          webhookEvents: ['MESSAGES_UPSERT'],
-          webhookBase64: true
+          url: webhookUrl,
+          webhook_by_events: false,
+          webhook_base64: true,
+          events: ['MESSAGES_UPSERT']
         }),
       });
 
