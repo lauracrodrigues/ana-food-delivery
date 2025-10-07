@@ -31,6 +31,14 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
+  
+  // Mantém uma referência sempre atualizada do endereço
+  const addressRef = useRef(address);
+  
+  // Atualiza a ref sempre que o address mudar
+  useEffect(() => {
+    addressRef.current = address;
+  }, [address]);
 
   // Mapbox token - Use sua própria chave API
   // Obtenha gratuitamente em: https://www.mapbox.com/
@@ -72,38 +80,40 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
       marker.current.on('dragend', () => {
         const lngLat = marker.current?.getLngLat();
         if (lngLat) {
-          // Preserva TODOS os campos do endereço atual
+          // Usa a ref para garantir os valores mais recentes
+          const currentAddress = addressRef.current;
           const updatedAddress = {
-            cep: address.cep || '',
-            logradouro: address.logradouro || '',
-            numero: address.numero || '',
-            complemento: address.complemento || '',
-            bairro: address.bairro || '',
-            cidade: address.cidade || '',
-            estado: address.estado || '',
+            cep: currentAddress.cep || '',
+            logradouro: currentAddress.logradouro || '',
+            numero: currentAddress.numero || '',
+            complemento: currentAddress.complemento || '',
+            bairro: currentAddress.bairro || '',
+            cidade: currentAddress.cidade || '',
+            estado: currentAddress.estado || '',
             latitude: lngLat.lat,
             longitude: lngLat.lng,
           };
-          console.log('Marcador arrastado - mantendo endereço:', updatedAddress);
+          console.log('Marcador arrastado - endereço atual:', currentAddress, 'atualizado:', updatedAddress);
           onChange(updatedAddress);
         }
       });
 
       map.current.on('click', (e) => {
         marker.current?.setLngLat([e.lngLat.lng, e.lngLat.lat]);
-        // Preserva TODOS os campos do endereço atual
+        // Usa a ref para garantir os valores mais recentes
+        const currentAddress = addressRef.current;
         const updatedAddress = {
-          cep: address.cep || '',
-          logradouro: address.logradouro || '',
-          numero: address.numero || '',
-          complemento: address.complemento || '',
-          bairro: address.bairro || '',
-          cidade: address.cidade || '',
-          estado: address.estado || '',
+          cep: currentAddress.cep || '',
+          logradouro: currentAddress.logradouro || '',
+          numero: currentAddress.numero || '',
+          complemento: currentAddress.complemento || '',
+          bairro: currentAddress.bairro || '',
+          cidade: currentAddress.cidade || '',
+          estado: currentAddress.estado || '',
           latitude: e.lngLat.lat,
           longitude: e.lngLat.lng,
         };
-        console.log('Mapa clicado - mantendo endereço:', updatedAddress);
+        console.log('Mapa clicado - endereço atual:', currentAddress, 'atualizado:', updatedAddress);
         onChange(updatedAddress);
       });
 
