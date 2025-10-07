@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Loader2 } from "lucide-react";
@@ -30,11 +30,27 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
-// Loading fallback component
-const LoadingFallback = () => (
+// Loading fallback component for page content only
+const PageLoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-[50vh]">
+    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+  </div>
+);
+
+// Full screen loading for initial load
+const FullLoadingFallback = () => (
   <div className="flex items-center justify-center min-h-screen">
     <Loader2 className="w-8 h-8 animate-spin text-primary" />
   </div>
+);
+
+// Layout wrapper that keeps the DashboardLayout mounted
+const DashboardLayoutWrapper = () => (
+  <DashboardLayout>
+    <Suspense fallback={<PageLoadingFallback />}>
+      <Outlet />
+    </Suspense>
+  </DashboardLayout>
 );
 
 const App = () => (
@@ -48,72 +64,33 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/cadastro" element={
-              <Suspense fallback={<LoadingFallback />}>
+              <Suspense fallback={<FullLoadingFallback />}>
                 <Registration />
               </Suspense>
             } />
-            <Route path="/admin" element={
-              <Suspense fallback={<LoadingFallback />}>
-                <DashboardLayout><AdminDashboard /></DashboardLayout>
-              </Suspense>
-            } />
-            <Route path="/dashboard" element={
-              <Suspense fallback={<LoadingFallback />}>
-                <DashboardLayout><StoreDashboard /></DashboardLayout>
-              </Suspense>
-            } />
-            <Route path="/orders" element={
-              <Suspense fallback={<LoadingFallback />}>
-                <DashboardLayout><Orders /></DashboardLayout>
-              </Suspense>
-            } />
-            <Route path="/customers" element={
-              <Suspense fallback={<LoadingFallback />}>
-                <DashboardLayout><Customers /></DashboardLayout>
-              </Suspense>
-            } />
-            <Route path="/products" element={
-              <Suspense fallback={<LoadingFallback />}>
-                <DashboardLayout><Products /></DashboardLayout>
-              </Suspense>
-            } />
-            <Route path="/categories" element={
-              <Suspense fallback={<LoadingFallback />}>
-                <DashboardLayout><Categories /></DashboardLayout>
-              </Suspense>
-            } />
-            <Route path="/extras" element={
-              <Suspense fallback={<LoadingFallback />}>
-                <DashboardLayout><Extras /></DashboardLayout>
-              </Suspense>
-            } />
-            <Route path="/delivery-fees" element={
-              <Suspense fallback={<LoadingFallback />}>
-                <DashboardLayout><DeliveryFees /></DashboardLayout>
-              </Suspense>
-            } />
-            <Route path="/payment-methods" element={
-              <Suspense fallback={<LoadingFallback />}>
-                <DashboardLayout><PaymentMethods /></DashboardLayout>
-              </Suspense>
-            } />
-            <Route path="/whatsapp" element={
-              <Suspense fallback={<LoadingFallback />}>
-                <DashboardLayout><WhatsApp /></DashboardLayout>
-              </Suspense>
-            } />
-            <Route path="/settings" element={
-              <Suspense fallback={<LoadingFallback />}>
-                <DashboardLayout><Settings /></DashboardLayout>
-              </Suspense>
-            } />
+            
+            {/* Dashboard routes with persistent layout */}
+            <Route element={<DashboardLayoutWrapper />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/dashboard" element={<StoreDashboard />} />
+              <Route path="/orders" element={<Orders />} />
+              <Route path="/customers" element={<Customers />} />
+              <Route path="/products" element={<Products />} />
+              <Route path="/categories" element={<Categories />} />
+              <Route path="/extras" element={<Extras />} />
+              <Route path="/delivery-fees" element={<DeliveryFees />} />
+              <Route path="/payment-methods" element={<PaymentMethods />} />
+              <Route path="/whatsapp" element={<WhatsApp />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
+
             <Route path="/auth/callback" element={
-              <Suspense fallback={<LoadingFallback />}>
+              <Suspense fallback={<FullLoadingFallback />}>
                 <AuthCallback />
               </Suspense>
             } />
             <Route path="*" element={
-              <Suspense fallback={<LoadingFallback />}>
+              <Suspense fallback={<FullLoadingFallback />}>
                 <NotFound />
               </Suspense>
             } />
