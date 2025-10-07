@@ -394,7 +394,13 @@ export default function CompanyProfile() {
             <CardContent>
               <AddressSearchWithMap
                 address={formData.address}
-                onChange={(address) => setFormData({ ...formData, address })}
+                onChange={(updatedAddress) => {
+                  // Preserva TODAS as informações da empresa, atualizando apenas o endereço
+                  setFormData(prev => ({
+                    ...prev,
+                    address: updatedAddress
+                  }));
+                }}
               />
             </CardContent>
           </Card>
