@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -83,7 +83,7 @@ function SortableProductItem({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: transition || "transform 150ms ease",
+    transition: transition || "transform 150ms cubic-bezier(0.4, 0, 0.2, 1)",
   };
 
   const handlePriceBlur = () => {
@@ -131,7 +131,7 @@ function SortableProductItem({
                   e.stopPropagation();
                   setEditingPrice(true);
                 }}
-                className="text-sm font-medium px-2 py-1 rounded hover:bg-muted"
+                className="text-sm font-medium px-3 py-1.5 rounded bg-muted hover:bg-muted/80 transition-colors"
               >
                 R$ {product.price.toFixed(2)}
               </button>
@@ -195,6 +195,8 @@ export function MenuProductsList({
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
   const [sortOrder, setSortOrder] = useState<"name" | "price_asc" | "price_desc">("name");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -350,6 +352,17 @@ export function MenuProductsList({
     return 0;
   });
 
+  // Pagination
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus, sortOrder, selectedCategoryId]);
+
   return (
     <>
       <Card>
@@ -421,11 +434,11 @@ export function MenuProductsList({
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={filteredProducts.map((p) => p.id)}
+                items={paginatedProducts.map((p) => p.id)}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-2">
-                  {filteredProducts.map((product) => (
+                  {paginatedProducts.map((product) => (
                     <SortableProductItem
                       key={product.id}
                       product={product}
@@ -441,6 +454,57 @@ export function MenuProductsList({
                 </div>
               </SortableContext>
             </DndContext>
+          )}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t">
+              <p className="text-sm text-muted-foreground">
+                Mostrando {startIndex + 1}-{Math.min(endIndex, filteredProducts.length)} de {filteredProducts.length}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Anterior
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        className="w-8 h-8 p-0"
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Próxima
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

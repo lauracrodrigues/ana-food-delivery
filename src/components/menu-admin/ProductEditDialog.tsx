@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Upload, X } from "lucide-react";
+import { ProductGroupsTab } from "./ProductGroupsTab";
 
 interface ProductEditDialogProps {
   product: any;
@@ -50,6 +51,7 @@ export function ProductEditDialog({
     category_id: product?.category_id || defaultCategoryId || "",
     print_sector: product?.print_sector || "",
     image_url: product?.image_url || "",
+    internal_code: product?.internal_code || "",
     on_off: product?.on_off ?? true,
   });
   const [imagePreview, setImagePreview] = useState<string | null>(product?.image_url || null);
@@ -64,6 +66,7 @@ export function ProductEditDialog({
         category_id: product.category_id || defaultCategoryId || "",
         print_sector: product.print_sector || "",
         image_url: product.image_url || "",
+        internal_code: product.internal_code || "",
         on_off: product.on_off ?? true,
       });
       setImagePreview(product.image_url || null);
@@ -195,7 +198,9 @@ export function ProductEditDialog({
         <Tabs defaultValue="general" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="general">Dados Principais</TabsTrigger>
-            <TabsTrigger value="groups">Agrupamentos</TabsTrigger>
+            <TabsTrigger value="groups" disabled={!isEditing}>
+              Agrupamentos {!isEditing && "(salve primeiro)"}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-4 py-4">
@@ -211,18 +216,32 @@ export function ProductEditDialog({
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="price">Preço</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) =>
-                  setFormData({ ...formData, price: e.target.value })
-                }
-                placeholder="0.00"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="price">Preço</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) =>
+                    setFormData({ ...formData, price: e.target.value })
+                  }
+                  placeholder="0.00"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="internal_code">Código Interno</Label>
+                <Input
+                  id="internal_code"
+                  value={formData.internal_code}
+                  onChange={(e) =>
+                    setFormData({ ...formData, internal_code: e.target.value })
+                  }
+                  placeholder="Ex: P001"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -270,6 +289,7 @@ export function ProductEditDialog({
                   <SelectValue placeholder="Selecione um setor" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">Nenhum (não imprimir)</SelectItem>
                   <SelectItem value="caixa">Caixa</SelectItem>
                   <SelectItem value="cozinha1">Cozinha 1</SelectItem>
                   <SelectItem value="cozinha2">Cozinha 2</SelectItem>
@@ -282,30 +302,30 @@ export function ProductEditDialog({
               <Label>Imagem do Produto</Label>
               
               {imagePreview ? (
-                <div className="relative">
+                <div className="relative w-[100px] h-[100px]">
                   <img
                     src={imagePreview}
                     alt="Preview"
-                    className="w-full h-48 object-cover rounded-lg"
+                    className="w-full h-full object-cover rounded-lg border-2 border-border"
                   />
                   <Button
                     type="button"
                     variant="destructive"
                     size="icon"
-                    className="absolute top-2 right-2"
+                    className="absolute -top-2 -right-2 h-6 w-6"
                     onClick={handleRemoveImage}
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3 w-3" />
                   </Button>
                 </div>
               ) : (
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <div className="border-2 border-dashed border-border rounded-lg p-4 text-center w-[100px] h-[100px] flex flex-col items-center justify-center">
+                  <Upload className="h-8 w-8 text-muted-foreground mb-2" />
                   <Label
                     htmlFor="image-upload"
-                    className="cursor-pointer text-sm text-primary hover:underline"
+                    className="cursor-pointer text-xs text-primary hover:underline"
                   >
-                    Clique para fazer upload de uma imagem
+                    Upload
                   </Label>
                   <Input
                     id="image-upload"
@@ -316,25 +336,12 @@ export function ProductEditDialog({
                     disabled={uploading}
                   />
                   {uploading && (
-                    <p className="text-sm text-muted-foreground mt-2">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Enviando...
                     </p>
                   )}
                 </div>
               )}
-              
-              <div className="space-y-2 mt-4">
-                <Label htmlFor="image_url">Ou cole a URL da imagem</Label>
-                <Input
-                  id="image_url"
-                  value={formData.image_url}
-                  onChange={(e) => {
-                    setFormData({ ...formData, image_url: e.target.value });
-                    setImagePreview(e.target.value);
-                  }}
-                  placeholder="https://..."
-                />
-              </div>
             </div>
 
             <div className="flex items-center justify-between">
@@ -350,9 +357,16 @@ export function ProductEditDialog({
           </TabsContent>
 
           <TabsContent value="groups" className="space-y-4 py-4">
-            <div className="text-center py-8 text-muted-foreground">
-              Funcionalidade de agrupamentos em desenvolvimento
-            </div>
+            {isEditing ? (
+              <ProductGroupsTab
+                productId={product.id}
+                companyId={companyId!}
+              />
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                Salve o produto primeiro para adicionar agrupamentos
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 

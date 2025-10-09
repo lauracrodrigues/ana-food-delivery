@@ -713,6 +713,7 @@ export type Database = {
           display_order: number | null
           id: string
           image_url: string | null
+          internal_code: string | null
           name: string
           on_off: boolean | null
           price: number
@@ -726,6 +727,7 @@ export type Database = {
           display_order?: number | null
           id?: string
           image_url?: string | null
+          internal_code?: string | null
           name: string
           on_off?: boolean | null
           price: number
@@ -739,6 +741,7 @@ export type Database = {
           display_order?: number | null
           id?: string
           image_url?: string | null
+          internal_code?: string | null
           name?: string
           on_off?: boolean | null
           price?: number

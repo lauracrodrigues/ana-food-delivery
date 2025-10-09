@@ -86,7 +86,7 @@ function SortableCategoryItem({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: transition || "transform 150ms ease",
+    transition: transition || "transform 150ms cubic-bezier(0.4, 0, 0.2, 1)",
   };
 
   return (
@@ -406,6 +406,7 @@ export function MenuCategoriesList({
                   <SelectValue placeholder="Selecione um setor (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">Nenhum (não imprimir)</SelectItem>
                   <SelectItem value="caixa">Caixa</SelectItem>
                   <SelectItem value="cozinha1">Cozinha 1</SelectItem>
                   <SelectItem value="cozinha2">Cozinha 2</SelectItem>
@@ -466,6 +467,7 @@ export function MenuCategoriesList({
                   <SelectValue placeholder="Selecione um setor (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">Nenhum (não imprimir)</SelectItem>
                   <SelectItem value="caixa">Caixa</SelectItem>
                   <SelectItem value="cozinha1">Cozinha 1</SelectItem>
                   <SelectItem value="cozinha2">Cozinha 2</SelectItem>
