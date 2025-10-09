@@ -29,6 +29,7 @@ const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
 const MenuManagement = lazy(() => import("./pages/MenuManagement"));
+const PublicMenu = lazy(() => import("./pages/PublicMenu"));
 
 const queryClient = new QueryClient();
 
@@ -91,6 +92,11 @@ const App = () => (
             <Route path="/auth/callback" element={
               <Suspense fallback={<FullLoadingFallback />}>
                 <AuthCallback />
+              </Suspense>
+            } />
+            <Route path="/menu/:subdomain" element={
+              <Suspense fallback={<FullLoadingFallback />}>
+                <PublicMenu />
               </Suspense>
             } />
             <Route path="*" element={

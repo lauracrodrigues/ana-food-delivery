@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, ExternalLink } from "lucide-react";
 import { CompanyLogoUpload } from "@/components/company/CompanyLogoUpload";
+import { CompanyBannerUpload } from "@/components/company/CompanyBannerUpload";
 
 export default function MenuManagement() {
   const { toast } = useToast();
@@ -173,16 +174,18 @@ export default function MenuManagement() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="banner">URL do Banner</Label>
-            <Input
-              id="banner"
-              value={bannerUrl}
-              onChange={(e) => setBannerUrl(e.target.value)}
-              placeholder="https://exemplo.com/banner.jpg"
+            <CompanyBannerUpload
+              companyId={companyId || ""}
+              currentBannerUrl={bannerUrl}
+              companyName={companyData?.fantasy_name || companyData?.name || ""}
+              onBannerUpdate={(url) => {
+                setBannerUrl(url);
+                toast({
+                  title: "Banner atualizado",
+                  description: "O banner foi atualizado com sucesso!",
+                });
+              }}
             />
-            <p className="text-sm text-muted-foreground">
-              Banner exibido no topo do cardápio (recomendado: 1200x400px)
-            </p>
           </div>
         </CardContent>
       </Card>
