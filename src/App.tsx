@@ -11,6 +11,7 @@ import { Loader2 } from "lucide-react";
 // Eagerly load critical components
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import Menu from "./pages/Menu";
 
 // Lazy load non-critical routes
 const Registration = lazy(() => import("./pages/Registration"));
@@ -29,7 +30,6 @@ const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
 const MenuManagement = lazy(() => import("./pages/MenuManagement"));
-const Menu = lazy(() => import("./pages/Menu"));
 const PublicMenu = lazy(() => import("./pages/PublicMenu"));
 
 const queryClient = new QueryClient();
