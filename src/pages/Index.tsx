@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,21 +33,35 @@ import { Link } from "react-router-dom";
 import PublicMenuBySubdomain from "./PublicMenuBySubdomain";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubdomain, setIsSubdomain] = useState(false);
+
+  // Check if user is already logged in and redirect to dashboard
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate('/dashboard');
+      }
+    });
+  }, [navigate]);
 
   useEffect(() => {
     const hostname = window.location.hostname;
     const parts = hostname.split('.');
     
-    // Detecta se é um subdomínio (não é localhost, não é IP, tem 3+ partes e não é www)
-    if (
+    // Detecta se é um subdomínio customizado de restaurante
+    // Ignora: localhost, IPs, lovableproject.com (desenvolvimento), www, anafood
+    const isLovableProject = hostname.includes('lovableproject.com');
+    const isValidSubdomain = 
       hostname !== 'localhost' && 
       !hostname.match(/^\d+\.\d+\.\d+\.\d+$/) &&
+      !isLovableProject &&
       parts.length >= 3 && 
       parts[0] !== 'www' &&
-      parts[0] !== 'anafood'
-    ) {
+      parts[0] !== 'anafood';
+    
+    if (isValidSubdomain) {
       setIsSubdomain(true);
     }
   }, []);
