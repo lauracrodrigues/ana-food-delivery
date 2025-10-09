@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,9 +28,32 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import PublicMenuBySubdomain from "./PublicMenuBySubdomain";
 
 const Index = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSubdomain, setIsSubdomain] = useState(false);
+
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    const parts = hostname.split('.');
+    
+    // Detecta se é um subdomínio (não é localhost, não é IP, tem 3+ partes e não é www)
+    if (
+      hostname !== 'localhost' && 
+      !hostname.match(/^\d+\.\d+\.\d+\.\d+$/) &&
+      parts.length >= 3 && 
+      parts[0] !== 'www' &&
+      parts[0] !== 'anafood'
+    ) {
+      setIsSubdomain(true);
+    }
+  }, []);
+
+  // Se for um subdomínio, mostrar o cardápio público
+  if (isSubdomain) {
+    return <PublicMenuBySubdomain />;
+  }
 
   const handleNavigation = (href: string) => {
     setIsMenuOpen(false);
