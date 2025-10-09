@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Upload, X } from "lucide-react";
 
 interface ProductEditDialogProps {
   product: any;
@@ -51,6 +52,8 @@ export function ProductEditDialog({
     image_url: product?.image_url || "",
     on_off: product?.on_off ?? true,
   });
+  const [imagePreview, setImagePreview] = useState<string | null>(product?.image_url || null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (product) {
@@ -63,8 +66,48 @@ export function ProductEditDialog({
         image_url: product.image_url || "",
         on_off: product.on_off ?? true,
       });
+      setImagePreview(product.image_url || null);
     }
   }, [product, defaultCategoryId]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !companyId) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${companyId}/${Math.random()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("company-logos")
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("company-logos")
+        .getPublicUrl(fileName);
+
+      setFormData({ ...formData, image_url: publicUrl });
+      setImagePreview(publicUrl);
+
+      toast({ title: "Imagem enviada com sucesso!" });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao enviar imagem",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setFormData({ ...formData, image_url: "" });
+    setImagePreview(null);
+  };
 
   // Fetch categories
   const { data: categories = [] } = useQuery({
@@ -236,15 +279,62 @@ export function ProductEditDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="image_url">URL da Imagem</Label>
-              <Input
-                id="image_url"
-                value={formData.image_url}
-                onChange={(e) =>
-                  setFormData({ ...formData, image_url: e.target.value })
-                }
-                placeholder="https://..."
-              />
+              <Label>Imagem do Produto</Label>
+              
+              {imagePreview ? (
+                <div className="relative">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2"
+                    onClick={handleRemoveImage}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+                  <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                  <Label
+                    htmlFor="image-upload"
+                    className="cursor-pointer text-sm text-primary hover:underline"
+                  >
+                    Clique para fazer upload de uma imagem
+                  </Label>
+                  <Input
+                    id="image-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageUpload}
+                    disabled={uploading}
+                  />
+                  {uploading && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Enviando...
+                    </p>
+                  )}
+                </div>
+              )}
+              
+              <div className="space-y-2 mt-4">
+                <Label htmlFor="image_url">Ou cole a URL da imagem</Label>
+                <Input
+                  id="image_url"
+                  value={formData.image_url}
+                  onChange={(e) => {
+                    setFormData({ ...formData, image_url: e.target.value });
+                    setImagePreview(e.target.value);
+                  }}
+                  placeholder="https://..."
+                />
+              </div>
             </div>
 
             <div className="flex items-center justify-between">

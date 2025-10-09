@@ -21,7 +21,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, MoreVertical, GripVertical, Search } from "lucide-react";
+import { Plus, MoreVertical, GripVertical, Search, Edit } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DndContext,
   closestCenter,
@@ -51,6 +58,7 @@ interface Category {
   name: string;
   on_off: boolean;
   display_order: number;
+  print_sector?: string | null;
 }
 
 function SortableCategoryItem({
@@ -59,12 +67,14 @@ function SortableCategoryItem({
   onSelect,
   onToggleStatus,
   onDelete,
+  onEdit,
 }: {
   category: Category;
   isSelected: boolean;
   onSelect: () => void;
   onToggleStatus: (id: string, status: boolean) => void;
   onDelete: (id: string) => void;
+  onEdit: (category: Category) => void;
 }) {
   const {
     attributes,
@@ -76,7 +86,7 @@ function SortableCategoryItem({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition || "transform 150ms ease",
   };
 
   return (
@@ -109,6 +119,9 @@ function SortableCategoryItem({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => onEdit(category)}>
+            Editar
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onDelete(category.id)}>
             Excluir
           </DropdownMenuItem>
@@ -127,7 +140,10 @@ export function MenuCategoriesList({
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryPrintSector, setNewCategoryPrintSector] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -156,11 +172,12 @@ export function MenuCategoriesList({
 
   // Create category
   const createMutation = useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async () => {
       const maxOrder = Math.max(...categories.map((c) => c.display_order), -1);
       const { error } = await supabase.from("categories").insert({
         company_id: companyId,
-        name,
+        name: newCategoryName,
+        print_sector: newCategoryPrintSector || null,
         display_order: maxOrder + 1,
       });
       if (error) throw error;
@@ -170,10 +187,41 @@ export function MenuCategoriesList({
       toast({ title: "Categoria criada com sucesso!" });
       setIsCreateDialogOpen(false);
       setNewCategoryName("");
+      setNewCategoryPrintSector("");
     },
     onError: (error) => {
       toast({
         title: "Erro ao criar categoria",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update category
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingCategory) return;
+      const { error } = await supabase
+        .from("categories")
+        .update({
+          name: newCategoryName,
+          print_sector: newCategoryPrintSector || null,
+        })
+        .eq("id", editingCategory.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      toast({ title: "Categoria atualizada com sucesso!" });
+      setIsEditDialogOpen(false);
+      setEditingCategory(null);
+      setNewCategoryName("");
+      setNewCategoryPrintSector("");
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao atualizar categoria",
         description: error.message,
         variant: "destructive",
       });
@@ -315,6 +363,12 @@ export function MenuCategoriesList({
                       onSelect={() => onSelectCategory(category.id)}
                       onToggleStatus={(id, status) => toggleStatusMutation.mutate({ id, status })}
                       onDelete={deleteMutation.mutate}
+                      onEdit={(cat) => {
+                        setEditingCategory(cat);
+                        setNewCategoryName(cat.name);
+                        setNewCategoryPrintSector(cat.print_sector || "");
+                        setIsEditDialogOpen(true);
+                      }}
                     />
                   ))}
                 </div>
@@ -342,19 +396,104 @@ export function MenuCategoriesList({
                 placeholder="Ex: Pizzas, Bebidas..."
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="print_sector">Setor de Impressão</Label>
+              <Select
+                value={newCategoryPrintSector}
+                onValueChange={setNewCategoryPrintSector}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um setor (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="caixa">Caixa</SelectItem>
+                  <SelectItem value="cozinha1">Cozinha 1</SelectItem>
+                  <SelectItem value="cozinha2">Cozinha 2</SelectItem>
+                  <SelectItem value="bar">Copa/Bar</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Se o produto tiver setor definido, ele será priorizado
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsCreateDialogOpen(false)}
+              onClick={() => {
+                setIsCreateDialogOpen(false);
+                setNewCategoryName("");
+                setNewCategoryPrintSector("");
+              }}
             >
               Cancelar
             </Button>
             <Button
-              onClick={() => createMutation.mutate(newCategoryName)}
+              onClick={() => createMutation.mutate()}
               disabled={!newCategoryName.trim() || createMutation.isPending}
             >
               Criar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Categoria</DialogTitle>
+            <DialogDescription>
+              Atualize as informações da categoria.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Nome da Categoria</Label>
+              <Input
+                id="edit-name"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="Ex: Pizzas, Bebidas..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-print_sector">Setor de Impressão</Label>
+              <Select
+                value={newCategoryPrintSector}
+                onValueChange={setNewCategoryPrintSector}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um setor (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="caixa">Caixa</SelectItem>
+                  <SelectItem value="cozinha1">Cozinha 1</SelectItem>
+                  <SelectItem value="cozinha2">Cozinha 2</SelectItem>
+                  <SelectItem value="bar">Copa/Bar</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Se o produto tiver setor definido, ele será priorizado
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                setEditingCategory(null);
+                setNewCategoryName("");
+                setNewCategoryPrintSector("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => updateMutation.mutate()}
+              disabled={!newCategoryName.trim() || updateMutation.isPending}
+            >
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -55,6 +55,7 @@ export type Database = {
           id: string
           name: string
           on_off: boolean | null
+          print_sector: string | null
         }
         Insert: {
           company_id: string
@@ -63,6 +64,7 @@ export type Database = {
           id?: string
           name: string
           on_off?: boolean | null
+          print_sector?: string | null
         }
         Update: {
           company_id?: string
@@ -71,6 +73,7 @@ export type Database = {
           id?: string
           name?: string
           on_off?: boolean | null
+          print_sector?: string | null
         }
         Relationships: [
           {

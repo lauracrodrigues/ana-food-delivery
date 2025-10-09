@@ -12,7 +12,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreVertical, GripVertical, Search, ChevronRight, ChevronDown } from "lucide-react";
+import { Plus, MoreVertical, GripVertical, Search, ChevronRight, ChevronDown, Filter } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ProductEditDialog } from "./ProductEditDialog";
 import {
   DndContext,
@@ -76,7 +83,7 @@ function SortableProductItem({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition || "transform 150ms ease",
   };
 
   const handlePriceBlur = () => {
@@ -186,6 +193,8 @@ export function MenuProductsList({
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
+  const [sortOrder, setSortOrder] = useState<"name" | "price_asc" | "price_desc">("name");
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -318,9 +327,28 @@ export function MenuProductsList({
     }
   };
 
-  const filteredProducts = products.filter((prod) =>
+  let filteredProducts = products.filter((prod) =>
     prod.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Filter by status
+  if (filterStatus === "active") {
+    filteredProducts = filteredProducts.filter((prod) => prod.on_off);
+  } else if (filterStatus === "inactive") {
+    filteredProducts = filteredProducts.filter((prod) => !prod.on_off);
+  }
+
+  // Sort products
+  filteredProducts = [...filteredProducts].sort((a, b) => {
+    if (sortOrder === "name") {
+      return a.name.localeCompare(b.name);
+    } else if (sortOrder === "price_asc") {
+      return a.price - b.price;
+    } else if (sortOrder === "price_desc") {
+      return b.price - a.price;
+    }
+    return 0;
+  });
 
   return (
     <>
@@ -339,14 +367,41 @@ export function MenuProductsList({
             Novo Produto
           </Button>
 
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Pesquisar produto..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar produto..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
+                <SelectTrigger className="w-[180px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filtrar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="active">Ativos</SelectItem>
+                  <SelectItem value="inactive">Inativos</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={sortOrder} onValueChange={(value: any) => setSortOrder(value)}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Ordenar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">Alfabética</SelectItem>
+                  <SelectItem value="price_asc">Menor preço</SelectItem>
+                  <SelectItem value="price_desc">Maior preço</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {isLoading ? (
