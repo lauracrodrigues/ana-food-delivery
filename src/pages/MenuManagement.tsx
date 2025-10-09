@@ -85,7 +85,7 @@ export default function MenuManagement() {
   };
 
   const copyMenuLink = () => {
-    const link = `https://${subdomain}.anafood.vip`;
+    const link = `${window.location.origin}/menu/${subdomain}`;
     navigator.clipboard.writeText(link);
     toast({
       title: "Link copiado!",
@@ -94,7 +94,7 @@ export default function MenuManagement() {
   };
 
   const openMenu = () => {
-    window.open(`https://${subdomain}.anafood.vip`, '_blank');
+    window.open(`/menu/${subdomain}`, '_blank');
   };
 
   if (isLoading) {
@@ -105,7 +105,7 @@ export default function MenuManagement() {
     );
   }
 
-  const menuLink = `https://${subdomain}.anafood.vip`;
+  const menuLink = subdomain ? `${window.location.origin}/menu/${subdomain}` : "Aguardando subdomínio...";
 
   return (
     <div className="container mx-auto py-8 space-y-6">
