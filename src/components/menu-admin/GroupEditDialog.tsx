@@ -21,14 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, Search } from "lucide-react";
+import { Plus, Trash2, Search, Info } from "lucide-react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -37,11 +35,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface GroupEditDialogProps {
   group?: any;
@@ -70,6 +64,13 @@ export function GroupEditDialog({
 
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [freeQuantity, setFreeQuantity] = useState(0);
+  const [isAddingExtra, setIsAddingExtra] = useState(false);
+  const [newExtraForm, setNewExtraForm] = useState({
+    name: "",
+    price: "",
+    description: "",
+  });
 
   // Fetch all extras
   const { data: allExtras = [] } = useQuery({
@@ -103,6 +104,35 @@ export function GroupEditDialog({
       return data;
     },
     enabled: isEditing,
+  });
+
+  // Create extra mutation
+  const createExtraMutation = useMutation({
+    mutationFn: async (extraData: typeof newExtraForm) => {
+      const { data, error } = await supabase
+        .from("extras")
+        .insert({
+          company_id: companyId,
+          name: extraData.name,
+          description: extraData.description,
+          price: parseFloat(extraData.price),
+          on_off: true,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (newExtra) => {
+      queryClient.invalidateQueries({ queryKey: ["extras", companyId] });
+      setSelectedExtras([...selectedExtras, newExtra.id]);
+      setNewExtraForm({ name: "", price: "", description: "" });
+      setIsAddingExtra(false);
+      toast({ title: "Adicional criado e adicionado ao grupo!" });
+    },
+    onError: () => {
+      toast({ title: "Erro ao criar adicional", variant: "destructive" });
+    },
   });
 
   // Save group mutation
@@ -176,6 +206,14 @@ export function GroupEditDialog({
     setSelectedExtras(selectedExtras.filter((id) => id !== extraId));
   };
 
+  const handleCreateExtra = () => {
+    if (!newExtraForm.name || !newExtraForm.price) {
+      toast({ title: "Preencha nome e preço", variant: "destructive" });
+      return;
+    }
+    createExtraMutation.mutate(newExtraForm);
+  };
+
   const displayExtras = isEditing
     ? groupExtras
     : selectedExtras
@@ -208,37 +246,102 @@ export function GroupEditDialog({
           </div>
 
           <div>
-            <Label className="mb-2 block">Adicionais</Label>
-            
-            {!isEditing && (
-              <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full mb-2">
-                    <Search className="h-4 w-4 mr-2" />
-                    Pesquisar adicionais
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-base">Adicionais</Label>
+              {!isEditing && (
+                <div className="flex gap-2">
+                  <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Search className="h-4 w-4 mr-2" />
+                        Pesquisar
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0" align="end">
+                      <Command>
+                        <CommandInput placeholder="Buscar adicional..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhum adicional encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {allExtras
+                              .filter((e: any) => !selectedExtras.includes(e.id))
+                              .map((extra: any) => (
+                                <CommandItem
+                                  key={extra.id}
+                                  onSelect={() => handleAddExtra(extra.id)}
+                                >
+                                  {extra.name} - R$ {extra.price.toFixed(2)}
+                                </CommandItem>
+                              ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setIsAddingExtra(!isAddingExtra)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Adicional
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Buscar adicional..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhum adicional encontrado.</CommandEmpty>
-                      <CommandGroup>
-                        {allExtras
-                          .filter((e: any) => !selectedExtras.includes(e.id))
-                          .map((extra: any) => (
-                            <CommandItem
-                              key={extra.id}
-                              onSelect={() => handleAddExtra(extra.id)}
-                            >
-                              {extra.name} - R$ {extra.price.toFixed(2)}
-                            </CommandItem>
-                          ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                </div>
+              )}
+            </div>
+
+            {isAddingExtra && !isEditing && (
+              <div className="border rounded-lg p-4 mb-4 space-y-3 bg-muted/50">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Nome *</Label>
+                    <Input
+                      value={newExtraForm.name}
+                      onChange={(e) =>
+                        setNewExtraForm({ ...newExtraForm, name: e.target.value })
+                      }
+                      placeholder="Ex: Queijo Extra"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Preço *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={newExtraForm.price}
+                      onChange={(e) =>
+                        setNewExtraForm({ ...newExtraForm, price: e.target.value })
+                      }
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Descrição</Label>
+                  <Input
+                    value={newExtraForm.description}
+                    onChange={(e) =>
+                      setNewExtraForm({ ...newExtraForm, description: e.target.value })
+                    }
+                    placeholder="Descrição opcional"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleCreateExtra} size="sm">
+                    Criar e Adicionar
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setIsAddingExtra(false);
+                      setNewExtraForm({ name: "", price: "", description: "" });
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
             )}
 
             <Table>
@@ -298,45 +401,74 @@ export function GroupEditDialog({
             </Table>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="min">Quantidade Mínima</Label>
+              <Label htmlFor="free_quantity">Quantidade Gratuita</Label>
               <Input
-                id="min"
+                id="free_quantity"
                 type="number"
                 min="0"
-                value={formData.min_selection}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    min_selection: parseInt(e.target.value) || 0,
-                  })
-                }
+                value={freeQuantity}
+                onChange={(e) => setFreeQuantity(parseInt(e.target.value) || 0)}
               />
-              <p className="text-xs text-muted-foreground">
-                0 = opcional
+              <p className="text-xs text-muted-foreground flex items-start gap-1">
+                <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                <span>
+                  Define quantos adicionais são gratuitos. Exemplo: se definir 2, os 2 primeiros adicionais não serão cobrados no pedido.
+                </span>
               </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="max">Quantidade Máxima</Label>
-              <Input
-                id="max"
-                type="number"
-                min="0"
-                value={formData.max_selection || ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    max_selection: e.target.value ? parseInt(e.target.value) : null,
-                  })
-                }
-                placeholder="Ilimitado"
-              />
-              <p className="text-xs text-muted-foreground">
-                Vazio = ilimitado
-              </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="min">Quantidade Mínima</Label>
+                <Input
+                  id="min"
+                  type="number"
+                  min="0"
+                  value={formData.min_selection}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      min_selection: parseInt(e.target.value) || 0,
+                    })
+                  }
+                />
+                <p className="text-xs text-muted-foreground flex items-start gap-1">
+                  <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                  <span>0 = opcional, 1+ = obrigatório selecionar essa quantidade</span>
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="max">Quantidade Máxima</Label>
+                <Input
+                  id="max"
+                  type="number"
+                  min="0"
+                  value={formData.max_selection || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      max_selection: e.target.value ? parseInt(e.target.value) : null,
+                    })
+                  }
+                  placeholder="Ilimitado"
+                />
+                <p className="text-xs text-muted-foreground flex items-start gap-1">
+                  <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                  <span>Vazio = ilimitado, ou defina um número máximo de seleções</span>
+                </p>
+              </div>
             </div>
           </div>
+
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription className="text-sm">
+              <strong>Como funciona:</strong> Configure a quantidade mínima/máxima de adicionais que o cliente deve/pode escolher. 
+              Use a quantidade gratuita para oferecer adicionais sem custo até determinado limite.
+            </AlertDescription>
+          </Alert>
         </div>
 
         <div className="flex justify-end gap-2">

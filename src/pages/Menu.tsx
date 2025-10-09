@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MenuCategoriesList } from "@/components/menu-admin/MenuCategoriesList";
 import { MenuProductsList } from "@/components/menu-admin/MenuProductsList";
 import { MenuBannersManager } from "@/components/menu-admin/MenuBannersManager";
+import { MenuExtrasList } from "@/components/menu-admin/MenuExtrasList";
 
 export default function Menu() {
   const { toast } = useToast();
@@ -38,6 +39,7 @@ export default function Menu() {
       <Tabs defaultValue="menu" className="space-y-4">
         <TabsList>
           <TabsTrigger value="menu">Produtos e Categorias</TabsTrigger>
+          <TabsTrigger value="extras">Adicionais</TabsTrigger>
           <TabsTrigger value="banners">Banners</TabsTrigger>
         </TabsList>
 
@@ -60,6 +62,10 @@ export default function Menu() {
               />
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="extras" className="space-y-4">
+          <MenuExtrasList companyId={profile?.company_id} />
         </TabsContent>
 
         <TabsContent value="banners" className="space-y-4">
