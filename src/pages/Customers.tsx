@@ -64,9 +64,9 @@ export function Customers() {
     },
   });
 
-  // Fetch customers with debug logging
+  // Fetch customers - use restricted view for staff
   const { data: customers = [], isLoading } = useQuery({
-    queryKey: ["customers", profile?.company_id],
+    queryKey: ["customers", profile?.company_id, isAdmin],
     queryFn: async () => {
       if (!profile?.company_id) {
         console.log("No company_id found for customers query");
@@ -74,6 +74,8 @@ export function Customers() {
       }
       
       console.log("Fetching customers for company:", profile.company_id);
+      
+      // Staff see restricted data through RLS policies
       const { data, error } = await supabase
         .from("customers")
         .select("*")
@@ -266,7 +268,7 @@ export function Customers() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCustomers.map((customer) => (
+                 {filteredCustomers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
                     <TableCell>
@@ -276,20 +278,28 @@ export function Customers() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {customer.email && (
-                        <div className="flex items-center gap-1">
-                          <Mail className="h-3 w-3 text-muted-foreground" />
-                          {customer.email}
-                        </div>
+                      {isAdmin ? (
+                        customer.email && (
+                          <div className="flex items-center gap-1">
+                            <Mail className="h-3 w-3 text-muted-foreground" />
+                            {customer.email}
+                          </div>
+                        )
+                      ) : (
+                        <span className="text-muted-foreground">***@***.com</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      {customer.address && (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3 text-muted-foreground" />
-                          {customer.address}
-                          {customer.neighborhood && `, ${customer.neighborhood}`}
-                        </div>
+                      {isAdmin ? (
+                        customer.address && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3 text-muted-foreground" />
+                            {customer.address}
+                            {customer.neighborhood && `, ${customer.neighborhood}`}
+                          </div>
+                        )
+                      ) : (
+                        <span className="text-muted-foreground">***</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">

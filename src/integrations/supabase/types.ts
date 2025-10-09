@@ -83,6 +83,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "categories_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_staff_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       companies: {
@@ -202,6 +209,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "coupon_uses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_staff_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "coupon_uses_coupon_id_fkey"
             columns: ["coupon_id"]
             isOneToOne: false
@@ -253,6 +267,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupons_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_staff_view"
             referencedColumns: ["id"]
           },
         ]
@@ -458,6 +479,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "menu_banners_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_staff_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       msg_history: {
@@ -560,6 +588,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_staff_view"
             referencedColumns: ["id"]
           },
         ]
@@ -702,6 +737,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "product_groups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_staff_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       products: {
@@ -762,6 +804,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_staff_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -792,6 +841,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_staff_view"
             referencedColumns: ["id"]
           },
         ]
@@ -853,6 +909,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "store_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies_staff_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -886,6 +949,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_staff_view"
             referencedColumns: ["id"]
           },
         ]
@@ -956,11 +1026,77 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "whatsapp_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_staff_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      companies_staff_view: {
+        Row: {
+          banner_url: string | null
+          description: string | null
+          fantasy_name: string | null
+          id: string | null
+          is_active: boolean | null
+          logo_url: string | null
+          name: string | null
+          schedule: Json | null
+        }
+        Insert: {
+          banner_url?: string | null
+          description?: string | null
+          fantasy_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string | null
+          schedule?: Json | null
+        }
+        Update: {
+          banner_url?: string | null
+          description?: string | null
+          fantasy_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string | null
+          schedule?: Json | null
+        }
+        Relationships: []
+      }
+      customers_staff_view: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          id: string | null
+          name: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_company_id: {

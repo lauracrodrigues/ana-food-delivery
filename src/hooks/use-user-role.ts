@@ -23,19 +23,32 @@ export function useUserRole(): UserRoleData {
       
       if (!user) return null;
 
-      // Get user's role from user_roles table
-      const { data: userRole, error } = await supabase
+      // Get user's roles from user_roles table (may have multiple)
+      const { data: userRoles, error } = await supabase
         .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .single();
+        .select("role, company_id")
+        .eq("user_id", user.id);
 
-      if (error || !userRole) {
+      if (error || !userRoles?.length) {
         console.error("Error fetching user role:", error);
         return null;
       }
 
-      return userRole.role as UserRole;
+      // Role hierarchy: super_admin > company_admin > company_staff
+      const roleHierarchy: Record<UserRole, number> = {
+        'super_admin': 3,
+        'company_admin': 2,
+        'company_staff': 1
+      };
+
+      // Get the highest priority role
+      const primaryRole = userRoles.reduce((prev, curr) => {
+        const prevPriority = roleHierarchy[prev.role as UserRole] || 0;
+        const currPriority = roleHierarchy[curr.role as UserRole] || 0;
+        return currPriority > prevPriority ? curr : prev;
+      });
+
+      return primaryRole.role as UserRole;
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });

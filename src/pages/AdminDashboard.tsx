@@ -226,7 +226,7 @@ export default function AdminDashboard() {
     });
     
     // Store admin session for later restoration
-    localStorage.setItem('admin_return', 'true');
+    sessionStorage.setItem('admin_return', 'true');
     
     // Navigate to tenant dashboard
     navigate("/dashboard");
@@ -345,7 +345,7 @@ export default function AdminDashboard() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('admin_return');
+    sessionStorage.removeItem('admin_return');
     toast({
       title: "Logout realizado",
       description: "Você foi desconectado com sucesso.",
