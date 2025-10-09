@@ -94,7 +94,7 @@ export default function PublicMenuBySubdomain() {
         .from('companies')
         .select('*')
         .eq('subdomain', subdomain)
-        .single();
+        .maybeSingle();
 
       if (companyError) throw companyError;
       if (!companyData) {
