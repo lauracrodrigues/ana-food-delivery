@@ -11,3 +11,12 @@ verify_jwt = true
 
 [functions.qz-sign]
 verify_jwt = false
+
+[functions.orders-create]
+verify_jwt = false
+
+[functions.orders-webhook]
+verify_jwt = false
+
+[functions.orders-status]
+verify_jwt = true

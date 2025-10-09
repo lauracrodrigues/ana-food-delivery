@@ -82,6 +82,7 @@ export type Database = {
       companies: {
         Row: {
           address: Json | null
+          banner_url: string | null
           cnpj: string | null
           created_at: string | null
           delivery_mode: string | null
@@ -97,6 +98,7 @@ export type Database = {
           owner_id: string | null
           phone: string | null
           plan_id: string | null
+          schedule: Json | null
           segment: string | null
           subdomain: string
           subscription_status: string | null
@@ -106,6 +108,7 @@ export type Database = {
         }
         Insert: {
           address?: Json | null
+          banner_url?: string | null
           cnpj?: string | null
           created_at?: string | null
           delivery_mode?: string | null
@@ -121,6 +124,7 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           plan_id?: string | null
+          schedule?: Json | null
           segment?: string | null
           subdomain: string
           subscription_status?: string | null
@@ -130,6 +134,7 @@ export type Database = {
         }
         Update: {
           address?: Json | null
+          banner_url?: string | null
           cnpj?: string | null
           created_at?: string | null
           delivery_mode?: string | null
@@ -145,6 +150,7 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           plan_id?: string | null
+          schedule?: Json | null
           segment?: string | null
           subdomain?: string
           subscription_status?: string | null
@@ -362,6 +368,45 @@ export type Database = {
           on_off?: boolean | null
           price?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      msg_history: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          history_msg: string | null
+          id: number
+          id_msg: string | null
+          message: Json | null
+          name: string | null
+          phone: string | null
+          session_id: string | null
+          timestamp: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          history_msg?: string | null
+          id?: number
+          id_msg?: string | null
+          message?: Json | null
+          name?: string | null
+          phone?: string | null
+          session_id?: string | null
+          timestamp?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          history_msg?: string | null
+          id?: number
+          id_msg?: string | null
+          message?: Json | null
+          name?: string | null
+          phone?: string | null
+          session_id?: string | null
+          timestamp?: string | null
         }
         Relationships: []
       }

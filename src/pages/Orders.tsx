@@ -5,7 +5,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export default function Orders() {
@@ -14,7 +14,41 @@ export default function Orders() {
   const [companyName, setCompanyName] = useState("");
   const [subdomain, setSubdomain] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [newOrderSound] = useState(() => new Audio('/notification.mp3'));
   
+  // Realtime para novos pedidos
+  useEffect(() => {
+    if (!companyId) return;
+
+    const channel = supabase
+      .channel('orders-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+          filter: `company_id=eq.${companyId}`,
+        },
+        (payload) => {
+          console.log('🔔 Novo pedido recebido:', payload);
+          
+          // Tocar som de notificação
+          newOrderSound.play().catch(err => console.error('Erro ao tocar som:', err));
+          
+          // Mostrar toast
+          toast({
+            title: "🎉 Novo Pedido!",
+            description: `Pedido #${payload.new.order_number} recebido`,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [companyId, toast, newOrderSound]);
 
   // Load company info
   const { data: companyData } = useQuery({

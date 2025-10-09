@@ -22,7 +22,8 @@ import {
   Pin,
   PinOff,
   X,
-  Menu
+  Menu,
+  UtensilsCrossed
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -70,6 +71,11 @@ const menuItems: MenuItem[] = [
     title: "Pedidos",
     url: "/orders",
     icon: ShoppingBag,
+  },
+  {
+    title: "Cardápio Digital",
+    url: "/menu-management",
+    icon: UtensilsCrossed,
   },
   {
     title: "Cadastros",
