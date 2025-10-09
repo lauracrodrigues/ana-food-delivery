@@ -29,6 +29,7 @@ const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
 const MenuManagement = lazy(() => import("./pages/MenuManagement"));
+const Menu = lazy(() => import("./pages/Menu"));
 const PublicMenu = lazy(() => import("./pages/PublicMenu"));
 
 const queryClient = new QueryClient();
@@ -84,6 +85,7 @@ const App = () => (
               <Route path="/delivery-fees" element={<DeliveryFees />} />
               <Route path="/payment-methods" element={<PaymentMethods />} />
               <Route path="/whatsapp" element={<WhatsApp />} />
+              <Route path="/menu" element={<Menu />} />
               <Route path="/menu-management" element={<MenuManagement />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/company-profile" element={<CompanyProfile />} />

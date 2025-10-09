@@ -22,8 +22,7 @@ import {
   Pin,
   PinOff,
   X,
-  Menu,
-  UtensilsCrossed
+  Menu
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -73,18 +72,15 @@ const menuItems: MenuItem[] = [
     icon: ShoppingBag,
   },
   {
-    title: "Cardápio Digital",
-    url: "/menu-management",
-    icon: UtensilsCrossed,
+    title: "Cardápio",
+    url: "/menu",
+    icon: Menu,
   },
   {
     title: "Cadastros",
     icon: Package,
     subItems: [
       { title: "Clientes", url: "/customers", icon: Users },
-      { title: "Produtos", url: "/products", icon: ShoppingCart },
-      { title: "Categorias", url: "/categories", icon: Tag },
-      { title: "Adicionais", url: "/extras", icon: Plus },
       { title: "Taxas de Entrega", url: "/delivery-fees", icon: MapPin },
       { title: "Formas de Pagamento", url: "/payment-methods", icon: CreditCard },
     ],

@@ -51,6 +51,7 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string | null
+          display_order: number | null
           id: string
           name: string
           on_off: boolean | null
@@ -58,6 +59,7 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string | null
+          display_order?: number | null
           id?: string
           name: string
           on_off?: boolean | null
@@ -65,6 +67,7 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string | null
+          display_order?: number | null
           id?: string
           name?: string
           on_off?: boolean | null
@@ -371,6 +374,89 @@ export type Database = {
         }
         Relationships: []
       }
+      group_extras: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          extra_id: string
+          group_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          extra_id: string
+          group_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          extra_id?: string
+          group_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_extras_extra_id_fkey"
+            columns: ["extra_id"]
+            isOneToOne: false
+            referencedRelation: "extras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_extras_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "product_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      menu_banners: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          display_order: number | null
+          id: string
+          image_url: string
+          is_active: boolean | null
+          link_type: string | null
+          link_value: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          image_url: string
+          is_active?: boolean | null
+          link_type?: string | null
+          link_value?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string
+          is_active?: boolean | null
+          link_type?: string | null
+          link_value?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_banners_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       msg_history: {
         Row: {
           company_id: string | null
@@ -535,39 +621,125 @@ export type Database = {
         }
         Relationships: []
       }
+      product_group_links: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          group_id: string
+          id: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          group_id: string
+          id?: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          group_id?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_group_links_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "product_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_group_links_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_groups: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          max_selection: number | null
+          min_selection: number | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_selection?: number | null
+          min_selection?: number | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_selection?: number | null
+          min_selection?: number | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_groups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category_id: string | null
           company_id: string
           created_at: string | null
           description: string | null
+          display_order: number | null
           id: string
           image_url: string | null
           name: string
           on_off: boolean | null
           price: number
+          print_sector: string | null
         }
         Insert: {
           category_id?: string | null
           company_id: string
           created_at?: string | null
           description?: string | null
+          display_order?: number | null
           id?: string
           image_url?: string | null
           name: string
           on_off?: boolean | null
           price: number
+          print_sector?: string | null
         }
         Update: {
           category_id?: string | null
           company_id?: string
           created_at?: string | null
           description?: string | null
+          display_order?: number | null
           id?: string
           image_url?: string | null
           name?: string
           on_off?: boolean | null
           price?: number
+          print_sector?: string | null
         }
         Relationships: [
           {
