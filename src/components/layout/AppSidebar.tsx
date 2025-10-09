@@ -28,6 +28,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { useUserRole } from "@/hooks/use-user-role";
 import {
   Sidebar,
   SidebarContent,
@@ -60,7 +61,11 @@ interface MenuItem {
   }[];
 }
 
-const menuItems: MenuItem[] = [
+interface MenuItemsProps {
+  isAdmin?: boolean;
+}
+
+const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
   {
     title: "Dashboard",
     url: "/dashboard",
@@ -80,6 +85,7 @@ const menuItems: MenuItem[] = [
     title: "Cadastros",
     icon: Package,
     subItems: [
+      ...(isAdmin ? [{ title: "Usuários", url: "/users", icon: Users }] : []),
       { title: "Clientes", url: "/customers", icon: Users },
       { title: "Taxas de Entrega", url: "/delivery-fees", icon: MapPin },
       { title: "Formas de Pagamento", url: "/payment-methods", icon: CreditCard },
@@ -105,11 +111,15 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAdmin } = useUserRole();
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [isHovered, setIsHovered] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Get menu items based on user role
+  const menuItems = getMenuItems({ isAdmin });
 
   // Check if mobile
   useEffect(() => {

@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Loader2 } from "lucide-react";
 
 // Eagerly load critical components
@@ -31,6 +32,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
 const MenuManagement = lazy(() => import("./pages/MenuManagement"));
 const PublicMenu = lazy(() => import("./pages/PublicMenu"));
+const Users = lazy(() => import("./pages/Users"));
 
 const queryClient = new QueryClient();
 
@@ -89,6 +91,13 @@ const App = () => (
               <Route path="/menu-management" element={<MenuManagement />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/company-profile" element={<CompanyProfile />} />
+              
+              {/* Protected admin-only routes */}
+              <Route path="/users" element={
+                <ProtectedRoute requiredRole={["company_admin"]}>
+                  <Users />
+                </ProtectedRoute>
+              } />
             </Route>
 
             <Route path="/auth/callback" element={

@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/use-user-role";
 import { Search, Plus, Edit, Trash2, Phone, Mail, MapPin } from "lucide-react";
 
 interface Customer {
@@ -44,6 +45,7 @@ export function Customers() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isAdmin } = useUserRole();
 
   // Get company ID from user profile
   const { data: profile } = useQuery({
@@ -225,10 +227,12 @@ export function Customers() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle className="text-2xl font-bold">Clientes</CardTitle>
-            <Button onClick={() => handleOpenModal()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Cliente
-            </Button>
+            {isAdmin && (
+              <Button onClick={() => handleOpenModal()}>
+                <Plus className="mr-2 h-4 w-4" />
+                Novo Cliente
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -289,24 +293,34 @@ export function Customers() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleOpenModal(customer)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          if (confirm("Deseja realmente excluir este cliente?")) {
-                            deleteMutation.mutate(customer.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {isAdmin ? (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenModal(customer)}
+                            title="Editar"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              if (confirm("Deseja realmente excluir este cliente?")) {
+                                deleteMutation.mutate(customer.id);
+                              }
+                            }}
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          Sem permissão
+                        </span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
