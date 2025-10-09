@@ -399,14 +399,14 @@ export function MenuCategoriesList({
             <div className="space-y-2">
               <Label htmlFor="print_sector">Setor de Impressão</Label>
               <Select
-                value={newCategoryPrintSector}
-                onValueChange={setNewCategoryPrintSector}
+                value={newCategoryPrintSector || "none"}
+                onValueChange={(value) => setNewCategoryPrintSector(value === "none" ? "" : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um setor (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum (não imprimir)</SelectItem>
+                  <SelectItem value="none">Nenhum (não imprimir)</SelectItem>
                   <SelectItem value="caixa">Caixa</SelectItem>
                   <SelectItem value="cozinha1">Cozinha 1</SelectItem>
                   <SelectItem value="cozinha2">Cozinha 2</SelectItem>
@@ -460,14 +460,14 @@ export function MenuCategoriesList({
             <div className="space-y-2">
               <Label htmlFor="edit-print_sector">Setor de Impressão</Label>
               <Select
-                value={newCategoryPrintSector}
-                onValueChange={setNewCategoryPrintSector}
+                value={newCategoryPrintSector || "none"}
+                onValueChange={(value) => setNewCategoryPrintSector(value === "none" ? "" : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um setor (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum (não imprimir)</SelectItem>
+                  <SelectItem value="none">Nenhum (não imprimir)</SelectItem>
                   <SelectItem value="caixa">Caixa</SelectItem>
                   <SelectItem value="cozinha1">Cozinha 1</SelectItem>
                   <SelectItem value="cozinha2">Cozinha 2</SelectItem>

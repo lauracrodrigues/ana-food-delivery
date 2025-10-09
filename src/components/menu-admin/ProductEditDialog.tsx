@@ -280,16 +280,16 @@ export function ProductEditDialog({
             <div className="space-y-2">
               <Label htmlFor="print_sector">Setor de Impressão</Label>
               <Select
-                value={formData.print_sector}
+                value={formData.print_sector || "none"}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, print_sector: value })
+                  setFormData({ ...formData, print_sector: value === "none" ? "" : value })
                 }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um setor" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum (não imprimir)</SelectItem>
+                  <SelectItem value="none">Nenhum (não imprimir)</SelectItem>
                   <SelectItem value="caixa">Caixa</SelectItem>
                   <SelectItem value="cozinha1">Cozinha 1</SelectItem>
                   <SelectItem value="cozinha2">Cozinha 2</SelectItem>
