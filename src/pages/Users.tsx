@@ -158,64 +158,51 @@ export default function Users() {
     mutationFn: async (data: UserFormData & { userId?: string }) => {
       if (!profile?.company_id) throw new Error("Company ID not found");
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sessão não encontrada");
+
       if (data.userId) {
-        // Update existing user
-        // Update profile
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({ full_name: data.fullName })
-          .eq("id", data.userId);
-
-        if (profileError) throw profileError;
-
-        // Update role
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .update({ role: data.role })
-          .eq("user_id", data.userId)
-          .eq("company_id", profile.company_id);
-
-        if (roleError) throw roleError;
-      } else {
-        // Create new user
-        // First create auth user
-        const { data: newUser, error: authError } = await supabase.auth.admin.createUser({
-          email: data.email,
-          email_confirm: true,
-          user_metadata: {
-            full_name: data.fullName,
+        // Update existing user via edge function
+        const response = await supabase.functions.invoke('user-management', {
+          body: {
+            userId: data.userId,
+            fullName: data.fullName,
             role: data.role,
-          }
+          },
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          method: 'POST',
         });
 
-        if (authError) throw authError;
-        if (!newUser.user) throw new Error("Failed to create user");
+        if (response.error) throw new Error(response.error.message);
+        if (response.data?.error) throw new Error(response.data.error);
+      } else {
+        // Create new user via edge function
+        const response = await supabase.functions.invoke('user-management', {
+          body: {
+            email: data.email,
+            fullName: data.fullName,
+            role: data.role,
+            companyId: profile.company_id,
+          },
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          method: 'POST',
+        });
 
-        // Profile and user_role will be created automatically by trigger
-        // But we need to update the company_id
-        await new Promise(resolve => setTimeout(resolve, 500)); // Wait for trigger
-
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({ company_id: profile.company_id })
-          .eq("id", newUser.user.id);
-
-        if (profileError) throw profileError;
-
-        // Update user_role with correct company_id
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .update({ company_id: profile.company_id })
-          .eq("user_id", newUser.user.id);
-
-        if (roleError) throw roleError;
+        if (response.error) throw new Error(response.error.message);
+        if (response.data?.error) throw new Error(response.data.error);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-users"] });
       toast({
         title: "Sucesso",
-        description: selectedUser ? "Usuário atualizado com sucesso" : "Usuário criado com sucesso",
+        description: selectedUser 
+          ? "Usuário atualizado com sucesso" 
+          : "Usuário criado com sucesso! Um email de confirmação foi enviado para o novo usuário.",
       });
       handleCloseModal();
     },
@@ -236,9 +223,23 @@ export default function Users() {
         throw new Error("Você não pode excluir sua própria conta");
       }
 
-      // Delete auth user (this will cascade delete profile and user_roles)
-      const { error } = await supabase.auth.admin.deleteUser(userId);
-      if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sessão não encontrada");
+
+      // Delete user via edge function
+      const response = await supabase.functions.invoke('user-management', {
+        body: {
+          userId,
+          currentUserId: profile?.id,
+        },
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      });
+
+      if (response.error) throw new Error(response.error.message);
+      if (response.data?.error) throw new Error(response.data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-users"] });
