@@ -128,12 +128,6 @@ export function Settings() {
         cozinha2: storeSettings.printer_settings.cozinha2 || "",
         copa_bar: storeSettings.printer_settings.copa_bar || ""
       });
-      
-      // Se já tem impressoras configuradas, buscar as disponíveis automaticamente
-      const hasPrinters = Object.values(storeSettings.printer_settings).some(p => p);
-      if (hasPrinters && availablePrinters.length === 0) {
-        fetchPrinters();
-      }
     }
   }, [storeSettings]);
 
