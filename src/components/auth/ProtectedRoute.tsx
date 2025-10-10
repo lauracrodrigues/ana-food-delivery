@@ -16,7 +16,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ 
   children, 
   requiredRole = ["company_admin"], 
-  fallbackPath = "/dashboard" 
+  fallbackPath = "/" 
 }: ProtectedRouteProps) {
   const { role, isLoading } = useUserRole();
 

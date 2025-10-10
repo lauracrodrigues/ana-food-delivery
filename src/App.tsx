@@ -94,7 +94,7 @@ const App = () => (
               
               {/* Protected admin-only routes */}
               <Route path="/users" element={
-                <ProtectedRoute requiredRole={["company_admin"]}>
+                <ProtectedRoute requiredRole={["company_admin"]} fallbackPath="/">
                   <Users />
                 </ProtectedRoute>
               } />

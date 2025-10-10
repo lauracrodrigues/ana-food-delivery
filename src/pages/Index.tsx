@@ -51,12 +51,16 @@ const Index = () => {
     const parts = hostname.split('.');
     
     // Detecta se é um subdomínio customizado de restaurante
-    // Ignora: localhost, IPs, lovableproject.com (desenvolvimento), www, anafood
-    const isLovableProject = hostname.includes('lovableproject.com');
+    // Ignora: localhost, IPs, lovableproject.com, lovable.app (desenvolvimento), www, anafood
+    const isDevelopmentDomain = 
+      hostname.includes('lovableproject.com') || 
+      hostname.includes('lovable.app') ||
+      hostname.includes('localhost');
+    
     const isValidSubdomain = 
       hostname !== 'localhost' && 
       !hostname.match(/^\d+\.\d+\.\d+\.\d+$/) &&
-      !isLovableProject &&
+      !isDevelopmentDomain &&
       parts.length >= 3 && 
       parts[0] !== 'www' &&
       parts[0] !== 'anafood';

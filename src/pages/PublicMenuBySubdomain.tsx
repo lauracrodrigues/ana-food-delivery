@@ -62,8 +62,14 @@ export default function PublicMenuBySubdomain() {
     const hostname = window.location.hostname;
     const parts = hostname.split('.');
     
-    // Se for localhost ou IP, retorna null
-    if (hostname === 'localhost' || hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+    // Se for localhost, IP ou domínio de desenvolvimento, retorna null
+    const isDevelopmentDomain = 
+      hostname === 'localhost' || 
+      hostname.match(/^\d+\.\d+\.\d+\.\d+$/) ||
+      hostname.includes('lovableproject.com') ||
+      hostname.includes('lovable.app');
+    
+    if (isDevelopmentDomain) {
       return null;
     }
     
