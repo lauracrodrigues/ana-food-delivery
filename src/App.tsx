@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
+import { CacheProvider } from "@/contexts/CacheContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Loader2 } from "lucide-react";
@@ -62,11 +63,12 @@ const DashboardLayoutWrapper = () => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="light" storageKey="anafood-theme">
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
+      <CacheProvider defaultTTL={3600} enableLogs={true}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/cadastro" element={
@@ -115,9 +117,10 @@ const App = () => (
                 <NotFound />
               </Suspense>
             } />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </CacheProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

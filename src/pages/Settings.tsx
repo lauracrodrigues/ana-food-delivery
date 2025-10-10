@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { masks } from "@/lib/masks";
 import { 
   Store, 
@@ -20,7 +21,8 @@ import {
   Sun,
   Moon,
   Play,
-  Pause
+  Pause,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +32,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { qzPrinter } from "@/lib/qz-tray";
 import { useTheme } from "@/components/theme-provider";
 import { useColorPalette, type ColorPalette } from "@/hooks/use-color-palette";
+import { usePreloadedAudios } from "@/hooks/usePreloadedAudios";
 
 interface StoreSettings {
   id?: string;
@@ -48,10 +51,10 @@ interface StoreSettings {
 
 
 const availableSounds = [
-  { value: "/sounds/ifood_toque.mp3", label: "iFood", icon: "🎵" },
+  { value: "/sounds/ifood_toque.mp3", label: "iFood", icon: "🍔" },
   { value: "/notification.mp3", label: "Clássico", icon: "🔔" },
-  { value: "/sounds/bell.mp3", label: "Digital", icon: "🔊" },
-  { value: "/sounds/chime.mp3", label: "Sino", icon: "🎶" },
+  { value: "/sounds/bell.mp3", label: "Sino", icon: "🔊" },
+  { value: "/sounds/chime.mp3", label: "Digital", icon: "🎶" },
   { value: "/sounds/ping.mp3", label: "Ping", icon: "📢" },
 ];
 
@@ -70,7 +73,15 @@ export function Settings() {
     copa_bar: ""
   });
   const [playingSound, setPlayingSound] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Pré-carregar todos os áudios
+  const { 
+    play: playPreloadedAudio, 
+    stop: stopPreloadedAudio,
+    loading: audiosLoading, 
+    loadedCount, 
+    totalCount 
+  } = usePreloadedAudios(availableSounds.map(s => s.value));
 
   // Get company ID from user profile
   const { data: profile } = useQuery({
@@ -202,50 +213,29 @@ export function Settings() {
 
   const handleSoundTest = (soundPath: string) => {
     // Se o mesmo som está tocando, pausar
-    if (playingSound === soundPath && audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    if (playingSound === soundPath) {
+      stopPreloadedAudio();
       setPlayingSound(null);
       return;
     }
 
-    // Parar qualquer som que esteja tocando
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-
-    // Criar e tocar novo áudio
-    const audio = new Audio(soundPath);
-    audioRef.current = audio;
+    // Parar qualquer som anterior e tocar novo
+    stopPreloadedAudio();
+    playPreloadedAudio(soundPath);
     setPlayingSound(soundPath);
 
-    audio.play().catch(e => {
-      console.error("Erro ao reproduzir som:", e);
-      toast({
-        title: "Erro",
-        description: "Não foi possível reproduzir o som",
-        variant: "destructive",
-      });
+    // Resetar quando terminar (aproximadamente)
+    setTimeout(() => {
       setPlayingSound(null);
-    });
-
-    // Resetar quando o som terminar
-    audio.onended = () => {
-      setPlayingSound(null);
-      audioRef.current = null;
-    };
+    }, 3000); // Ajustar conforme duração dos áudios
   };
 
   // Limpar áudio ao desmontar
   useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      stopPreloadedAudio();
     };
-  }, []);
+  }, [stopPreloadedAudio]);
 
   return (
     <div className="flex flex-col h-screen">
@@ -380,6 +370,15 @@ export function Settings() {
                     <Volume2 className="inline h-4 w-4 mr-2" />
                     Escolha o Som de Notificação
                   </Label>
+                  {audiosLoading && (
+                    <div className="space-y-2 p-3 rounded-lg border bg-muted/50">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Carregando áudios... {loadedCount}/{totalCount}
+                      </div>
+                      <Progress value={(loadedCount / totalCount) * 100} className="h-2" />
+                    </div>
+                  )}
                   <RadioGroup
                     value={storeSettings?.notification_sound || '/sounds/ifood_toque.mp3'}
                     onValueChange={(value) => handleSettingsUpdate("notification_sound", value)}
@@ -405,7 +404,7 @@ export function Settings() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleSoundTest(sound.value)}
-                          disabled={loadingSettings || !storeSettings?.sound_enabled}
+                          disabled={loadingSettings || !storeSettings?.sound_enabled || audiosLoading}
                           className="gap-2"
                         >
                           {playingSound === sound.value ? (
@@ -416,7 +415,7 @@ export function Settings() {
                           ) : (
                             <>
                               <Play className="h-4 w-4" />
-                              Testar
+                              {audiosLoading ? 'Carregando...' : 'Testar'}
                             </>
                           )}
                         </Button>
