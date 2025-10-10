@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
 interface UsePreloadedAudiosReturn {
   play: (audioUrl: string) => void;
@@ -16,80 +16,115 @@ export function usePreloadedAudios(audioUrls: string[]): UsePreloadedAudiosRetur
   
   const audioPoolRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const loadingRef = useRef(false);
+
+  // Memoizar URLs para evitar re-execuções
+  const urlsKey = useMemo(() => audioUrls.join('|'), [audioUrls]);
 
   // Pré-carregar todos os áudios com tolerância a falhas
   useEffect(() => {
+    // Evitar múltiplas execuções simultâneas
+    if (loadingRef.current) {
+      console.log('[AUDIO] Already loading, skipping...');
+      return;
+    }
+
     let mounted = true;
+    loadingRef.current = true;
+
     const loadAudios = async () => {
-      console.log(`[AUDIO] Preloading - starting ${audioUrls.length} audios`);
+      console.log(`[AUDIO] Starting preload of ${audioUrls.length} audios`);
       setLoading(true);
       setLoadedCount(0);
       setError(null);
 
-      // Criar objetos Audio para cada URL com tratamento individual de erros
-      const loadPromises = audioUrls.map((url) => {
-        return new Promise<{ url: string; success: boolean; audio?: HTMLAudioElement }>((resolve) => {
+      // Limpar pool anterior
+      audioPoolRef.current.forEach(audio => {
+        audio.pause();
+        audio.src = '';
+      });
+      audioPoolRef.current.clear();
+
+      let successCount = 0;
+
+      // Carregar áudios sequencialmente para evitar sobrecarga
+      for (const url of audioUrls) {
+        if (!mounted) break;
+
+        try {
           const audio = new Audio();
-          
-          // Timeout de 5 segundos para cada áudio
-          const timeout = setTimeout(() => {
-            console.warn(`[AUDIO] Load Timeout - ${url}`);
-            resolve({ url, success: false });
-          }, 5000);
+          let resolved = false;
 
-          audio.addEventListener('canplaythrough', () => {
-            clearTimeout(timeout);
-            if (mounted) {
-              audioPoolRef.current.set(url, audio);
-              setLoadedCount(prev => {
-                const newCount = prev + 1;
-                console.log(`[AUDIO] Loaded ${newCount}/${audioUrls.length} - ${url}`);
-                return newCount;
-              });
-              resolve({ url, success: true, audio });
-            }
-          }, { once: true });
+          const loadPromise = new Promise<boolean>((resolve) => {
+            const timeout = setTimeout(() => {
+              if (!resolved) {
+                resolved = true;
+                console.warn(`[AUDIO] Timeout - ${url}`);
+                resolve(false);
+              }
+            }, 3000);
 
-          audio.addEventListener('error', (e) => {
-            clearTimeout(timeout);
-            console.error(`[AUDIO] Load Error - ${url}`, e);
-            // Não rejeitar, apenas resolver como falha
-            resolve({ url, success: false });
-          }, { once: true });
+            const onSuccess = () => {
+              if (!resolved) {
+                resolved = true;
+                clearTimeout(timeout);
+                cleanup();
+                if (mounted) {
+                  audioPoolRef.current.set(url, audio);
+                  successCount++;
+                  setLoadedCount(successCount);
+                  console.log(`[AUDIO] ✓ Loaded (${successCount}/${audioUrls.length}) - ${url}`);
+                }
+                resolve(true);
+              }
+            };
 
-          // Iniciar carregamento
-          try {
+            const onError = () => {
+              if (!resolved) {
+                resolved = true;
+                clearTimeout(timeout);
+                cleanup();
+                console.warn(`[AUDIO] ✗ Failed - ${url}`);
+                resolve(false);
+              }
+            };
+
+            const cleanup = () => {
+              audio.removeEventListener('canplaythrough', onSuccess);
+              audio.removeEventListener('loadeddata', onSuccess);
+              audio.removeEventListener('error', onError);
+            };
+
+            audio.addEventListener('canplaythrough', onSuccess, { once: true });
+            audio.addEventListener('loadeddata', onSuccess, { once: true });
+            audio.addEventListener('error', onError, { once: true });
+
             audio.preload = 'auto';
+            audio.volume = 0.5;
             audio.src = url;
             audio.load();
-          } catch (err) {
-            clearTimeout(timeout);
-            console.error(`[AUDIO] Exception loading - ${url}`, err);
-            resolve({ url, success: false });
-          }
-        });
-      });
+          });
 
-      // Aguardar todos os áudios tentarem carregar (com tolerância a falhas)
-      const results = await Promise.all(loadPromises);
-      
+          await loadPromise;
+        } catch (err) {
+          console.error(`[AUDIO] Exception - ${url}`, err);
+        }
+      }
+
       if (mounted) {
-        const successCount = results.filter(r => r.success).length;
-        const failedCount = results.length - successCount;
+        const failedCount = audioUrls.length - successCount;
         
         if (failedCount > 0) {
-          console.warn(`[AUDIO] Partial Load - ${successCount}/${audioUrls.length} succeeded, ${failedCount} failed`);
-          const failedUrls = results.filter(r => !r.success).map(r => r.url);
-          console.warn(`[AUDIO] Failed URLs:`, failedUrls);
+          console.warn(`[AUDIO] Complete - ${successCount}/${audioUrls.length} loaded, ${failedCount} failed`);
         } else {
-          console.log(`[AUDIO] Ready - all ${audioUrls.length} audios cached`);
+          console.log(`[AUDIO] ✓ All ${audioUrls.length} audios ready`);
         }
         
         setLoading(false);
+        loadingRef.current = false;
         
-        // Definir erro apenas se NENHUM áudio carregar
         if (successCount === 0) {
-          setError(new Error('Failed to load any audio files'));
+          setError(new Error('Nenhum áudio pôde ser carregado'));
         }
       }
     };
@@ -98,18 +133,14 @@ export function usePreloadedAudios(audioUrls: string[]): UsePreloadedAudiosRetur
       loadAudios();
     } else {
       setLoading(false);
+      loadingRef.current = false;
     }
 
     return () => {
       mounted = false;
-      // Limpar objetos de áudio ao desmontar
-      audioPoolRef.current.forEach(audio => {
-        audio.pause();
-        audio.src = '';
-      });
-      audioPoolRef.current.clear();
+      loadingRef.current = false;
     };
-  }, [audioUrls]);
+  }, [urlsKey, audioUrls.length]);
 
   const stop = useCallback(() => {
     if (currentAudioRef.current) {
