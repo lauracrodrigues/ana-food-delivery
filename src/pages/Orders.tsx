@@ -15,6 +15,7 @@ export default function Orders() {
   const [subdomain, setSubdomain] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [newOrderSound] = useState(() => new Audio('/notification.mp3'));
+  const [notificationSoundUrl, setNotificationSoundUrl] = useState('/notification.mp3');
   
   // Realtime para novos pedidos
   useEffect(() => {
@@ -33,8 +34,9 @@ export default function Orders() {
         (payload) => {
           console.log('🔔 Novo pedido recebido:', payload);
           
-          // Tocar som de notificação
-          newOrderSound.play().catch(err => console.error('Erro ao tocar som:', err));
+          // Tocar som de notificação configurado
+          const audio = new Audio(notificationSoundUrl);
+          audio.play().catch(err => console.error('Erro ao tocar som:', err));
           
           // Mostrar toast
           toast({
@@ -48,7 +50,7 @@ export default function Orders() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [companyId, toast, newOrderSound]);
+  }, [companyId, toast, notificationSoundUrl]);
 
   // Load company info
   const { data: companyData } = useQuery({
@@ -98,6 +100,7 @@ export default function Orders() {
       
       if (data) {
         setStoreOpen(data.store_open || false);
+        setNotificationSoundUrl(data.notification_sound || '/notification.mp3');
       }
       
       return data;

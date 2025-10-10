@@ -862,6 +862,7 @@ export type Database = {
           delivery_fee: number | null
           delivery_time: number | null
           id: string
+          notification_sound: string | null
           pickup_time: number | null
           printer_settings: Json | null
           sound_enabled: boolean | null
@@ -878,6 +879,7 @@ export type Database = {
           delivery_fee?: number | null
           delivery_time?: number | null
           id?: string
+          notification_sound?: string | null
           pickup_time?: number | null
           printer_settings?: Json | null
           sound_enabled?: boolean | null
@@ -894,6 +896,7 @@ export type Database = {
           delivery_fee?: number | null
           delivery_time?: number | null
           id?: string
+          notification_sound?: string | null
           pickup_time?: number | null
           printer_settings?: Json | null
           sound_enabled?: boolean | null

@@ -180,6 +180,8 @@ export function OrdersKanban() {
 
       if (!profile?.company_id) return;
 
+      console.log('🔔 Configurando realtime para company:', profile.company_id);
+
       const channel = supabase
         .channel('orders-realtime')
         .on(
@@ -191,26 +193,41 @@ export function OrdersKanban() {
             filter: `company_id=eq.${profile.company_id}` // Only listen to orders from this company
           },
           (payload) => {
-            console.log('Real-time update received:', payload);
+            console.log('🔔 Real-time update received:', payload);
             
-            // Play sound for new orders if enabled
-            if (soundEnabled && payload.eventType === 'INSERT') {
-              const audio = new Audio('/notification.mp3');
-              audio.play().catch(e => console.log('Could not play sound:', e));
+            if (payload.eventType === 'INSERT') {
+              const newOrder = payload.new as Order;
+              console.log('🆕 Novo pedido recebido:', newOrder.order_number);
+              
+              // Play sound for new orders if enabled
+              if (soundEnabled) {
+                const audio = new Audio('/notification.mp3');
+                audio.play().catch(e => console.log('Could not play sound:', e));
+              }
+              
+              // Show toast notification
+              toast({
+                title: "🎉 Novo Pedido!",
+                description: `Pedido #${newOrder.order_number} de ${newOrder.customer_name}`,
+              });
             }
             
-            refetch(); // Refetch orders when any change occurs
+            // Invalidate queries to refresh the list
+            queryClient.invalidateQueries({ queryKey: ["orders"] });
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('🔔 Realtime subscription status:', status);
+        });
 
       return () => {
+        console.log('🔔 Removendo canal realtime');
         supabase.removeChannel(channel);
       };
     };
 
     setupRealtime();
-  }, [refetch, soundEnabled]);
+  }, [soundEnabled, toast, queryClient]);
 
   // Load settings from Supabase
   useQuery({

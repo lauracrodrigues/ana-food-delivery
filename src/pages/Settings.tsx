@@ -38,6 +38,7 @@ interface StoreSettings {
   pickup_time: number;
   delivery_fee: number;
   alert_time: number;
+  notification_sound?: string;
   printer_settings?: any;
   visible_columns?: any;
 }
@@ -316,6 +317,49 @@ export function Settings() {
                     onCheckedChange={(checked) => handleSettingsUpdate("sound_enabled", checked)}
                     disabled={loadingSettings}
                   />
+                </div>
+
+                <Separator />
+
+                <div className="space-y-4">
+                  <Label htmlFor="notification-sound">
+                    <Volume2 className="inline h-4 w-4 mr-2" />
+                    Som de Notificação
+                  </Label>
+                  <Select 
+                    value={storeSettings?.notification_sound || '/notification.mp3'}
+                    onValueChange={(value) => handleSettingsUpdate("notification_sound", value)}
+                    disabled={loadingSettings}
+                  >
+                    <SelectTrigger id="notification-sound">
+                      <SelectValue placeholder="Selecione o som" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="/notification.mp3">🔔 Campainha Padrão</SelectItem>
+                      <SelectItem value="/sounds/bell.mp3">🔔 Campainha Clássica</SelectItem>
+                      <SelectItem value="/sounds/chime.mp3">🎵 Toque Musical</SelectItem>
+                      <SelectItem value="/sounds/ping.mp3">📢 Ping Simples</SelectItem>
+                      <SelectItem value="/sounds/ding.mp3">🛎️ Ding Dong</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const audio = new Audio(storeSettings?.notification_sound || '/notification.mp3');
+                      audio.play().catch(e => {
+                        toast({
+                          title: "Erro",
+                          description: "Não foi possível reproduzir o som",
+                          variant: "destructive",
+                        });
+                      });
+                    }}
+                    disabled={loadingSettings || !storeSettings?.sound_enabled}
+                  >
+                    <Volume2 className="h-4 w-4 mr-2" />
+                    Testar Som
+                  </Button>
                 </div>
 
                 <Separator />

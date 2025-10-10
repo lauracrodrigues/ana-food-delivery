@@ -76,7 +76,14 @@ serve(async (req) => {
         const message = `✅ *Pedido Recebido!*\n\nNúmero: #${nextNumber}\nTotal: R$ ${webhookData.total}\n\nObrigado! Seu pedido está sendo preparado! 🍕`;
         
         const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
-        const phoneNumber = webhookData.customer_phone.replace(/\D/g, '');
+        let phoneNumber = webhookData.customer_phone.replace(/\D/g, '');
+        
+        // Remove o prefixo 55 se já existir
+        if (phoneNumber.startsWith('55')) {
+          phoneNumber = phoneNumber.substring(2);
+        }
+        
+        console.log('📱 Telefone formatado:', phoneNumber, '-> 55' + phoneNumber);
 
         const response = await fetch(`https://evo.anafood.vip/message/sendText/${whatsappConfig.session_name}`, {
           method: 'POST',
