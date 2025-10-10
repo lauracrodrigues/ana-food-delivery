@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { masks } from "@/lib/masks";
 import { 
@@ -17,7 +18,9 @@ import {
   RefreshCw,
   Palette,
   Sun,
-  Moon
+  Moon,
+  Play,
+  Pause
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +47,14 @@ interface StoreSettings {
 }
 
 
+const availableSounds = [
+  { value: "/sounds/ifood_toque.mp3", label: "iFood", icon: "🎵" },
+  { value: "/notification.mp3", label: "Clássico", icon: "🔔" },
+  { value: "/sounds/bell.mp3", label: "Digital", icon: "🔊" },
+  { value: "/sounds/chime.mp3", label: "Sino", icon: "🎶" },
+  { value: "/sounds/ping.mp3", label: "Ping", icon: "📢" },
+];
+
 export function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -58,6 +69,8 @@ export function Settings() {
     cozinha2: "",
     copa_bar: ""
   });
+  const [playingSound, setPlayingSound] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Get company ID from user profile
   const { data: profile } = useQuery({
@@ -193,6 +206,53 @@ export function Settings() {
     handleSettingsUpdate("printer_settings", newSettings);
   };
 
+  const handleSoundTest = (soundPath: string) => {
+    // Se o mesmo som está tocando, pausar
+    if (playingSound === soundPath && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setPlayingSound(null);
+      return;
+    }
+
+    // Parar qualquer som que esteja tocando
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+
+    // Criar e tocar novo áudio
+    const audio = new Audio(soundPath);
+    audioRef.current = audio;
+    setPlayingSound(soundPath);
+
+    audio.play().catch(e => {
+      console.error("Erro ao reproduzir som:", e);
+      toast({
+        title: "Erro",
+        description: "Não foi possível reproduzir o som",
+        variant: "destructive",
+      });
+      setPlayingSound(null);
+    });
+
+    // Resetar quando o som terminar
+    audio.onended = () => {
+      setPlayingSound(null);
+      audioRef.current = null;
+    };
+  };
+
+  // Limpar áudio ao desmontar
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
@@ -322,44 +382,53 @@ export function Settings() {
                 <Separator />
 
                 <div className="space-y-4">
-                  <Label htmlFor="notification-sound">
+                  <Label>
                     <Volume2 className="inline h-4 w-4 mr-2" />
-                    Som de Notificação
+                    Escolha o Som de Notificação
                   </Label>
-                  <Select 
+                  <RadioGroup
                     value={storeSettings?.notification_sound || '/sounds/ifood_toque.mp3'}
                     onValueChange={(value) => handleSettingsUpdate("notification_sound", value)}
                     disabled={loadingSettings}
+                    className="space-y-3"
                   >
-                    <SelectTrigger id="notification-sound">
-                      <SelectValue placeholder="Selecione o som" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="/sounds/ifood_toque.mp3">🎵 iFood (Padrão)</SelectItem>
-                      <SelectItem value="/notification.mp3">🔔 Campainha Padrão</SelectItem>
-                      <SelectItem value="/sounds/bell.mp3">🔔 Campainha Clássica</SelectItem>
-                      <SelectItem value="/sounds/chime.mp3">🎵 Toque Musical</SelectItem>
-                      <SelectItem value="/sounds/ping.mp3">📢 Ping Simples</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const audio = new Audio(storeSettings?.notification_sound || '/sounds/ifood_toque.mp3');
-                      audio.play().catch(e => {
-                        toast({
-                          title: "Erro",
-                          description: "Não foi possível reproduzir o som",
-                          variant: "destructive",
-                        });
-                      });
-                    }}
-                    disabled={loadingSettings || !storeSettings?.sound_enabled}
-                  >
-                    <Volume2 className="h-4 w-4 mr-2" />
-                    Testar Som
-                  </Button>
+                    {availableSounds.map((sound) => (
+                      <div 
+                        key={sound.value}
+                        className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <RadioGroupItem value={sound.value} id={sound.value} />
+                          <Label 
+                            htmlFor={sound.value} 
+                            className="cursor-pointer font-medium flex items-center gap-2"
+                          >
+                            <span className="text-lg">{sound.icon}</span>
+                            <span>{sound.label}</span>
+                          </Label>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSoundTest(sound.value)}
+                          disabled={loadingSettings || !storeSettings?.sound_enabled}
+                          className="gap-2"
+                        >
+                          {playingSound === sound.value ? (
+                            <>
+                              <Pause className="h-4 w-4" />
+                              Pausar
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-4 w-4" />
+                              Testar
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    ))}
+                  </RadioGroup>
                 </div>
 
                 <Separator />
