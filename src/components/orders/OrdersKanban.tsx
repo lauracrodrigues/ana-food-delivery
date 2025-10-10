@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -100,6 +100,7 @@ export function OrdersKanban() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [isPrinting, setIsPrinting] = useState(false);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   
   // Settings states
   const [storeOpen, setStoreOpen] = useState(true);
@@ -117,6 +118,15 @@ export function OrdersKanban() {
     cancelled: false, // Cancelled disabled by default
   });
   const [bulkStatusSelectOpen, setBulkStatusSelectOpen] = useState(false);
+
+  // Função para parar o áudio
+  const stopNotificationSound = useCallback(() => {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      setCurrentAudio(null);
+    }
+  }, [currentAudio]);
 
   // Load orders from Supabase with debug logging
   const { data: orders = [], isLoading, refetch } = useQuery({
@@ -199,10 +209,22 @@ export function OrdersKanban() {
               const newOrder = payload.new as Order;
               console.log('🆕 Novo pedido recebido:', newOrder.order_number);
               
-              // Play sound for new orders if enabled
+              // Parar áudio anterior se estiver tocando
+              stopNotificationSound();
+              
+              // Play sound for new orders if enabled (por 30 segundos)
               if (soundEnabled) {
-                const audio = new Audio('/notification.mp3');
+                const audio = new Audio('/sounds/ifood_toque.mp3');
+                audio.loop = true;
                 audio.play().catch(e => console.log('Could not play sound:', e));
+                setCurrentAudio(audio);
+                
+                // Parar após 30 segundos
+                setTimeout(() => {
+                  audio.pause();
+                  audio.currentTime = 0;
+                  setCurrentAudio(null);
+                }, 30000);
               }
               
               // Show toast notification
@@ -222,12 +244,13 @@ export function OrdersKanban() {
 
       return () => {
         console.log('🔔 Removendo canal realtime');
+        stopNotificationSound();
         supabase.removeChannel(channel);
       };
     };
 
     setupRealtime();
-  }, [soundEnabled, toast, queryClient]);
+  }, [soundEnabled, toast, queryClient, stopNotificationSound]);
 
   // Load settings from Supabase
   useQuery({
@@ -281,13 +304,18 @@ export function OrdersKanban() {
 
   // Update order status mutation
   const updateOrderMutation = useMutation({
-    mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
+    mutationFn: async ({ orderId, status, previousStatus }: { orderId: string; status: string; previousStatus?: string }) => {
       const { error } = await supabase
         .from("orders")
         .update({ status })
         .eq("id", orderId);
 
       if (error) throw error;
+      
+      // Parar som se mudou de pending para preparing
+      if (previousStatus === 'pending' && status === 'preparing') {
+        stopNotificationSound();
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
@@ -406,14 +434,15 @@ export function OrdersKanban() {
     if (draggedOrder && draggedOrder.status !== newStatus) {
       updateOrderMutation.mutate({ 
         orderId: draggedOrder.id, 
-        status: newStatus 
+        status: newStatus,
+        previousStatus: draggedOrder.status
       });
     }
     setDraggedOrder(null);
   };
 
-  const updateOrderStatus = (orderId: string, newStatus: string) => {
-    updateOrderMutation.mutate({ orderId, status: newStatus });
+  const updateOrderStatus = (orderId: string, newStatus: string, previousStatus?: string) => {
+    updateOrderMutation.mutate({ orderId, status: newStatus, previousStatus });
   };
 
   const toggleItemsExpansion = (orderId: string) => {
@@ -818,7 +847,10 @@ export function OrdersKanban() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setSelectedOrder(order)}
+                                onClick={() => {
+                                  stopNotificationSound();
+                                  setSelectedOrder(order);
+                                }}
                                 className="flex-1"
                               >
                                 <Eye className="w-3 h-3" />
@@ -839,7 +871,8 @@ export function OrdersKanban() {
                                   size="sm"
                                   onClick={() => updateOrderStatus(
                                     order.id,
-                                    getNextStatus(order.status, order.type)
+                                    getNextStatus(order.status, order.type),
+                                    order.status
                                   )}
                                   className="flex-1"
                                 >

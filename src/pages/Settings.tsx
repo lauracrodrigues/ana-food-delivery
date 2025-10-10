@@ -327,7 +327,7 @@ export function Settings() {
                     Som de Notificação
                   </Label>
                   <Select 
-                    value={storeSettings?.notification_sound || '/notification.mp3'}
+                    value={storeSettings?.notification_sound || '/sounds/ifood_toque.mp3'}
                     onValueChange={(value) => handleSettingsUpdate("notification_sound", value)}
                     disabled={loadingSettings}
                   >
@@ -335,18 +335,18 @@ export function Settings() {
                       <SelectValue placeholder="Selecione o som" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="/sounds/ifood_toque.mp3">🎵 iFood (Padrão)</SelectItem>
                       <SelectItem value="/notification.mp3">🔔 Campainha Padrão</SelectItem>
                       <SelectItem value="/sounds/bell.mp3">🔔 Campainha Clássica</SelectItem>
                       <SelectItem value="/sounds/chime.mp3">🎵 Toque Musical</SelectItem>
                       <SelectItem value="/sounds/ping.mp3">📢 Ping Simples</SelectItem>
-                      <SelectItem value="/sounds/ding.mp3">🛎️ Ding Dong</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const audio = new Audio(storeSettings?.notification_sound || '/notification.mp3');
+                      const audio = new Audio(storeSettings?.notification_sound || '/sounds/ifood_toque.mp3');
                       audio.play().catch(e => {
                         toast({
                           title: "Erro",
