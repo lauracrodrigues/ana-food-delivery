@@ -51,11 +51,10 @@ interface StoreSettings {
 
 
 const availableSounds = [
-  { value: "/sounds/ifood_toque.mp3", label: "iFood", icon: "🍔" },
-  { value: "/notification.mp3", label: "Clássico", icon: "🔔" },
-  { value: "/sounds/bell.mp3", label: "Sino", icon: "🔊" },
-  { value: "/sounds/chime.mp3", label: "Digital", icon: "🎶" },
-  { value: "/sounds/ping.mp3", label: "Ping", icon: "📢" },
+  { value: "/sounds/bell.mp3", label: "Campainha 1", icon: "🔔" },
+  { value: "/sounds/chime.mp3", label: "Campainha 2", icon: "🎶" },
+  { value: "/sounds/ping.mp3", label: "Campainha 3", icon: "📢" },
+  { value: "/notification.mp3", label: "Campainha Clássica", icon: "🔊" },
 ];
 
 export function Settings() {
@@ -141,6 +140,13 @@ export function Settings() {
       });
     }
   }, [storeSettings]);
+
+  // Carregar impressoras automaticamente quando usuário se autentica
+  useEffect(() => {
+    if (storeSettings && activeTab === "printer") {
+      fetchPrinters(false);
+    }
+  }, [storeSettings, activeTab]);
 
   // Fetch available printers - only shows toast if manual
   const fetchPrinters = async (showToast = true) => {
