@@ -44,13 +44,16 @@ serve(async (req) => {
     console.log('✅ Status atualizado');
 
     // Buscar configuração do WhatsApp
-    const { data: whatsappConfig } = await supabase
+    const { data: whatsappConfig, error: configError } = await supabase
       .from('whatsapp_config')
       .select('*')
       .eq('company_id', order.company_id)
       .eq('config_type', 'session')
       .eq('is_active', true)
       .single();
+
+    console.log('📱 Config WhatsApp:', whatsappConfig ? 'Encontrada' : 'Não encontrada');
+    if (configError) console.log('⚠️ Erro ao buscar config:', configError);
 
     // Enviar notificação via WhatsApp
     if (whatsappConfig?.session_name && order.customer_phone) {
@@ -60,7 +63,7 @@ serve(async (req) => {
         const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
         const phoneNumber = order.customer_phone.replace(/\D/g, '');
 
-        await fetch(`https://evo.anafood.vip/message/sendText/${whatsappConfig.session_name}`, {
+        const response = await fetch(`https://evo.anafood.vip/message/sendText/${whatsappConfig.session_name}`, {
           method: 'POST',
           headers: {
             'apikey': evolutionApiKey || '',
@@ -72,10 +75,13 @@ serve(async (req) => {
           }),
         });
 
-        console.log('📱 Notificação WhatsApp enviada');
+        const responseData = await response.text();
+        console.log('📱 Notificação WhatsApp enviada. Resposta:', responseData);
       } catch (error) {
         console.error('❌ Erro ao enviar WhatsApp:', error);
       }
+    } else {
+      console.log('⚠️ WhatsApp não enviado. Config:', !!whatsappConfig, 'Session:', whatsappConfig?.session_name, 'Phone:', order.customer_phone);
     }
 
     return new Response(

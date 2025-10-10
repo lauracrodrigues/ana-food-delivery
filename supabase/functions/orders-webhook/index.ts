@@ -59,13 +59,16 @@ serve(async (req) => {
     console.log('✅ Pedido do WhatsApp criado:', order.id);
 
     // Buscar configuração do WhatsApp para confirmar
-    const { data: whatsappConfig } = await supabase
+    const { data: whatsappConfig, error: configError } = await supabase
       .from('whatsapp_config')
       .select('*')
       .eq('company_id', webhookData.company_id)
       .eq('config_type', 'session')
       .eq('is_active', true)
       .single();
+
+    console.log('📱 Config WhatsApp:', whatsappConfig ? 'Encontrada' : 'Não encontrada');
+    if (configError) console.log('⚠️ Erro ao buscar config:', configError);
 
     // Enviar confirmação
     if (whatsappConfig?.session_name && webhookData.customer_phone) {
@@ -75,7 +78,7 @@ serve(async (req) => {
         const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
         const phoneNumber = webhookData.customer_phone.replace(/\D/g, '');
 
-        await fetch(`https://evo.anafood.vip/message/sendText/${whatsappConfig.session_name}`, {
+        const response = await fetch(`https://evo.anafood.vip/message/sendText/${whatsappConfig.session_name}`, {
           method: 'POST',
           headers: {
             'apikey': evolutionApiKey || '',
@@ -87,10 +90,13 @@ serve(async (req) => {
           }),
         });
 
-        console.log('📱 Confirmação WhatsApp enviada');
+        const responseData = await response.text();
+        console.log('📱 Confirmação WhatsApp enviada. Resposta:', responseData);
       } catch (error) {
         console.error('❌ Erro ao enviar WhatsApp:', error);
       }
+    } else {
+      console.log('⚠️ WhatsApp não enviado. Config:', !!whatsappConfig, 'Session:', whatsappConfig?.session_name, 'Phone:', webhookData.customer_phone);
     }
 
     return new Response(
