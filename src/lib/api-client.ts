@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const API_BASE_URL = `https://jgdyklzrxygvwuhlnbat.supabase.co/functions/v1`;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 /**
  * Cliente API seguro que valida JWT + API Token

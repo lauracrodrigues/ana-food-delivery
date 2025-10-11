@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { qzPrinter } from "@/lib/qz-tray";
+import { apiClient } from "@/lib/api-client";
 
 interface OrderItem {
   id?: string;
@@ -128,7 +129,7 @@ export function OrdersKanban() {
     }
   }, [currentAudio]);
 
-  // Load orders from Supabase with debug logging
+  // Load orders using API client
   const { data: orders = [], isLoading, refetch } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
@@ -150,21 +151,12 @@ export function OrdersKanban() {
         return [];
       }
 
-      console.log("Fetching orders for company:", profile.company_id);
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("company_id", profile.company_id)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching orders:", error);
-        throw error;
-      }
+      console.log("Fetching orders via API for company:", profile.company_id);
+      const response: any = await apiClient.getOrders(profile.company_id);
       
-      console.log("Orders fetched:", data);
+      console.log("Orders fetched:", response.data);
       // Normalize status from Portuguese to English
-      const normalizedOrders = (data as Order[]).map(order => ({
+      const normalizedOrders = (response.data as Order[]).map(order => ({
         ...order,
         status: normalizeStatus(order.status) as any
       }));
@@ -302,15 +294,10 @@ export function OrdersKanban() {
     refetchOnWindowFocus: false, // Disable refetch on window focus
   });
 
-  // Update order status mutation
+  // Update order status mutation using API client
   const updateOrderMutation = useMutation({
     mutationFn: async ({ orderId, status, previousStatus }: { orderId: string; status: string; previousStatus?: string }) => {
-      const { error } = await supabase
-        .from("orders")
-        .update({ status })
-        .eq("id", orderId);
-
-      if (error) throw error;
+      await apiClient.updateOrderStatus(orderId, status);
       
       // Parar som se mudou de pending para preparing
       if (previousStatus === 'pending' && status === 'preparing') {
@@ -333,7 +320,7 @@ export function OrdersKanban() {
     },
   });
 
-  // Update settings mutation
+  // Update settings mutation using API client
   const updateSettingsMutation = useMutation({
     mutationFn: async (settings: any) => {
       const { data: profile } = await supabase
@@ -344,16 +331,7 @@ export function OrdersKanban() {
 
       if (!profile?.company_id) throw new Error("Company not found");
 
-      const { error } = await supabase
-        .from("store_settings")
-        .upsert({
-          company_id: profile.company_id,
-          ...settings,
-        }, {
-          onConflict: 'company_id'
-        });
-
-      if (error) throw error;
+      await apiClient.updateStoreSettings(profile.company_id, settings);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["store-settings"] });
