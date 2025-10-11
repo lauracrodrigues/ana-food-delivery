@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.orders-status]
 verify_jwt = true
+
+[functions.api-orders]
+verify_jwt = false
+
+[functions.api-settings]
+verify_jwt = false
