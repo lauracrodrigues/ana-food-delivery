@@ -69,6 +69,16 @@ class ApiClient {
     });
   }
 
+  async createOrder(orderData: any) {
+    return this.request(`api-orders`, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "create",
+        order: orderData
+      }),
+    });
+  }
+
   // Store Settings API
   async getStoreSettings(companyId: string) {
     return this.request(`api-settings?company_id=${companyId}`);

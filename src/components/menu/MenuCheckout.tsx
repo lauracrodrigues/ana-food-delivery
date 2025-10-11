@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { apiClient } from "@/lib/api-client";
 import { Loader2 } from "lucide-react";
 
 interface CartItem {
@@ -90,11 +90,7 @@ export function MenuCheckout({ cart, total, company, onClose, onSuccess }: MenuC
         estimated_time: 30,
       };
 
-      const { data, error } = await supabase.functions.invoke('orders-create', {
-        body: orderData,
-      });
-
-      if (error) throw error;
+      const response: any = await apiClient.createOrder(orderData);
 
       toast({
         title: "Pedido realizado!",

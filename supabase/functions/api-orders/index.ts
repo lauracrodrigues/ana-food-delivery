@@ -6,9 +6,10 @@ const corsHeaders = {
 };
 
 interface OrderRequest {
-  action: 'list' | 'update_status' | 'delete';
+  action: 'list' | 'update_status' | 'delete' | 'create';
   order_id?: string;
   status?: string;
+  order?: any;
 }
 
 Deno.serve(async (req: Request) => {
@@ -57,9 +58,10 @@ Deno.serve(async (req: Request) => {
     console.log(`✅ Usuário autenticado: ${user.email}`);
 
     // 5. Processar requisição
+    const body = req.method === 'POST' ? await req.json() : {};
     const url = new URL(req.url);
-    const action = url.searchParams.get('action') || 'list';
-    const companyId = url.searchParams.get('company_id');
+    const action = body.action || url.searchParams.get('action') || 'list';
+    const companyId = body.company_id || url.searchParams.get('company_id');
 
     if (!companyId) {
       return new Response(
@@ -145,6 +147,114 @@ Deno.serve(async (req: Request) => {
 
         return new Response(
           JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'create': {
+        const orderData = body.order;
+        
+        if (!orderData || !orderData.company_id) {
+          return new Response(
+            JSON.stringify({ error: 'Dados do pedido são obrigatórios' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Verificar se usuário pode criar pedido nesta empresa
+        if (profile.company_id !== orderData.company_id) {
+          return new Response(
+            JSON.stringify({ error: 'Acesso negado para criar pedido nesta empresa' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        console.log('📦 Novo pedido recebido:', orderData);
+
+        // Gerar número do pedido usando service role
+        const supabaseServiceRole = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+        );
+
+        const { data: lastOrder } = await supabaseServiceRole
+          .from('orders')
+          .select('order_number')
+          .eq('company_id', orderData.company_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        const nextNumber = lastOrder?.order_number 
+          ? String(parseInt(lastOrder.order_number) + 1).padStart(3, '0')
+          : '001';
+
+        // Inserir pedido
+        const { data: order, error: orderError } = await supabaseServiceRole
+          .from('orders')
+          .insert({
+            company_id: orderData.company_id,
+            customer_name: orderData.customer_name,
+            customer_phone: orderData.customer_phone,
+            total: orderData.total,
+            items: orderData.items,
+            status: orderData.status || 'pending',
+            order_number: nextNumber,
+            delivery_fee: orderData.delivery_fee || 0,
+            payment_method: orderData.payment_method || 'dinheiro',
+            type: orderData.type || 'delivery',
+            address: orderData.address || '',
+            observations: orderData.observations || '',
+            estimated_time: orderData.estimated_time || 30,
+          })
+          .select()
+          .single();
+
+        if (orderError) throw orderError;
+
+        console.log('✅ Pedido criado:', order.id);
+
+        // Buscar configuração do WhatsApp
+        const { data: whatsappConfig } = await supabaseServiceRole
+          .from('whatsapp_config')
+          .select('*')
+          .eq('company_id', orderData.company_id)
+          .eq('config_type', 'session')
+          .eq('is_active', true)
+          .single();
+
+        // Enviar confirmação via WhatsApp se configurado
+        if (whatsappConfig?.session_name && orderData.customer_phone) {
+          try {
+            const message = `🎉 *Pedido Confirmado!*\n\nNúmero: #${nextNumber}\nTotal: R$ ${orderData.total}\n\nSeu pedido foi recebido e está sendo preparado! ⏱️`;
+            
+            const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
+            let phoneNumber = orderData.customer_phone.replace(/\D/g, '');
+            
+            if (phoneNumber.startsWith('55')) {
+              phoneNumber = phoneNumber.substring(2);
+            }
+
+            await fetch(`https://evo.anafood.vip/message/sendText/${whatsappConfig.session_name}`, {
+              method: 'POST',
+              headers: {
+                'apikey': evolutionApiKey || '',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                number: `55${phoneNumber}`,
+                text: message,
+              }),
+            });
+
+            console.log('📱 Mensagem WhatsApp enviada');
+          } catch (error) {
+            console.error('❌ Erro ao enviar WhatsApp:', error);
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, order }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
