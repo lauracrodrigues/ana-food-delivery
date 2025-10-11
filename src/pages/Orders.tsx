@@ -14,7 +14,7 @@ export default function Orders() {
   const [companyName, setCompanyName] = useState("");
   const [subdomain, setSubdomain] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [notificationSoundUrl, setNotificationSoundUrl] = useState('/sounds/ifood_toque.mp3');
+  const [notificationSoundUrl, setNotificationSoundUrl] = useState('/sounds/bell.mp3');
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   
   // Realtime para novos pedidos
@@ -120,7 +120,7 @@ export default function Orders() {
       
       if (data) {
         setStoreOpen(data.store_open || false);
-        setNotificationSoundUrl(data.notification_sound || '/sounds/ifood_toque.mp3');
+        setNotificationSoundUrl(data.notification_sound || '/sounds/bell.mp3');
       }
       
       return data;

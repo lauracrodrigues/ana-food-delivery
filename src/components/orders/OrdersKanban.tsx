@@ -214,7 +214,7 @@ export function OrdersKanban() {
               
               // Play sound for new orders if enabled (por 30 segundos)
               if (soundEnabled) {
-                const audio = new Audio('/sounds/ifood_toque.mp3');
+                const audio = new Audio('/sounds/bell.mp3');
                 audio.loop = true;
                 audio.play().catch(e => console.log('Could not play sound:', e));
                 setCurrentAudio(audio);

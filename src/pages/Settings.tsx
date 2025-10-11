@@ -386,7 +386,7 @@ export function Settings() {
                     </div>
                   )}
                   <RadioGroup
-                    value={storeSettings?.notification_sound || '/sounds/ifood_toque.mp3'}
+                    value={storeSettings?.notification_sound || '/sounds/bell.mp3'}
                     onValueChange={(value) => handleSettingsUpdate("notification_sound", value)}
                     disabled={loadingSettings}
                     className="space-y-3"
