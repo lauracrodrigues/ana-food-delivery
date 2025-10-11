@@ -1,0 +1,33 @@
+# Cloudflare Workers Configuration
+# Deploy: wrangler deploy
+
+name = "anafood-api-gateway"
+main = "worker.ts"
+compatibility_date = "2024-01-01"
+workers_dev = true
+
+# Production Environment
+[env.production]
+name = "anafood-api-gateway-production"
+route = "api.anafood.vip/*"
+
+# KV Namespace para Analytics
+[[kv_namespaces]]
+binding = "ANALYTICS"
+id = "YOUR_KV_NAMESPACE_ID"  # Criar no Cloudflare Dashboard
+
+# Variáveis de Ambiente (não sensíveis)
+[vars]
+SUPABASE_FUNCTION_URL = "https://jgdyklzrxygvwuhlnbat.supabase.co/functions/v1"
+ALLOWED_ORIGINS = "*"  # Em produção, especificar domínios: "https://anafood.vip,https://app.anafood.vip"
+
+# Secrets (configurar via: wrangler secret put API_TOKEN)
+# API_TOKEN = "your-secret-token-here"
+
+# Limites e Performance
+[limits]
+cpu_ms = 50
+
+# Observability
+[observability]
+enabled = true

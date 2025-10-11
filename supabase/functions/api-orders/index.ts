@@ -18,44 +18,80 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // 1. Validar API Token
+    // 1. Detectar se veio do API Gateway
+    const isGatewayRequest = req.headers.get('X-Gateway') === 'cloudflare-worker';
+    const requestId = req.headers.get('X-Request-ID');
+
+    if (isGatewayRequest) {
+      console.log(`🌐 Requisição via Gateway - ID: ${requestId}`);
+    }
+
+    // 2. Obter tokens
     const apiToken = Deno.env.get('API_TOKEN');
     if (!apiToken) {
       throw new Error('API_TOKEN não configurado');
     }
 
-    // 2. Extrair e validar JWT do usuário
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Token de autenticação não fornecido' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const providedToken = req.headers.get('X-API-Token');
 
-    const token = authHeader.replace('Bearer ', '');
-    
-    // 3. Inicializar Supabase com o token do usuário
+    // 3. Inicializar Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: {
-        headers: { Authorization: authHeader },
-      },
-    });
+    let userId: string | null = null;
+    let userEmail: string | null = null;
+    let supabase;
 
-    // 4. Verificar autenticação do usuário
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Token inválido ou expirado' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // 4. Validar autenticação (JWT ou API Token)
+    if (providedToken) {
+      // Requisição com API Token (externa via Gateway)
+      if (providedToken !== apiToken) {
+        console.error("❌ API Token inválido");
+        return new Response(
+          JSON.stringify({ error: "API Token inválido" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.log("✅ API Token válido" + (isGatewayRequest ? " (via Gateway)" : ""));
+      
+      // Usar service role client para requisições públicas
+      supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+    } else {
+      // Requisição com JWT (interna)
+      if (!authHeader) {
+        console.error("❌ Sem autenticação");
+        return new Response(
+          JSON.stringify({ error: "Autenticação necessária: forneça Authorization header (JWT) ou X-API-Token" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const token = authHeader.replace("Bearer ", "");
+      
+      supabase = createClient(supabaseUrl, supabaseKey, {
+        global: {
+          headers: { Authorization: authHeader },
+        },
+      });
+
+      // Validar JWT
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+      if (authError || !user) {
+        console.error("❌ JWT inválido:", authError);
+        return new Response(
+          JSON.stringify({ error: "Token JWT inválido" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      userId = user.id;
+      userEmail = user.email || null;
+      console.log(`✅ Usuário autenticado: ${userEmail}` + (isGatewayRequest ? " (via Gateway)" : ""));
     }
-
-    console.log(`✅ Usuário autenticado: ${user.email}`);
 
     // 5. Processar requisição
     const body = req.method === 'POST' ? await req.json() : {};
@@ -70,18 +106,20 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Verificar se usuário pertence à empresa
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('company_id')
-      .eq('id', user.id)
-      .single();
+    // Verificar acesso à empresa (apenas se autenticado com JWT)
+    if (userId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', userId)
+        .single();
 
-    if (!profile || profile.company_id !== companyId) {
-      return new Response(
-        JSON.stringify({ error: 'Acesso negado à empresa' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (!profile || profile.company_id !== companyId) {
+        return new Response(
+          JSON.stringify({ error: 'Acesso negado à empresa' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // 6. Executar ação
@@ -161,12 +199,20 @@ Deno.serve(async (req: Request) => {
           );
         }
 
-        // Verificar se usuário pode criar pedido nesta empresa
-        if (profile.company_id !== orderData.company_id) {
-          return new Response(
-            JSON.stringify({ error: 'Acesso negado para criar pedido nesta empresa' }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+        // Verificar acesso à empresa (apenas se autenticado com JWT)
+        if (userId) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('company_id')
+            .eq('id', userId)
+            .single();
+
+          if (!profile || profile.company_id !== orderData.company_id) {
+            return new Response(
+              JSON.stringify({ error: 'Acesso negado para criar pedido nesta empresa' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
 
         console.log('📦 Novo pedido recebido:', orderData);
