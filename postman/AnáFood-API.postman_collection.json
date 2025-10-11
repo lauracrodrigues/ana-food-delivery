@@ -1,0 +1,322 @@
+{
+  "info": {
+    "name": "AnáFood API Gateway",
+    "description": "Collection completa para testar a API do AnáFood\n\n**IMPORTANTE:** Configure as variáveis antes de usar:\n- `base_url`: URL da API (Supabase ou Cloudflare)\n- `api_token`: Token de autenticação\n- `company_id`: ID da empresa\n- `product_id`: ID de um produto existente",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://jgdyklzrxygvwuhlnbat.supabase.co/functions/v1",
+      "type": "string"
+    },
+    {
+      "key": "api_token",
+      "value": "SEU_API_TOKEN_AQUI",
+      "type": "string"
+    },
+    {
+      "key": "company_id",
+      "value": "SEU_COMPANY_ID",
+      "type": "string"
+    },
+    {
+      "key": "product_id",
+      "value": "SEU_PRODUCT_ID",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Token",
+            "value": "{{api_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api-orders?action=list&company_id={{company_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api-orders"],
+          "query": [
+            {
+              "key": "action",
+              "value": "list"
+            },
+            {
+              "key": "company_id",
+              "value": "{{company_id}}"
+            }
+          ]
+        },
+        "description": "Verifica se a API está respondendo e lista pedidos existentes"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Criar Pedido",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Salvar order_id para usar em outros testes",
+              "if (pm.response.code === 200) {",
+              "    const response = pm.response.json();",
+              "    if (response.data && response.data.id) {",
+              "        pm.collectionVariables.set('order_id', response.data.id);",
+              "        console.log('Order ID salvo:', response.data.id);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Token",
+            "value": "{{api_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"action\": \"create\",\n  \"order\": {\n    \"company_id\": \"{{company_id}}\",\n    \"customer_name\": \"João Silva\",\n    \"customer_phone\": \"11999887766\",\n    \"customer_email\": \"joao@exemplo.com\",\n    \"delivery_address\": \"Rua Exemplo, 123 - Bairro - São Paulo/SP\",\n    \"payment_method\": \"pix\",\n    \"items\": [\n      {\n        \"product_id\": \"{{product_id}}\",\n        \"product_name\": \"Pizza Margherita\",\n        \"quantity\": 2,\n        \"unit_price\": 45.00,\n        \"total_price\": 90.00\n      }\n    ],\n    \"subtotal\": 90.00,\n    \"delivery_fee\": 10.00,\n    \"total\": 100.00,\n    \"notes\": \"Sem cebola, por favor\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api-orders",
+          "host": ["{{base_url}}"],
+          "path": ["api-orders"]
+        },
+        "description": "Cria um novo pedido e salva o ID automaticamente"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Listar Pedidos",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Token",
+            "value": "{{api_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api-orders?action=list&company_id={{company_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api-orders"],
+          "query": [
+            {
+              "key": "action",
+              "value": "list"
+            },
+            {
+              "key": "company_id",
+              "value": "{{company_id}}"
+            }
+          ]
+        },
+        "description": "Lista todos os pedidos da empresa"
+      },
+      "response": []
+    },
+    {
+      "name": "4. Atualizar Status - Confirmado",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Token",
+            "value": "{{api_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"action\": \"update_status\",\n  \"order_id\": \"{{order_id}}\",\n  \"company_id\": \"{{company_id}}\",\n  \"status\": \"confirmed\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api-orders",
+          "host": ["{{base_url}}"],
+          "path": ["api-orders"]
+        },
+        "description": "Atualiza o status do pedido para 'confirmado'"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Atualizar Status - Preparando",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Token",
+            "value": "{{api_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"action\": \"update_status\",\n  \"order_id\": \"{{order_id}}\",\n  \"company_id\": \"{{company_id}}\",\n  \"status\": \"preparing\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api-orders",
+          "host": ["{{base_url}}"],
+          "path": ["api-orders"]
+        },
+        "description": "Atualiza o status do pedido para 'preparando'"
+      },
+      "response": []
+    },
+    {
+      "name": "6. Atualizar Status - Pronto",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Token",
+            "value": "{{api_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"action\": \"update_status\",\n  \"order_id\": \"{{order_id}}\",\n  \"company_id\": \"{{company_id}}\",\n  \"status\": \"ready\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api-orders",
+          "host": ["{{base_url}}"],
+          "path": ["api-orders"]
+        },
+        "description": "Atualiza o status do pedido para 'pronto'"
+      },
+      "response": []
+    },
+    {
+      "name": "7. Atualizar Status - Entregue",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Token",
+            "value": "{{api_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"action\": \"update_status\",\n  \"order_id\": \"{{order_id}}\",\n  \"company_id\": \"{{company_id}}\",\n  \"status\": \"delivered\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api-orders",
+          "host": ["{{base_url}}"],
+          "path": ["api-orders"]
+        },
+        "description": "Atualiza o status do pedido para 'entregue'"
+      },
+      "response": []
+    },
+    {
+      "name": "8. Deletar Pedido",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Token",
+            "value": "{{api_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"action\": \"delete\",\n  \"order_id\": \"{{order_id}}\",\n  \"company_id\": \"{{company_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api-orders",
+          "host": ["{{base_url}}"],
+          "path": ["api-orders"]
+        },
+        "description": "Deleta o pedido criado nos testes"
+      },
+      "response": []
+    },
+    {
+      "name": "9. Teste de CORS",
+      "request": {
+        "method": "OPTIONS",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "https://app.anafood.vip"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api-orders",
+          "host": ["{{base_url}}"],
+          "path": ["api-orders"]
+        },
+        "description": "Testa se o CORS está configurado corretamente"
+      },
+      "response": []
+    },
+    {
+      "name": "10. Teste de Autenticação Inválida",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Token",
+            "value": "token-invalido-123"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api-orders?action=list&company_id={{company_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api-orders"],
+          "query": [
+            {
+              "key": "action",
+              "value": "list"
+            },
+            {
+              "key": "company_id",
+              "value": "{{company_id}}"
+            }
+          ]
+        },
+        "description": "Deve retornar 401 Unauthorized"
+      },
+      "response": []
+    }
+  ]
+}

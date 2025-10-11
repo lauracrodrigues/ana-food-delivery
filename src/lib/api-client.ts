@@ -1,6 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+/**
+ * API Client para interagir com o backend AnáFood
+ * Suporta tanto Supabase direto quanto Cloudflare Gateway
+ */
+
+// URL base - usar Cloudflare Gateway se disponível, senão Supabase direto
+const USE_CLOUDFLARE = false; // Mudar para true após deploy do Cloudflare
+const SUPABASE_BASE_URL = "https://jgdyklzrxygvwuhlnbat.supabase.co/functions/v1";
+const CLOUDFLARE_BASE_URL = "https://api.anafood.vip";
+
+const API_BASE_URL = USE_CLOUDFLARE ? CLOUDFLARE_BASE_URL : SUPABASE_BASE_URL;
 
 /**
  * Cliente API seguro que valida JWT + API Token
