@@ -191,7 +191,7 @@ export class QZTrayPrinter {
     // Se for reimpressão, mostrar em destaque
     if (isReprint) {
       receipt += '********************************\n';
-      receipt += '*     REIMPRESSAO     *\n';
+      receipt += '*     REIMPRESSÃO     *\n';
       receipt += '********************************\n';
       receipt += '\n';
     }
