@@ -144,15 +144,12 @@ export class QZTrayPrinter {
       // Format receipt data
       const receipt = this.formatOrderReceipt(order, isReprint);
 
-      // Converter para array de bytes usando TextEncoder (compatível com navegador)
-      const encoder = new TextEncoder();
-      const encodedReceipt = encoder.encode(receipt);
-
       // Print with proper format for QZ Tray 2.x
+      // QZ Tray handles encoding internally when we pass string data
       const data = [{
         type: 'raw',
         format: 'command',
-        data: Array.from(encodedReceipt)
+        data: receipt
       }];
       
       await window.qz.print(config, data);
