@@ -282,6 +282,40 @@ export function OrdersKanban() {
     setupRealtime();
   }, [soundEnabled, toast, refetch, stopNotificationSound, audioPreloaded]);
 
+  // Auto-completar pedidos após 6 horas
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const sixHoursAgo = Date.now() - 6 * 60 * 60 * 1000; // 6 horas em milissegundos
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.company_id) return;
+
+      for (const order of orders) {
+        const orderTime = new Date(order.created_at).getTime();
+        // Se o pedido tem mais de 6 horas e não está concluído ou cancelado
+        if (orderTime < sixHoursAgo && order.status !== "completed" && order.status !== "cancelled") {
+          console.log(`⏰ Auto-completando pedido ${order.order_number} após 6 horas`);
+          try {
+            await apiClient.updateOrderStatus(order.id, "completed", profile.company_id);
+            queryClient.invalidateQueries({ queryKey: ["orders"] });
+          } catch (error) {
+            console.error('Erro ao auto-completar pedido:', error);
+          }
+        }
+      }
+    }, 60000); // Verificar a cada minuto
+
+    return () => clearInterval(interval);
+  }, [orders, queryClient]);
+
   // Load settings from Supabase
   useQuery({
     queryKey: ["store-settings"],
@@ -775,7 +809,7 @@ export function OrdersKanban() {
                           } ${
                             isDelayed ? "border-destructive border-2" : ""
                           } ${
-                            order.status === "pending" ? "bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800" : ""
+                            order.status === "pending" ? "bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 animate-pulse" : ""
                           }`}
                           draggable
                           onDragStart={(e) => handleDragStart(e, order)}
@@ -804,24 +838,29 @@ export function OrdersKanban() {
                                     <span className="text-xs font-medium">Atrasado</span>
                                   </div>
                                 )}
-                                <div className={`flex items-center gap-1 text-xs ${
-                                  isDelayed ? "text-destructive font-medium" : "text-muted-foreground"
-                                }`}>
-                                  <Clock className="w-3 h-3" />
-                                  {elapsedMinutes} min
-                                </div>
+                                {/* Mostrar timer apenas em "preparing" */}
+                                {order.status === "preparing" && (
+                                  <div className={`flex items-center gap-1 text-xs ${
+                                    isDelayed ? "text-destructive font-medium" : "text-muted-foreground"
+                                  }`}>
+                                    <Clock className="w-3 h-3" />
+                                    {elapsedMinutes} min
+                                  </div>
+                                )}
                               </div>
                             </div>
                             
-                            {/* Origem do pedido - centralizada */}
-                            <div className="flex justify-center mt-2">
-                              <div className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-primary/10 to-primary/5 text-primary border border-primary/20">
-                                {order.source === "whatsapp" ? "Delivery WhatsApp" : 
-                                 order.source === "digital_menu" ? "Delivery Cardápio Digital" :
-                                 order.source === "counter" ? "Pedido Balcão" :
-                                 order.type === "delivery" ? "Delivery Cardápio Digital" : "Pedido Balcão"}
+                            {/* Origem do pedido - apenas para status "pending" */}
+                            {order.status === "pending" && (
+                              <div className="flex justify-center mt-2">
+                                <div className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-primary/10 to-primary/5 text-primary border border-primary/20">
+                                  {order.source === "whatsapp" ? "Delivery WhatsApp" : 
+                                   order.source === "digital_menu" ? "Delivery Cardápio Digital" :
+                                   order.source === "counter" ? "Pedido Balcão" :
+                                   order.type === "delivery" ? "Delivery Cardápio Digital" : "Pedido Balcão"}
+                                </div>
                               </div>
-                            </div>
+                            )}
                             
                             <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs mt-2 ${
                               order.type === "delivery" 
@@ -859,52 +898,7 @@ export function OrdersKanban() {
                               )}
                             </div>
 
-                            {/* Para pedidos novos (pending), não mostrar itens */}
-                            {order.status !== "pending" && (
-                              <div className="bg-background rounded p-2">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-xs font-medium">
-                                    Itens ({items.length})
-                                  </span>
-                                  {items.length > 2 && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleItemsExpansion(order.id);
-                                      }}
-                                      className="text-xs text-primary hover:underline flex items-center gap-1"
-                                    >
-                                      {isExpanded ? (
-                                        <>
-                                          <ChevronUp className="w-3 h-3" />
-                                          Menos
-                                        </>
-                                      ) : (
-                                        <>
-                                          <ChevronDown className="w-3 h-3" />
-                                          +{items.length - 2}
-                                        </>
-                                      )}
-                                    </button>
-                                  )}
-                                </div>
-                                {itemsToShow.map((item, index) => (
-                                  <div key={index} className="text-xs py-1">
-                                    <div className="flex justify-between">
-                                      <span>{item.quantity}x {item.name}</span>
-                                      <span className="font-medium">
-                                        R$ {((item.price || 0) * (item.quantity || 1)).toFixed(2)}
-                                      </span>
-                                    </div>
-                                    {item.observations && (
-                                      <p className="text-muted-foreground italic">
-                                        Obs: {item.observations}
-                                      </p>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                            {/* Não mostrar itens nos cards - visualizar clicando no card */}
 
                             <div className="flex gap-1">
                               {/* Para pedidos novos (pending), não mostrar botões de visualizar e imprimir */}
@@ -978,34 +972,34 @@ export function OrdersKanban() {
       <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>Pedido #{selectedOrder?.order_number || selectedOrder?.id.slice(0, 8)}</span>
-              {selectedOrder && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePrintOrder(selectedOrder, true)}
-                  disabled={isPrinting}
-                >
-                  <Printer className="w-4 h-4 mr-2" />
-                  Imprimir
-                </Button>
-              )}
+            <DialogTitle className="flex flex-col items-center gap-2">
+              {/* Origem do pedido - centralizada no título */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 text-primary border border-primary/20">
+                <span className="font-semibold text-sm">
+                  {selectedOrder?.source === "whatsapp" ? "Delivery WhatsApp" : 
+                   selectedOrder?.source === "digital_menu" ? "Delivery Cardápio Digital" :
+                   selectedOrder?.source === "counter" ? "Pedido Balcão" :
+                   selectedOrder?.type === "delivery" ? "Delivery Cardápio Digital" : "Pedido Balcão"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between w-full">
+                <span>Pedido #{selectedOrder?.order_number || selectedOrder?.id.slice(0, 8)}</span>
+                {selectedOrder && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePrintOrder(selectedOrder, true)}
+                    disabled={isPrinting}
+                  >
+                    <Printer className="w-4 h-4 mr-2" />
+                    Imprimir
+                  </Button>
+                )}
+              </div>
             </DialogTitle>
           </DialogHeader>
           {selectedOrder && (
             <div className="space-y-4">
-              {/* Origem do pedido - centralizada */}
-              <div className="flex justify-center">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 text-primary border border-primary/20">
-                  <span className="font-semibold">
-                    {selectedOrder.source === "whatsapp" ? "Delivery WhatsApp" : 
-                     selectedOrder.source === "digital_menu" ? "Delivery Cardápio Digital" :
-                     selectedOrder.source === "counter" ? "Pedido Balcão" :
-                     selectedOrder.type === "delivery" ? "Delivery Cardápio Digital" : "Pedido Balcão"}
-                  </span>
-                </div>
-              </div>
               
               <div>
                 <h4 className="font-semibold mb-2">Cliente</h4>

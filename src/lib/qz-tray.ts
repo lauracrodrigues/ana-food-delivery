@@ -176,10 +176,11 @@ export class QZTrayPrinter {
       receipt += '********************************\n';
       receipt += '*     REIMPRESSAO     *\n';
       receipt += '********************************\n';
+      receipt += '\n';
     }
     
     receipt += '================================\n';
-    receipt += 'COMPROVANTE DO PEDIDO\n';
+    receipt += `Pedido ${order.order_number || order.id.slice(0, 8)}\n`;
     receipt += '================================\n';
     receipt += `${ESC}E\x00`; // Bold off
     
@@ -221,7 +222,12 @@ export class QZTrayPrinter {
       const itemTotal = (item.price || 0) * (item.quantity || 1);
       subtotal += itemTotal;
       
+      // Nome do item maior e em negrito
+      receipt += `${ESC}E\x01`; // Bold on
+      receipt += `${GS}!\x01`; // Double width
       receipt += `${item.quantity}x ${item.name}\n`;
+      receipt += `${GS}!\x00`; // Normal width
+      receipt += `${ESC}E\x00`; // Bold off
       receipt += `   R$ ${item.price.toFixed(2)} = R$ ${itemTotal.toFixed(2)}\n`;
       
       if (item.observations) {
