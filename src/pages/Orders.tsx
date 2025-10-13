@@ -14,63 +14,6 @@ export default function Orders() {
   const [companyName, setCompanyName] = useState("");
   const [subdomain, setSubdomain] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [notificationSoundUrl, setNotificationSoundUrl] = useState('/sounds/bell.mp3');
-  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
-  
-  // Realtime para novos pedidos
-  useEffect(() => {
-    if (!companyId) return;
-
-    const channel = supabase
-      .channel('orders-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders',
-          filter: `company_id=eq.${companyId}`,
-        },
-        (payload) => {
-          console.log('🔔 Novo pedido recebido:', payload);
-          
-          // Parar áudio anterior se estiver tocando
-          if (currentAudio) {
-            currentAudio.pause();
-            currentAudio.currentTime = 0;
-          }
-          
-          // Tocar som de notificação por 30 segundos
-          const audio = new Audio(notificationSoundUrl);
-          audio.loop = true;
-          audio.play().catch(err => console.error('Erro ao tocar som:', err));
-          setCurrentAudio(audio);
-          
-          // Parar após 30 segundos
-          setTimeout(() => {
-            audio.pause();
-            audio.currentTime = 0;
-            setCurrentAudio(null);
-          }, 30000);
-          
-          // Mostrar toast
-          toast({
-            title: "🎉 Novo Pedido!",
-            description: `Pedido #${payload.new.order_number} recebido`,
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      // Parar áudio ao desmontar
-      if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-      }
-      supabase.removeChannel(channel);
-    };
-  }, [companyId, toast, notificationSoundUrl, currentAudio]);
 
   // Load company info
   const { data: companyData } = useQuery({
@@ -120,7 +63,6 @@ export default function Orders() {
       
       if (data) {
         setStoreOpen(data.store_open || false);
-        setNotificationSoundUrl(data.notification_sound || '/sounds/bell.mp3');
       }
       
       return data;
