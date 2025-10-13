@@ -21,6 +21,19 @@ serve(async (req) => {
     const { order_id, status } = await req.json();
     console.log(`📝 Processando notificação WhatsApp para pedido ${order_id}, status: ${status}`);
 
+    // Mapear status em inglês para português (conforme cadastro no banco)
+    const statusMap: Record<string, string> = {
+      'pending': 'pending',
+      'preparing': 'preparando',
+      'ready': 'pronto',
+      'delivering': 'em_entrega',
+      'completed': 'concluido',
+      'cancelled': 'cancelado'
+    };
+    
+    const mappedStatus = statusMap[status] || status;
+    console.log(`🔄 Status mapeado: ${status} -> ${mappedStatus}`);
+
     // Buscar dados do pedido
     const { data: order, error } = await supabase
       .from('orders')
@@ -50,11 +63,11 @@ serve(async (req) => {
       .select('*')
       .eq('company_id', order.company_id)
       .eq('config_type', 'status_message')
-      .eq('status', status)
+      .eq('status', mappedStatus)
       .eq('is_active', true)
       .single();
 
-    console.log(`📊 Status: ${status}, Config encontrada: ${!!statusMessageConfig}, is_active: ${statusMessageConfig?.is_active}`);
+    console.log(`📊 Status: ${mappedStatus}, Config encontrada: ${!!statusMessageConfig}, is_active: ${statusMessageConfig?.is_active}`);
 
     // Enviar notificação via WhatsApp apenas se estiver habilitado e com mensagem configurada
     if (whatsappConfig?.session_name && order.customer_phone && statusMessageConfig?.message_template) {
