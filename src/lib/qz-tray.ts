@@ -1,6 +1,4 @@
 // QZ Tray integration for printing
-import iconv from 'iconv-lite';
-
 declare global {
   interface Window {
     qz: any;
@@ -146,8 +144,9 @@ export class QZTrayPrinter {
       // Format receipt data
       const receipt = this.formatOrderReceipt(order, isReprint);
 
-      // Converter para CP850 (encoding de impressoras térmicas)
-      const encodedReceipt = iconv.encode(receipt, 'cp850');
+      // Converter para array de bytes usando TextEncoder (compatível com navegador)
+      const encoder = new TextEncoder();
+      const encodedReceipt = encoder.encode(receipt);
 
       // Print with proper format for QZ Tray 2.x
       const data = [{
@@ -171,8 +170,9 @@ export class QZTrayPrinter {
     // Build receipt string
     let receipt = '';
     
-    // Initialize printer and header
+    // Initialize printer
     receipt += `${ESC}@`; // Reset printer
+    receipt += `${ESC}t\x10`; // Set code page to UTF-8 (code page 16)
     receipt += `${ESC}a\x01`; // Center align
     receipt += `${ESC}E\x01`; // Bold on
     
