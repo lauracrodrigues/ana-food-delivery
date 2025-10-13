@@ -19,19 +19,18 @@ serve(async (req) => {
     );
 
     const { order_id, status } = await req.json();
-    console.log(`📝 Atualizando status do pedido ${order_id} para ${status}`);
+    console.log(`📝 Processando notificação WhatsApp para pedido ${order_id}, status: ${status}`);
 
-    // Atualizar status do pedido
+    // Buscar dados do pedido
     const { data: order, error } = await supabase
       .from('orders')
-      .update({ status, updated_at: new Date().toISOString() })
+      .select('*')
       .eq('id', order_id)
-      .select()
       .single();
 
     if (error) throw error;
 
-    console.log('✅ Status atualizado');
+    console.log('✅ Pedido encontrado');
 
     // Buscar configuração do WhatsApp
     const { data: whatsappConfig, error: configError } = await supabase
