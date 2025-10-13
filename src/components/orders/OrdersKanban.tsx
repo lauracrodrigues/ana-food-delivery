@@ -102,6 +102,7 @@ export function OrdersKanban() {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [isPrinting, setIsPrinting] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [audioPreloaded, setAudioPreloaded] = useState(false);
   
   // Settings states
   const [storeOpen, setStoreOpen] = useState(true);
@@ -167,6 +168,35 @@ export function OrdersKanban() {
     refetchOnWindowFocus: false, // Disable refetch on window focus
   });
 
+  // Pré-carregar áudio na primeira interação do usuário
+  useEffect(() => {
+    const preloadAudio = () => {
+      if (!audioPreloaded) {
+        const audio = new Audio('/sounds/bell.mp3');
+        audio.volume = 0.01;
+        audio.play().then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          setAudioPreloaded(true);
+          console.log('✅ Áudio pré-carregado com sucesso');
+        }).catch(() => {
+          console.log('⏳ Aguardando interação do usuário para áudio');
+        });
+      }
+    };
+
+    // Tentar pré-carregar em várias interações
+    document.addEventListener('click', preloadAudio, { once: true });
+    document.addEventListener('keydown', preloadAudio, { once: true });
+    document.addEventListener('touchstart', preloadAudio, { once: true });
+
+    return () => {
+      document.removeEventListener('click', preloadAudio);
+      document.removeEventListener('keydown', preloadAudio);
+      document.removeEventListener('touchstart', preloadAudio);
+    };
+  }, [audioPreloaded]);
+
   // Setup real-time subscription for orders
   useEffect(() => {
     const setupRealtime = async () => {
@@ -194,7 +224,7 @@ export function OrdersKanban() {
             table: 'orders',
             filter: `company_id=eq.${profile.company_id}` // Only listen to orders from this company
           },
-          (payload) => {
+          async (payload) => {
             console.log('🔔 Real-time update received:', payload);
             
             if (payload.eventType === 'INSERT') {
@@ -205,10 +235,16 @@ export function OrdersKanban() {
               stopNotificationSound();
               
               // Play sound for new orders if enabled (por 30 segundos)
-              if (soundEnabled) {
+              if (soundEnabled && audioPreloaded) {
                 const audio = new Audio('/sounds/bell.mp3');
                 audio.loop = true;
-                audio.play().catch(e => console.log('Could not play sound:', e));
+                audio.play().catch(e => {
+                  console.error('Erro ao tocar som:', e);
+                  toast({
+                    title: "🔇 Som desabilitado",
+                    description: "Clique em qualquer lugar para habilitar notificações sonoras",
+                  });
+                });
                 setCurrentAudio(audio);
                 
                 // Parar após 30 segundos
@@ -226,8 +262,9 @@ export function OrdersKanban() {
               });
             }
             
-            // Invalidate queries to refresh the list
-            queryClient.invalidateQueries({ queryKey: ["orders"] });
+            // Refetch data para garantir que aparece
+            console.log('♻️ Recarregando pedidos...');
+            await refetch();
           }
         )
         .subscribe((status) => {
@@ -242,7 +279,7 @@ export function OrdersKanban() {
     };
 
     setupRealtime();
-  }, [soundEnabled, toast, queryClient, stopNotificationSound]);
+  }, [soundEnabled, toast, refetch, stopNotificationSound, audioPreloaded]);
 
   // Load settings from Supabase
   useQuery({

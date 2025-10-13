@@ -159,6 +159,26 @@ Deno.serve(async (req: Request) => {
 
         if (error) throw error;
 
+        // Chamar orders-status para enviar notificação WhatsApp
+        try {
+          console.log(`📱 Chamando orders-status para pedido ${body.order_id}`);
+          const statusResponse = await supabase.functions.invoke('orders-status', {
+            body: { 
+              order_id: body.order_id, 
+              status: body.status 
+            }
+          });
+          
+          if (statusResponse.error) {
+            console.error('⚠️ Erro ao chamar orders-status:', statusResponse.error);
+          } else {
+            console.log('✅ orders-status chamado com sucesso');
+          }
+        } catch (statusError) {
+          console.error('⚠️ Erro ao enviar notificação WhatsApp:', statusError);
+          // Não falhar a requisição por causa da notificação
+        }
+
         return new Response(
           JSON.stringify({ data }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
