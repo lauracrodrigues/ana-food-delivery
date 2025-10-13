@@ -140,8 +140,6 @@ Deno.serve(async (req: Request) => {
       }
 
       case 'update_status': {
-        const body: OrderRequest = await req.json();
-        
         if (!body.order_id || !body.status) {
           return new Response(
             JSON.stringify({ error: 'order_id e status são obrigatórios' }),

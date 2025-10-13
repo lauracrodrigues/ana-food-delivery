@@ -247,12 +247,12 @@ export function OrdersKanban() {
                 });
                 setCurrentAudio(audio);
                 
-                // Parar após 30 segundos
+                // Parar após 20 segundos
                 setTimeout(() => {
                   audio.pause();
                   audio.currentTime = 0;
                   setCurrentAudio(null);
-                }, 30000);
+                }, 20000);
               }
               
               // Show toast notification
@@ -757,6 +757,10 @@ export function OrdersKanban() {
                           draggable
                           onDragStart={(e) => handleDragStart(e, order)}
                           onDragEnd={handleDragEnd}
+                          onClick={() => {
+                            stopNotificationSound();
+                            setSelectedOrder(order);
+                          }}
                         >
                           <CardHeader className="pb-2">
                             <div className="flex items-center justify-between">
