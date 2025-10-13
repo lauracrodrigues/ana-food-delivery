@@ -56,6 +56,7 @@ interface Order {
   created_at: string;
   delivery_fee?: number;
   company_id: string;
+  source?: "whatsapp" | "digital_menu" | "counter"; // Origin of the order
 }
 
 const statusColumns = [
@@ -333,7 +334,7 @@ export function OrdersKanban() {
 
   // Update order status mutation using API client
   const updateOrderMutation = useMutation({
-    mutationFn: async ({ orderId, status, previousStatus }: { orderId: string; status: string; previousStatus?: string }) => {
+    mutationFn: async ({ orderId, status, previousStatus, order }: { orderId: string; status: string; previousStatus?: string; order?: Order }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not found");
 
@@ -347,9 +348,17 @@ export function OrdersKanban() {
 
       await apiClient.updateOrderStatus(orderId, status, profile.company_id);
       
-      // Parar som se mudou de pending para preparing
-      if (previousStatus === 'pending' && status === 'preparing') {
+      // Se mudou de pending para preparing, parar som e imprimir automaticamente
+      if (previousStatus === 'pending' && status === 'preparing' && order) {
         stopNotificationSound();
+        // Imprimir automaticamente na impressora do caixa
+        try {
+          await qzPrinter.printOrder(order, undefined, false);
+          console.log('✅ Impressão automática realizada ao aceitar pedido');
+        } catch (error) {
+          console.error('❌ Erro na impressão automática:', error);
+          // Não mostrar erro ao usuário, pois o pedido já foi aceito com sucesso
+        }
       }
     },
     onSuccess: () => {
@@ -387,23 +396,24 @@ export function OrdersKanban() {
   });
 
   // Print order function
-  const handlePrintOrder = async (order: Order) => {
+  const handlePrintOrder = async (order: Order, isReprint: boolean = false) => {
     console.log('='.repeat(50));
     console.log('🖨️ INÍCIO DO PROCESSO DE IMPRESSÃO');
     console.log('Pedido:', order.order_number);
     console.log('Status atual:', order.status);
+    console.log('Reimpressão:', isReprint);
     console.log('QZ Tray disponível?', typeof window !== 'undefined' && typeof (window as any).qz !== 'undefined');
     
     setIsPrinting(true);
     
     try {
       console.log('Chamando qzPrinter.printOrder...');
-      await qzPrinter.printOrder(order);
+      await qzPrinter.printOrder(order, undefined, isReprint);
       
       console.log('✅ Impressão concluída com sucesso!');
       toast({
         title: "✅ Impressão enviada",
-        description: "O pedido foi enviado para a impressora com sucesso.",
+        description: isReprint ? "Reimpressão enviada para a impressora com sucesso." : "O pedido foi enviado para a impressora com sucesso.",
       });
     } catch (error: any) {
       console.error('='.repeat(50));
@@ -467,8 +477,8 @@ export function OrdersKanban() {
     setDraggedOrder(null);
   };
 
-  const updateOrderStatus = (orderId: string, newStatus: string, previousStatus?: string) => {
-    updateOrderMutation.mutate({ orderId, status: newStatus, previousStatus });
+  const updateOrderStatus = (orderId: string, newStatus: string, previousStatus?: string, order?: Order) => {
+    updateOrderMutation.mutate({ orderId, status: newStatus, previousStatus, order });
   };
 
   const toggleItemsExpansion = (orderId: string) => {
@@ -764,6 +774,8 @@ export function OrdersKanban() {
                               : 'opacity-100 scale-100 hover:scale-[1.01]'
                           } ${
                             isDelayed ? "border-destructive border-2" : ""
+                          } ${
+                            order.status === "pending" ? "bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800" : ""
                           }`}
                           draggable
                           onDragStart={(e) => handleDragStart(e, order)}
@@ -800,7 +812,18 @@ export function OrdersKanban() {
                                 </div>
                               </div>
                             </div>
-                            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+                            
+                            {/* Origem do pedido - centralizada */}
+                            <div className="flex justify-center mt-2">
+                              <div className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-primary/10 to-primary/5 text-primary border border-primary/20">
+                                {order.source === "whatsapp" ? "Delivery WhatsApp" : 
+                                 order.source === "digital_menu" ? "Delivery Cardápio Digital" :
+                                 order.source === "counter" ? "Pedido Balcão" :
+                                 order.type === "delivery" ? "Delivery Cardápio Digital" : "Pedido Balcão"}
+                              </div>
+                            </div>
+                            
+                            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs mt-2 ${
                               order.type === "delivery" 
                                 ? "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400" 
                                 : "bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400"
@@ -836,76 +859,84 @@ export function OrdersKanban() {
                               )}
                             </div>
 
-                            <div className="bg-background rounded p-2">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs font-medium">
-                                  Itens ({items.length})
-                                </span>
-                                {items.length > 2 && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleItemsExpansion(order.id);
-                                    }}
-                                    className="text-xs text-primary hover:underline flex items-center gap-1"
-                                  >
-                                    {isExpanded ? (
-                                      <>
-                                        <ChevronUp className="w-3 h-3" />
-                                        Menos
-                                      </>
-                                    ) : (
-                                      <>
-                                        <ChevronDown className="w-3 h-3" />
-                                        +{items.length - 2}
-                                      </>
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                              {itemsToShow.map((item, index) => (
-                                <div key={index} className="text-xs py-1">
-                                  <div className="flex justify-between">
-                                    <span>{item.quantity}x {item.name}</span>
-                                    <span className="font-medium">
-                                      R$ {((item.price || 0) * (item.quantity || 1)).toFixed(2)}
-                                    </span>
-                                  </div>
-                                  {item.observations && (
-                                    <p className="text-muted-foreground italic">
-                                      Obs: {item.observations}
-                                    </p>
+                            {/* Para pedidos novos (pending), não mostrar itens */}
+                            {order.status !== "pending" && (
+                              <div className="bg-background rounded p-2">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-medium">
+                                    Itens ({items.length})
+                                  </span>
+                                  {items.length > 2 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleItemsExpansion(order.id);
+                                      }}
+                                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                                    >
+                                      {isExpanded ? (
+                                        <>
+                                          <ChevronUp className="w-3 h-3" />
+                                          Menos
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ChevronDown className="w-3 h-3" />
+                                          +{items.length - 2}
+                                        </>
+                                      )}
+                                    </button>
                                   )}
                                 </div>
-                              ))}
-                            </div>
+                                {itemsToShow.map((item, index) => (
+                                  <div key={index} className="text-xs py-1">
+                                    <div className="flex justify-between">
+                                      <span>{item.quantity}x {item.name}</span>
+                                      <span className="font-medium">
+                                        R$ {((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                                      </span>
+                                    </div>
+                                    {item.observations && (
+                                      <p className="text-muted-foreground italic">
+                                        Obs: {item.observations}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
 
                             <div className="flex gap-1">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  stopNotificationSound();
-                                  setSelectedOrder(order);
-                                }}
-                                className="flex-1"
-                              >
-                                <Eye className="w-3 h-3" />
-                              </Button>
+                              {/* Para pedidos novos (pending), não mostrar botões de visualizar e imprimir */}
+                              {order.status !== "pending" && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      stopNotificationSound();
+                                      setSelectedOrder(order);
+                                    }}
+                                    className="flex-1"
+                                  >
+                                    <Eye className="w-3 h-3" />
+                                  </Button>
 
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handlePrintOrder(order);
-                                }}
-                                disabled={isPrinting}
-                                className="flex-1"
-                              >
-                                <Printer className="w-3 h-3" />
-                              </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePrintOrder(order, true);
+                                    }}
+                                    disabled={isPrinting}
+                                    className="flex-1"
+                                  >
+                                    <Printer className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              )}
 
                               {order.status !== "completed" && order.status !== "cancelled" && (
                                 <Button
@@ -916,10 +947,11 @@ export function OrdersKanban() {
                                     updateOrderStatus(
                                       order.id,
                                       getNextStatus(order.status, order.type),
-                                      order.status
+                                      order.status,
+                                      order
                                     );
                                   }}
-                                  className="flex-1"
+                                  className={order.status === "pending" ? "flex-1" : "flex-1"}
                                 >
                                   {getStatusAction(order.status, order.type)}
                                 </Button>
@@ -952,7 +984,7 @@ export function OrdersKanban() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handlePrintOrder(selectedOrder)}
+                  onClick={() => handlePrintOrder(selectedOrder, true)}
                   disabled={isPrinting}
                 >
                   <Printer className="w-4 h-4 mr-2" />
@@ -963,6 +995,18 @@ export function OrdersKanban() {
           </DialogHeader>
           {selectedOrder && (
             <div className="space-y-4">
+              {/* Origem do pedido - centralizada */}
+              <div className="flex justify-center">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 text-primary border border-primary/20">
+                  <span className="font-semibold">
+                    {selectedOrder.source === "whatsapp" ? "Delivery WhatsApp" : 
+                     selectedOrder.source === "digital_menu" ? "Delivery Cardápio Digital" :
+                     selectedOrder.source === "counter" ? "Pedido Balcão" :
+                     selectedOrder.type === "delivery" ? "Delivery Cardápio Digital" : "Pedido Balcão"}
+                  </span>
+                </div>
+              </div>
+              
               <div>
                 <h4 className="font-semibold mb-2">Cliente</h4>
                 <p>{selectedOrder.customer_name}</p>

@@ -131,7 +131,7 @@ export class QZTrayPrinter {
   }
 
   // Print order receipt
-  async printOrder(order: any, printerName?: string): Promise<void> {
+  async printOrder(order: any, printerName?: string, isReprint: boolean = false): Promise<void> {
     try {
       await this.connect();
 
@@ -142,7 +142,7 @@ export class QZTrayPrinter {
       const config = window.qz.configs.create(printer);
 
       // Format receipt data
-      const receipt = this.formatOrderReceipt(order);
+      const receipt = this.formatOrderReceipt(order, isReprint);
 
       // Print with proper format for QZ Tray 2.x
       const data = [{
@@ -159,7 +159,7 @@ export class QZTrayPrinter {
   }
 
   // Format order data for thermal printer (ESC/POS)
-  private formatOrderReceipt(order: any): string {
+  private formatOrderReceipt(order: any, isReprint: boolean = false): string {
     const ESC = '\x1B';
     const GS = '\x1D';
     
@@ -170,10 +170,25 @@ export class QZTrayPrinter {
     receipt += `${ESC}@`; // Reset printer
     receipt += `${ESC}a\x01`; // Center align
     receipt += `${ESC}E\x01`; // Bold on
+    
+    // Se for reimpressão, mostrar em destaque
+    if (isReprint) {
+      receipt += '********************************\n';
+      receipt += '*     REIMPRESSAO     *\n';
+      receipt += '********************************\n';
+    }
+    
     receipt += '================================\n';
     receipt += 'COMPROVANTE DO PEDIDO\n';
     receipt += '================================\n';
     receipt += `${ESC}E\x00`; // Bold off
+    
+    // Origem do pedido - centralizada
+    const source = order.source === "whatsapp" ? "Delivery WhatsApp" : 
+                   order.source === "digital_menu" ? "Delivery Cardapio Digital" :
+                   order.source === "counter" ? "Pedido Balcao" :
+                   order.type === "delivery" ? "Delivery Cardapio Digital" : "Pedido Balcao";
+    receipt += `${source}\n`;
     receipt += `${ESC}a\x00`; // Left align
     receipt += '\n';
 
