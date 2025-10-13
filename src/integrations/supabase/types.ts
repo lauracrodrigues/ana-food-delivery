@@ -541,6 +541,7 @@ export type Database = {
           observations: string | null
           order_number: string | null
           payment_method: string | null
+          source: string
           status: string
           total: number
           type: string | null
@@ -559,6 +560,7 @@ export type Database = {
           observations?: string | null
           order_number?: string | null
           payment_method?: string | null
+          source: string
           status?: string
           total: number
           type?: string | null
@@ -577,6 +579,7 @@ export type Database = {
           observations?: string | null
           order_number?: string | null
           payment_method?: string | null
+          source?: string
           status?: string
           total?: number
           type?: string | null

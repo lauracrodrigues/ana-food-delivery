@@ -270,6 +270,7 @@ Deno.serve(async (req: Request) => {
             address: orderData.address || '',
             observations: orderData.observations || '',
             estimated_time: orderData.estimated_time || 30,
+            source: orderData.source || 'digital_menu',
           })
           .select()
           .single();
@@ -290,7 +291,15 @@ Deno.serve(async (req: Request) => {
         // Enviar confirmação via WhatsApp se configurado
         if (whatsappConfig?.session_name && orderData.customer_phone) {
           try {
-            const message = `🎉 *Pedido Confirmado!*\n\nNúmero: #${nextNumber}\nTotal: R$ ${orderData.total}\n\nSeu pedido foi recebido e está sendo preparado! ⏱️`;
+            // Formatar itens do pedido
+            const itemsList = orderData.items?.map((item: any) => 
+              `${item.quantity}x ${item.name} - R$ ${((item.price || 0) * (item.quantity || 0)).toFixed(2).replace('.', ',')}`
+            ).join('\n') || '';
+
+            // Formatar valor total
+            const totalFormatted = (orderData.total || 0).toFixed(2).replace('.', ',');
+
+            const message = `🎉 *Pedido Confirmado!*\n\nNúmero: #${nextNumber}\n\n📦 *Itens:*\n${itemsList}\n\n💰 *Total: R$ ${totalFormatted}*\n\nSeu pedido foi recebido e está sendo preparado! ⏱️`;
             
             const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
             let phoneNumber = orderData.customer_phone.replace(/\D/g, '');

@@ -21,7 +21,7 @@ export interface Order {
   created_at: string;
   delivery_fee?: number;
   company_id: string;
-  source?: "whatsapp" | "digital_menu" | "counter";
+  source: "whatsapp" | "digital_menu";
 }
 
 export interface StoreSettings {

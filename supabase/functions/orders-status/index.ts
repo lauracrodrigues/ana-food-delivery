@@ -55,8 +55,21 @@ serve(async (req) => {
     console.log('📱 Config WhatsApp:', whatsappConfig ? 'Encontrada' : 'Não encontrada');
     if (configError) console.log('⚠️ Erro ao buscar config:', configError);
 
-    // Enviar notificação via WhatsApp
-    if (whatsappConfig?.session_name && order.customer_phone) {
+    // Buscar configuração de mensagens de status
+    const { data: statusMessageConfigs } = await supabase
+      .from('whatsapp_config')
+      .select('*')
+      .eq('company_id', order.company_id)
+      .eq('config_type', 'status_message');
+
+    // Verificar se o envio está habilitado para este status
+    const statusConfig = statusMessageConfigs?.find(config => config.status === status);
+    const shouldSendMessage = statusConfig?.is_active !== false; // Envia se não existir config ou se estiver ativa
+
+    console.log(`📊 Status: ${status}, Envio habilitado: ${shouldSendMessage}`);
+
+    // Enviar notificação via WhatsApp apenas se estiver habilitado
+    if (whatsappConfig?.session_name && order.customer_phone && shouldSendMessage) {
       try {
         const message = `*Pedido #${order.order_number}*\n\n${statusMessages[status] || 'Status atualizado!'}`;
         

@@ -50,6 +50,7 @@ serve(async (req) => {
         address: webhookData.address || '',
         observations: webhookData.observations || 'Pedido via WhatsApp',
         estimated_time: webhookData.estimated_time || 30,
+        source: 'whatsapp',
       })
       .select()
       .single();
@@ -73,7 +74,15 @@ serve(async (req) => {
     // Enviar confirmação
     if (whatsappConfig?.session_name && webhookData.customer_phone) {
       try {
-        const message = `✅ *Pedido Recebido!*\n\nNúmero: #${nextNumber}\nTotal: R$ ${webhookData.total}\n\nObrigado! Seu pedido está sendo preparado! 🍕`;
+        // Formatar itens do pedido
+        const itemsList = webhookData.items?.map((item: any) => 
+          `${item.quantity}x ${item.name} - R$ ${((item.price || 0) * (item.quantity || 0)).toFixed(2).replace('.', ',')}`
+        ).join('\n') || '';
+
+        // Formatar valor total
+        const totalFormatted = (webhookData.total || 0).toFixed(2).replace('.', ',');
+
+        const message = `✅ *Pedido Recebido!*\n\nNúmero: #${nextNumber}\n\n📦 *Itens:*\n${itemsList}\n\n💰 *Total: R$ ${totalFormatted}*\n\nObrigado! Seu pedido está sendo preparado! 🍕`;
         
         const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
         let phoneNumber = webhookData.customer_phone.replace(/\D/g, '');

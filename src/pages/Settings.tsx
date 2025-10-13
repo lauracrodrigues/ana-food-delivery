@@ -55,6 +55,9 @@ const availableSounds = [
   { value: "/sounds/chime.mp3", label: "Campainha 2", icon: "🎶" },
   { value: "/sounds/ping.mp3", label: "Campainha 3", icon: "📢" },
   { value: "/notification.mp3", label: "Campainha Clássica", icon: "🔊" },
+  { value: "/sounds/notification.mp3", label: "Notificação", icon: "📣" },
+  { value: "/sounds/campainha_casa.mp3", label: "Campainha Casa", icon: "🏠" },
+  { value: "/sounds/old_phone.mp3", label: "Telefone Antigo", icon: "☎️" },
 ];
 
 export function Settings() {
