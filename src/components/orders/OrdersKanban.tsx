@@ -564,21 +564,15 @@ export function OrdersKanban() {
   const getNextStatus = (currentStatus: string, type: string) => {
     switch (currentStatus) {
       case "pending": return "preparing";
-      case "preparing": return "ready";
-      case "ready": return type === "delivery" ? "delivering" : "completed";
+      case "preparing": return type === "pickup" ? "ready" : "delivering";
+      case "ready": return "completed";
       case "delivering": return "completed";
       default: return currentStatus;
     }
   };
 
   const getStatusAction = (status: string, type: string) => {
-    switch (status) {
-      case "pending": return "Aceitar";
-      case "preparing": return "Pronto";
-      case "ready": return type === "delivery" ? "Enviar" : "Entregar";
-      case "delivering": return "Concluir";
-      default: return "";
-    }
+    return "Avançar";
   };
 
   useEffect(() => {
@@ -800,16 +794,16 @@ export function OrdersKanban() {
                                        order.status !== "cancelled";
 
                       return (
-                        <Card
+                         <Card
                           key={order.id}
-                          className={`cursor-grab active:cursor-grabbing hover:shadow-lg transition-all duration-75 ease-out select-none ${
+                          className={`cursor-pointer hover:shadow-lg transition-all duration-75 ease-out select-none ${
                             draggedOrder?.id === order.id 
                               ? 'opacity-40 scale-95 shadow-none' 
                               : 'opacity-100 scale-100 hover:scale-[1.01]'
                           } ${
                             isDelayed ? "border-destructive border-2" : ""
                           } ${
-                            order.status === "pending" ? "bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 animate-pulse" : ""
+                            order.status === "pending" ? "bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 animate-pulse-subtle" : ""
                           }`}
                           draggable
                           onDragStart={(e) => handleDragStart(e, order)}
@@ -901,35 +895,20 @@ export function OrdersKanban() {
                             {/* Não mostrar itens nos cards - visualizar clicando no card */}
 
                             <div className="flex gap-1">
-                              {/* Para pedidos novos (pending), não mostrar botões de visualizar e imprimir */}
+                              {/* Para pedidos novos (pending), só mostrar botão de imprimir para reimpressão */}
                               {order.status !== "pending" && (
-                                <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      stopNotificationSound();
-                                      setSelectedOrder(order);
-                                    }}
-                                    className="flex-1"
-                                  >
-                                    <Eye className="w-3 h-3" />
-                                  </Button>
-
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handlePrintOrder(order, true);
-                                    }}
-                                    disabled={isPrinting}
-                                    className="flex-1"
-                                  >
-                                    <Printer className="w-3 h-3" />
-                                  </Button>
-                                </>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePrintOrder(order, true);
+                                  }}
+                                  disabled={isPrinting}
+                                  className="flex-1"
+                                >
+                                  <Printer className="w-3 h-3" />
+                                </Button>
                               )}
 
                               {order.status !== "completed" && order.status !== "cancelled" && (
@@ -945,9 +924,9 @@ export function OrdersKanban() {
                                       order
                                     );
                                   }}
-                                  className={order.status === "pending" ? "flex-1" : "flex-1"}
+                                  className="flex-1"
                                 >
-                                  {getStatusAction(order.status, order.type)}
+                                  Avançar
                                 </Button>
                               )}
                             </div>
