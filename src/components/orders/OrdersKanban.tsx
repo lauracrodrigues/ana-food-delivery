@@ -369,7 +369,7 @@ export function OrdersKanban() {
     refetchOnWindowFocus: false, // Disable refetch on window focus
   });
 
-  // Update order status mutation using API client
+  // Update order status mutation using API client with optimistic updates
   const updateOrderMutation = useMutation({
     mutationFn: async ({ orderId, status, previousStatus, order, cancellationReason }: { 
       orderId: string; 
@@ -399,15 +399,38 @@ export function OrdersKanban() {
           .then(() => console.log('✅ Impressão automática realizada ao aceitar pedido'))
           .catch(error => console.error('❌ Erro na impressão automática:', error));
       }
+      
+      return { orderId, status };
+    },
+    // Optimistic update - atualiza imediatamente sem refetch
+    onMutate: async ({ orderId, status }) => {
+      // Cancela queries em andamento
+      await queryClient.cancelQueries({ queryKey: ["orders"] });
+
+      // Snapshot do estado anterior
+      const previousOrders = queryClient.getQueryData<Order[]>(["orders"]);
+
+      // Atualização otimista
+      queryClient.setQueryData<Order[]>(["orders"], (old) => {
+        if (!old) return old;
+        return old.map((order) =>
+          order.id === orderId ? { ...order, status, updated_at: new Date().toISOString() } : order
+        );
+      });
+
+      return { previousOrders };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
       toast({
         title: "Status atualizado",
         description: "O status do pedido foi atualizado com sucesso.",
       });
     },
-    onError: () => {
+    onError: (err, variables, context) => {
+      // Rollback em caso de erro
+      if (context?.previousOrders) {
+        queryClient.setQueryData(["orders"], context.previousOrders);
+      }
       toast({
         title: "Erro",
         description: "Erro ao atualizar status do pedido.",
@@ -480,22 +503,18 @@ export function OrdersKanban() {
     setDraggedOrder(order);
     e.dataTransfer.effectAllowed = "move";
     
-    // Criar preview mais suave do drag
-    if (e.dataTransfer.setDragImage && e.currentTarget instanceof HTMLElement) {
-      const ghost = e.currentTarget.cloneNode(true) as HTMLElement;
-      ghost.style.opacity = '0.6';
-      ghost.style.transform = 'rotate(-2deg) scale(1.02)';
-      ghost.style.transition = 'none';
-      document.body.appendChild(ghost);
-      ghost.style.position = 'absolute';
-      ghost.style.top = '-9999px';
-      e.dataTransfer.setDragImage(ghost, 0, 0);
-      setTimeout(() => document.body.removeChild(ghost), 0);
+    // Adicionar classe ao elemento sendo arrastado
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5';
     }
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = (e: React.DragEvent) => {
     setDraggedOrder(null);
+    // Remover estilos temporários
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '';
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -510,7 +529,8 @@ export function OrdersKanban() {
       updateOrderMutation.mutate({ 
         orderId: draggedOrder.id, 
         status: newStatus,
-        previousStatus: draggedOrder.status
+        previousStatus: draggedOrder.status,
+        order: draggedOrder
       });
     }
     setDraggedOrder(null);
@@ -786,7 +806,9 @@ export function OrdersKanban() {
                     </h3>
                   </div>
 
-                  <div className="bg-card border border-border min-h-[400px] max-h-[calc(100vh-300px)] overflow-y-auto p-2 rounded-b-lg space-y-2">
+                  <div className={`bg-card border border-border min-h-[400px] max-h-[calc(100vh-300px)] overflow-y-auto p-2 rounded-b-lg space-y-2 transition-all duration-200 ${
+                    draggedOrder && normalizeStatus(draggedOrder.status) !== column.id ? 'bg-primary/5' : ''
+                  }`}>
                      {columnOrders.map((order) => {
                       const isExpanded = expandedItems.has(order.id);
                       const items = order.items || [];
@@ -801,10 +823,10 @@ export function OrdersKanban() {
                       return (
                          <Card
                           key={order.id}
-                          className={`cursor-pointer hover:shadow-lg transition-all duration-75 ease-out select-none ${
+                          className={`cursor-move hover:shadow-lg transition-all duration-200 ease-out select-none ${
                             draggedOrder?.id === order.id 
-                              ? 'opacity-40 scale-95 shadow-none' 
-                              : 'opacity-100 scale-100 hover:scale-[1.01]'
+                              ? 'opacity-0 scale-95' 
+                              : 'opacity-100 scale-100 hover:scale-[1.02]'
                           } ${
                             isDelayed ? "border-destructive border-2" : ""
                           } ${

@@ -106,15 +106,15 @@ export default {
             transform: "scale(1)",
           },
           "50%": {
-            opacity: "0.95",
-            transform: "scale(1.005)",
+            opacity: "0.97",
+            transform: "scale(1.002)",
           },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "pulse-subtle": "pulse-subtle 6s ease-in-out infinite",
+        "pulse-subtle": "pulse-subtle 18s ease-in-out infinite",
       },
     },
   },
