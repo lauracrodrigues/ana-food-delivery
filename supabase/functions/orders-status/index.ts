@@ -64,9 +64,10 @@ serve(async (req) => {
 
     // Verificar se o envio está habilitado para este status
     const statusConfig = statusMessageConfigs?.find(config => config.status === status);
-    const shouldSendMessage = statusConfig?.is_active !== false; // Envia se não existir config ou se estiver ativa
+    // Envia APENAS se a configuração existir E estiver explicitamente ativa
+    const shouldSendMessage = statusConfig?.is_active === true;
 
-    console.log(`📊 Status: ${status}, Envio habilitado: ${shouldSendMessage}`);
+    console.log(`📊 Status: ${status}, Config encontrada: ${!!statusConfig}, is_active: ${statusConfig?.is_active}, Envio habilitado: ${shouldSendMessage}`);
 
     // Enviar notificação via WhatsApp apenas se estiver habilitado
     if (whatsappConfig?.session_name && order.customer_phone && shouldSendMessage) {
