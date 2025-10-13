@@ -768,6 +768,7 @@ export function OrdersKanban() {
                                 <Checkbox
                                   checked={selectedOrders.has(order.id)}
                                   onCheckedChange={() => toggleOrderSelection(order.id)}
+                                  onClick={(e) => e.stopPropagation()}
                                 />
                                 <CardTitle className="text-sm">
                                   #{order.order_number || order.id.slice(0, 8)}
@@ -812,7 +813,10 @@ export function OrdersKanban() {
                               <p className="font-medium text-sm">{order.customer_name}</p>
                               {order.customer_phone && (
                                 <button
-                                  onClick={() => openWhatsApp(order.customer_phone, order.order_number)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openWhatsApp(order.customer_phone, order.order_number);
+                                  }}
                                   className="flex items-center gap-1 text-xs text-green-600 hover:underline"
                                 >
                                   <Phone className="w-3 h-3" />
@@ -828,7 +832,10 @@ export function OrdersKanban() {
                                 </span>
                                 {items.length > 2 && (
                                   <button
-                                    onClick={() => toggleItemsExpansion(order.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleItemsExpansion(order.id);
+                                    }}
                                     className="text-xs text-primary hover:underline flex items-center gap-1"
                                   >
                                     {isExpanded ? (
@@ -866,7 +873,8 @@ export function OrdersKanban() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   stopNotificationSound();
                                   setSelectedOrder(order);
                                 }}
@@ -878,7 +886,10 @@ export function OrdersKanban() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handlePrintOrder(order)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePrintOrder(order);
+                                }}
                                 disabled={isPrinting}
                                 className="flex-1"
                               >
@@ -888,11 +899,15 @@ export function OrdersKanban() {
                               {order.status !== "completed" && order.status !== "cancelled" && (
                                 <Button
                                   size="sm"
-                                  onClick={() => updateOrderStatus(
-                                    order.id,
-                                    getNextStatus(order.status, order.type),
-                                    order.status
-                                  )}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    stopNotificationSound();
+                                    updateOrderStatus(
+                                      order.id,
+                                      getNextStatus(order.status, order.type),
+                                      order.status
+                                    );
+                                  }}
                                   className="flex-1"
                                 >
                                   {getStatusAction(order.status, order.type)}
