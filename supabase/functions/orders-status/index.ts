@@ -6,16 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const statusMessages: Record<string, string> = {
-  pending: '⏳ Seu pedido foi recebido e aguarda confirmação.',
-  confirmed: '✅ Pedido confirmado! Estamos preparando tudo com carinho.',
-  preparing: '👨‍🍳 Seu pedido está sendo preparado!',
-  ready: '🎉 Pedido pronto! ',
-  delivering: '🚴 Pedido saiu para entrega!',
-  delivered: '✅ Pedido entregue! Bom apetite!',
-  completed: '✅ Pedido finalizado. Obrigado!',
-  cancelled: '❌ Pedido cancelado.',
-};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -56,23 +46,45 @@ serve(async (req) => {
     if (configError) console.log('⚠️ Erro ao buscar config:', configError);
 
     // Buscar configuração de mensagens de status
-    const { data: statusMessageConfigs } = await supabase
+    const { data: statusMessageConfig } = await supabase
       .from('whatsapp_config')
       .select('*')
       .eq('company_id', order.company_id)
-      .eq('config_type', 'status_message');
+      .eq('config_type', 'status_message')
+      .eq('status', status)
+      .eq('is_active', true)
+      .single();
 
-    // Verificar se o envio está habilitado para este status
-    const statusConfig = statusMessageConfigs?.find(config => config.status === status);
-    // Envia APENAS se a configuração existir E estiver explicitamente ativa
-    const shouldSendMessage = statusConfig?.is_active === true;
+    console.log(`📊 Status: ${status}, Config encontrada: ${!!statusMessageConfig}, is_active: ${statusMessageConfig?.is_active}`);
 
-    console.log(`📊 Status: ${status}, Config encontrada: ${!!statusConfig}, is_active: ${statusConfig?.is_active}, Envio habilitado: ${shouldSendMessage}`);
-
-    // Enviar notificação via WhatsApp apenas se estiver habilitado
-    if (whatsappConfig?.session_name && order.customer_phone && shouldSendMessage) {
+    // Enviar notificação via WhatsApp apenas se estiver habilitado e com mensagem configurada
+    if (whatsappConfig?.session_name && order.customer_phone && statusMessageConfig?.message_template) {
       try {
-        const message = `*Pedido #${order.order_number}*\n\n${statusMessages[status] || 'Status atualizado!'}`;
+        // Formatar lista de itens
+        const items = order.items || [];
+        const itemsList = items.map((item: any) => {
+          const extrasText = item.extras?.length > 0 
+            ? `\n  + ${item.extras.map((e: any) => e.name).join(', ')}` 
+            : '';
+          return `${item.quantity}x ${item.name} - R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}${extrasText}`;
+        }).join('\n');
+
+        // Formatar valor total
+        const totalFormatted = `R$ ${(order.total || 0).toFixed(2).replace('.', ',')}`;
+
+        // Formatar endereço
+        const deliveryAddress = order.address || 'Retirada no local';
+
+        // Substituir variáveis no template
+        let message = statusMessageConfig.message_template
+          .replace(/{order_number}/g, order.order_number || order.id)
+          .replace(/{order_items}/g, itemsList || 'Sem itens')
+          .replace(/{order_total}/g, totalFormatted)
+          .replace(/{estimated_time}/g, order.estimated_time ? `${order.estimated_time} minutos` : 'A definir')
+          .replace(/{delivery_address}/g, deliveryAddress)
+          .replace(/{cancellation_reason}/g, order.cancellation_reason || 'Não informado');
+
+        console.log('📝 Mensagem personalizada:', message.substring(0, 100) + '...');
         
         const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
         let phoneNumber = order.customer_phone.replace(/\D/g, '');
@@ -102,7 +114,11 @@ serve(async (req) => {
         console.error('❌ Erro ao enviar WhatsApp:', error);
       }
     } else {
-      console.log('⚠️ WhatsApp não enviado. Config:', !!whatsappConfig, 'Session:', whatsappConfig?.session_name, 'Phone:', order.customer_phone);
+      const reasons = [];
+      if (!whatsappConfig?.session_name) reasons.push('sem sessão WhatsApp');
+      if (!order.customer_phone) reasons.push('sem telefone');
+      if (!statusMessageConfig?.message_template) reasons.push('sem template de mensagem');
+      console.log(`⚠️ WhatsApp não enviado. Motivo(s): ${reasons.join(', ')}`);
     }
 
     return new Response(
