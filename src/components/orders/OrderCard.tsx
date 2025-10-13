@@ -16,7 +16,7 @@ interface OrderCardProps {
   isSelected: boolean;
   onSelect: () => void;
   onClick: () => void;
-  onPrint: (order: Order) => void;
+  onPrint: (order: Order, isReprint: boolean) => void;
   onStatusChange: (orderId: string, newStatus: string, previousStatus: string, order: Order) => void;
   onDragStart: (e: React.DragEvent, order: Order) => void;
   onDragEnd: (e: React.DragEvent) => void;
@@ -146,7 +146,7 @@ export function OrderCard({
               className="flex-1 h-7 text-xs"
               onClick={(e) => {
                 e.stopPropagation();
-                onPrint(order);
+                onPrint(order, true);
               }}
               disabled={isPrinting}
             >

@@ -13,7 +13,7 @@ interface KanbanColumnProps {
   onCardClick: (order: Order) => void;
   onCardSelect: (orderId: string) => void;
   selectedOrders: Set<string>;
-  onPrintOrder: (order: Order) => void;
+  onPrintOrder: (order: Order, isReprint: boolean) => void;
   onUpdateStatus: (orderId: string, newStatus: string, previousStatus: string, order: Order) => void;
   onDragStart: (e: React.DragEvent, order: Order) => void;
   onDragEnd: (e: React.DragEvent) => void;
