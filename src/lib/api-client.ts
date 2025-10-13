@@ -58,13 +58,14 @@ class ApiClient {
     return this.request(`api-orders?action=list&company_id=${companyId}`);
   }
 
-  async updateOrderStatus(orderId: string, status: string) {
+  async updateOrderStatus(orderId: string, status: string, companyId: string) {
     return this.request(`api-orders`, {
       method: "POST",
       body: JSON.stringify({ 
         action: "update_status",
         order_id: orderId,
-        status 
+        status,
+        company_id: companyId
       }),
     });
   }

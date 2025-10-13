@@ -334,7 +334,18 @@ export function OrdersKanban() {
   // Update order status mutation using API client
   const updateOrderMutation = useMutation({
     mutationFn: async ({ orderId, status, previousStatus }: { orderId: string; status: string; previousStatus?: string }) => {
-      await apiClient.updateOrderStatus(orderId, status);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not found");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.company_id) throw new Error("Company not found");
+
+      await apiClient.updateOrderStatus(orderId, status, profile.company_id);
       
       // Parar som se mudou de pending para preparing
       if (previousStatus === 'pending' && status === 'preparing') {
