@@ -27,6 +27,7 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
+  XCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -104,6 +105,8 @@ export function OrdersKanban() {
   const [isPrinting, setIsPrinting] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [audioPreloaded, setAudioPreloaded] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
   
   // Settings states
   const [storeOpen, setStoreOpen] = useState(true);
@@ -368,7 +371,13 @@ export function OrdersKanban() {
 
   // Update order status mutation using API client
   const updateOrderMutation = useMutation({
-    mutationFn: async ({ orderId, status, previousStatus, order }: { orderId: string; status: string; previousStatus?: string; order?: Order }) => {
+    mutationFn: async ({ orderId, status, previousStatus, order, cancellationReason }: { 
+      orderId: string; 
+      status: string; 
+      previousStatus?: string; 
+      order?: Order;
+      cancellationReason?: string;
+    }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not found");
 
@@ -385,14 +394,10 @@ export function OrdersKanban() {
       // Se mudou de pending para preparing, parar som e imprimir automaticamente
       if (previousStatus === 'pending' && status === 'preparing' && order) {
         stopNotificationSound();
-        // Imprimir automaticamente na impressora do caixa
-        try {
-          await qzPrinter.printOrder(order, undefined, false);
-          console.log('✅ Impressão automática realizada ao aceitar pedido');
-        } catch (error) {
-          console.error('❌ Erro na impressão automática:', error);
-          // Não mostrar erro ao usuário, pois o pedido já foi aceito com sucesso
-        }
+        // Imprimir automaticamente na impressora do caixa (não bloquear a UI)
+        qzPrinter.printOrder(order, undefined, false)
+          .then(() => console.log('✅ Impressão automática realizada ao aceitar pedido'))
+          .catch(error => console.error('❌ Erro na impressão automática:', error));
       }
     },
     onSuccess: () => {
@@ -511,8 +516,8 @@ export function OrdersKanban() {
     setDraggedOrder(null);
   };
 
-  const updateOrderStatus = (orderId: string, newStatus: string, previousStatus?: string, order?: Order) => {
-    updateOrderMutation.mutate({ orderId, status: newStatus, previousStatus, order });
+  const updateOrderStatus = (orderId: string, newStatus: string, previousStatus?: string, order?: Order, cancellationReason?: string) => {
+    updateOrderMutation.mutate({ orderId, status: newStatus, previousStatus, order, cancellationReason });
   };
 
   const toggleItemsExpansion = (orderId: string) => {
@@ -894,9 +899,9 @@ export function OrdersKanban() {
 
                             {/* Não mostrar itens nos cards - visualizar clicando no card */}
 
-                            <div className="flex gap-1">
-                              {/* Para pedidos novos (pending), só mostrar botão de imprimir para reimpressão */}
-                              {order.status !== "pending" && (
+                             <div className="flex gap-1">
+                              {/* Não mostrar botão de impressão para pedidos cancelados e pendentes */}
+                              {order.status !== "pending" && order.status !== "cancelled" && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1044,21 +1049,108 @@ export function OrdersKanban() {
                 </div>
               </div>
 
-              {selectedOrder.customer_phone && (
-                <Button
-                  onClick={() => openWhatsApp(
-                    selectedOrder.customer_phone,
-                    selectedOrder.order_number
-                  )}
-                  className="w-full"
-                  variant="outline"
-                >
-                  <Phone className="w-4 h-4 mr-2" />
-                  Abrir WhatsApp
-                </Button>
-              )}
+              <div className="flex gap-2">
+                {selectedOrder.customer_phone && (
+                  <Button
+                    onClick={() => openWhatsApp(
+                      selectedOrder.customer_phone,
+                      selectedOrder.order_number
+                    )}
+                    className="flex-1"
+                    variant="outline"
+                  >
+                    <Phone className="w-4 h-4 mr-2" />
+                    Abrir WhatsApp
+                  </Button>
+                )}
+                
+                {selectedOrder.status !== "cancelled" && selectedOrder.status !== "completed" && (
+                  <Button
+                    onClick={() => setShowCancelDialog(true)}
+                    className="flex-1"
+                    variant="destructive"
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Cancelar Pedido
+                  </Button>
+                )}
+              </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Dialog */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cancelar Pedido</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Selecione o motivo do cancelamento:
+            </p>
+            <div className="grid gap-2">
+              {[
+                "Cliente desistiu",
+                "Erro no pedido",
+                "Falta de insumos",
+                "Endereço incorreto",
+                "Outro motivo"
+              ].map((reason) => (
+                <Button
+                  key={reason}
+                  variant={cancellationReason === reason ? "default" : "outline"}
+                  onClick={() => setCancellationReason(reason)}
+                  className="justify-start"
+                >
+                  {reason}
+                </Button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowCancelDialog(false);
+                  setCancellationReason("");
+                }}
+                className="flex-1"
+              >
+                Voltar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (selectedOrder && cancellationReason) {
+                    updateOrderStatus(
+                      selectedOrder.id,
+                      "cancelled",
+                      selectedOrder.status,
+                      selectedOrder,
+                      cancellationReason
+                    );
+                    setShowCancelDialog(false);
+                    setSelectedOrder(null);
+                    setCancellationReason("");
+                    toast({
+                      title: "Pedido cancelado",
+                      description: `Motivo: ${cancellationReason}`,
+                    });
+                  } else {
+                    toast({
+                      title: "Selecione um motivo",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                className="flex-1"
+                disabled={!cancellationReason}
+              >
+                Confirmar Cancelamento
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
