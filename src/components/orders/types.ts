@@ -31,6 +31,8 @@ export interface StoreSettings {
   deliveryTime: number;
   pickupTime: number;
   alertTime: number;
+  autoPrint: boolean;
+  notificationSound: string;
   visibleColumns: {
     pending: boolean;
     preparing: boolean;

@@ -171,6 +171,18 @@ export class QZTrayPrinter {
     receipt += `${ESC}a\x01`; // Center align
     receipt += `${ESC}E\x01`; // Bold on
     
+    // Dados da loja no topo
+    if (order.company_name) {
+      receipt += `${order.company_name}\n`;
+    }
+    if (order.company_address) {
+      receipt += `${order.company_address}\n`;
+    }
+    if (order.company_phone) {
+      receipt += `Tel: ${order.company_phone}\n`;
+    }
+    receipt += '\n';
+    
     // Se for reimpressão, mostrar em destaque
     if (isReprint) {
       receipt += '********************************\n';
@@ -179,22 +191,22 @@ export class QZTrayPrinter {
       receipt += '\n';
     }
     
-    receipt += '================================\n';
-    receipt += `Pedido ${order.order_number || order.id.slice(0, 8)}\n`;
-    receipt += '================================\n';
+    // Número do pedido com fonte maior
+    receipt += `${GS}!\x11`; // Double height and width
+    receipt += `PEDIDO #${order.order_number || order.id.slice(0, 8)}\n`;
+    receipt += `${GS}!\x00`; // Normal size
     receipt += `${ESC}E\x00`; // Bold off
+    receipt += '\n';
     
     // Origem do pedido - centralizada
-    const source = order.source === "whatsapp" ? "Delivery WhatsApp" : 
-                   order.source === "digital_menu" ? "Delivery Cardapio Digital" :
-                   order.source === "counter" ? "Pedido Balcao" :
-                   order.type === "delivery" ? "Delivery Cardapio Digital" : "Pedido Balcao";
-    receipt += `${source}\n`;
+    const source = order.source === "whatsapp" ? "WhatsApp" : 
+                   order.source === "digital_menu" ? "Cardapio Digital" :
+                   "Balcao";
+    receipt += `Origem: ${source}\n`;
     receipt += `${ESC}a\x00`; // Left align
     receipt += '\n';
 
     // Order info
-    receipt += `Pedido: #${order.order_number || order.id.slice(0, 8)}\n`;
     receipt += `Data: ${new Date(order.created_at).toLocaleString('pt-BR')}\n`;
     receipt += `Tipo: ${order.type === 'delivery' ? 'Entrega' : 'Retirada'}\n`;
     receipt += '--------------------------------\n';

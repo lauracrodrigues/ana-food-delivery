@@ -141,12 +141,15 @@ export function Settings() {
     }
   }, [storeSettings]);
 
-  // Carregar impressoras automaticamente quando usuário se autentica
+  // Carregar impressoras automaticamente quando a aba de impressão é acessada pela primeira vez
+  const printersLoadedRef = useRef(false);
+  
   useEffect(() => {
-    if (storeSettings && activeTab === "printer") {
+    if (activeTab === "printer" && !printersLoadedRef.current && storeSettings) {
+      printersLoadedRef.current = true;
       fetchPrinters(false);
     }
-  }, [storeSettings, activeTab]);
+  }, [activeTab, storeSettings]);
 
   // Fetch available printers - only shows toast if manual
   const fetchPrinters = async (showToast = true) => {
@@ -433,20 +436,55 @@ export function Settings() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label htmlFor="alert-time">
+                  <Label htmlFor="delayed-alert">
                     <Clock className="inline h-4 w-4 mr-2" />
-                    Tempo de Alerta (segundos)
+                    Alerta de Pedidos em Atraso (min)
                   </Label>
-                  <Input
-                    id="alert-time"
-                    type="number"
-                    value={storeSettings?.alert_time ?? 60}
-                    onChange={(e) => handleSettingsUpdate("alert_time", parseInt(e.target.value) || 60)}
+                  <Select
+                    value={String(storeSettings?.alert_time ?? 10)}
+                    onValueChange={(value) => handleSettingsUpdate("alert_time", parseInt(value))}
+                    disabled={loadingSettings}
+                  >
+                    <SelectTrigger id="delayed-alert">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[5, 10, 15, 20, 30].map((time) => (
+                        <SelectItem key={time} value={String(time)}>
+                          {time} minutos
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Tempo em minutos para alertar pedidos em atraso (apenas Em Preparo)
+                  </p>
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="auto-print">
+                      <Printer className="inline h-4 w-4 mr-2" />
+                      Impressão Automática ao Aceitar
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Imprimir automaticamente quando aceitar um pedido
+                    </p>
+                  </div>
+                  <Switch
+                    id="auto-print"
+                    checked={(storeSettings?.printer_settings as any)?.auto_print ?? true}
+                    onCheckedChange={(checked) => {
+                      const currentPrinterSettings = storeSettings?.printer_settings || {};
+                      handleSettingsUpdate("printer_settings", {
+                        ...(typeof currentPrinterSettings === 'object' ? currentPrinterSettings : {}),
+                        auto_print: checked
+                      });
+                    }}
                     disabled={loadingSettings}
                   />
-                  <p className="text-sm text-muted-foreground">
-                    Tempo de exibição das notificações na tela
-                  </p>
                 </div>
               </CardContent>
             </Card>

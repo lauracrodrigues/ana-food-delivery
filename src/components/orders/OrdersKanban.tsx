@@ -41,6 +41,8 @@ export function OrdersKanban() {
     deliveryTime: 30,
     pickupTime: 45,
     alertTime: 10,
+    autoPrint: true,
+    notificationSound: '/sounds/bell.mp3',
     visibleColumns: {
       pending: true,
       preparing: true,
@@ -83,13 +85,14 @@ export function OrdersKanban() {
   useEffect(() => {
     const preloadAudio = () => {
       if (!audioPreloaded) {
-        const audio = new Audio('/sounds/bell.mp3');
+        const soundUrl = settings.notificationSound || '/sounds/bell.mp3';
+        const audio = new Audio(soundUrl);
         audio.volume = 0.01;
         audio.play().then(() => {
           audio.pause();
           audio.currentTime = 0;
           setAudioPreloaded(true);
-          console.log('✅ Áudio pré-carregado com sucesso');
+          console.log('✅ Áudio pré-carregado com sucesso:', soundUrl);
         }).catch(() => {
           console.log('⏳ Aguardando interação do usuário para áudio');
         });
@@ -106,7 +109,7 @@ export function OrdersKanban() {
       document.removeEventListener('keydown', preloadAudio);
       document.removeEventListener('touchstart', preloadAudio);
     };
-  }, [audioPreloaded]);
+  }, [audioPreloaded, settings.notificationSound]);
 
   // Setup real-time subscription for orders
   useEffect(() => {
@@ -132,16 +135,26 @@ export function OrdersKanban() {
             stopNotificationSound();
             
             if (settings.soundEnabled && audioPreloaded) {
-              const audio = new Audio('/sounds/bell.mp3');
+              const soundUrl = settings.notificationSound || '/sounds/bell.mp3';
+              const audio = new Audio(soundUrl);
               audio.loop = true;
-              audio.play().catch(e => {
-                console.error('Erro ao tocar som:', e);
-                toast({
-                  title: "🔇 Som desabilitado",
-                  description: "Clique em qualquer lugar para habilitar notificações sonoras",
-                });
-              });
-              setCurrentAudio(audio);
+              audio.volume = 0.7;
+              
+              const playPromise = audio.play();
+              if (playPromise !== undefined) {
+                playPromise
+                  .then(() => {
+                    console.log('✅ Som tocando:', soundUrl);
+                    setCurrentAudio(audio);
+                  })
+                  .catch(e => {
+                    console.error('❌ Erro ao tocar som:', e);
+                    toast({
+                      title: "🔇 Som desabilitado",
+                      description: "Clique em qualquer lugar para habilitar notificações sonoras",
+                    });
+                  });
+              }
               
               setTimeout(() => {
                 audio.pause();
@@ -187,6 +200,7 @@ export function OrdersKanban() {
 
       if (data) {
         const columns = data.visible_columns as any;
+        const printerSettings = data.printer_settings as any;
         setSettings({
           storeOpen: data.store_open ?? true,
           autoAccept: data.auto_accept ?? false,
@@ -194,6 +208,8 @@ export function OrdersKanban() {
           deliveryTime: data.delivery_time ?? 30,
           pickupTime: data.pickup_time ?? 45,
           alertTime: data.alert_time ?? 10,
+          autoPrint: printerSettings?.auto_print ?? true,
+          notificationSound: data.notification_sound ?? '/sounds/bell.mp3',
           visibleColumns: {
             pending: columns?.pending ?? true,
             preparing: columns?.preparing ?? true,
@@ -225,12 +241,25 @@ export function OrdersKanban() {
 
       await apiClient.updateOrderStatus(orderId, status, companyId);
       
-      // Auto-print when accepting order (non-blocking)
+      // Auto-print when accepting order (non-blocking) if enabled
       if (previousStatus === 'pending' && status === 'preparing' && order) {
         stopNotificationSound();
-        qzPrinter.printOrder(order, undefined, false)
-          .then(() => console.log('✅ Impressão automática realizada'))
-          .catch(error => console.error('❌ Erro na impressão automática:', error));
+        
+        // Get current settings
+        const { data: currentSettings } = await supabase
+          .from("store_settings")
+          .select("printer_settings")
+          .eq("company_id", companyId)
+          .single();
+        
+        const printerSettings = currentSettings?.printer_settings as any;
+        const autoPrintEnabled = printerSettings?.auto_print ?? true;
+        
+        if (autoPrintEnabled) {
+          qzPrinter.printOrder(order, undefined, false)
+            .then(() => console.log('✅ Impressão automática realizada'))
+            .catch(error => console.error('❌ Erro na impressão automática:', error));
+        }
       }
       
       return { orderId, status };

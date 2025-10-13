@@ -102,19 +102,19 @@ export default {
         },
         "pulse-subtle": {
           "0%, 100%": {
-            opacity: "1",
-            transform: "scale(1)",
+            opacity: "0.98",
+            transform: "scale(1.001)",
           },
           "50%": {
-            opacity: "0.97",
-            transform: "scale(1.002)",
+            opacity: "1",
+            transform: "scale(1.003)",
           },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "pulse-subtle": "pulse-subtle 18s ease-in-out infinite",
+        "pulse-subtle": "pulse-subtle 36s ease-in-out infinite",
       },
     },
   },

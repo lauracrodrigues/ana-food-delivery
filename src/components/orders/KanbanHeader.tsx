@@ -18,7 +18,9 @@ import {
   BellOff,
   Filter,
 } from "lucide-react";
-import { StoreSettings, STATUS_COLUMNS, TIME_OPTIONS } from "./types";
+import { StoreSettings, STATUS_COLUMNS } from "./types";
+
+const TIME_OPTIONS = [15, 30, 45, 60, 90, 120] as const;
 
 interface KanbanHeaderProps {
   settings: StoreSettings;
@@ -95,25 +97,6 @@ export function KanbanHeader({
               {TIME_OPTIONS.map((time) => (
                 <SelectItem key={time} value={String(time)}>
                   {time} min
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-destructive" />
-          <Select
-            value={String(settings.alertTime)}
-            onValueChange={(value) => onSettingsChange({ alertTime: Number(value) })}
-          >
-            <SelectTrigger className="w-36 h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[5, 10, 15, 20, 30].map((time) => (
-                <SelectItem key={time} value={String(time)}>
-                  Alerta {time} min
                 </SelectItem>
               ))}
             </SelectContent>

@@ -41,9 +41,8 @@ export function OrderCard({
   const elapsedMinutes = Math.floor(
     (Date.now() - new Date(order.created_at).getTime()) / 60000
   );
-  const isDelayed = elapsedMinutes >= alertTime && 
-                   order.status !== "completed" && 
-                   order.status !== "cancelled";
+  const showDelayIndicator = order.status === 'preparing';
+  const isDelayed = showDelayIndicator && elapsedMinutes >= alertTime;
 
   const handleStatusChange = () => {
     const nextStatus = getNextStatus(order.status, order.type);
