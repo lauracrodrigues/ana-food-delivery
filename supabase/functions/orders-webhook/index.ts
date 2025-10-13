@@ -71,18 +71,45 @@ serve(async (req) => {
     console.log('📱 Config WhatsApp:', whatsappConfig ? 'Encontrada' : 'Não encontrada');
     if (configError) console.log('⚠️ Erro ao buscar config:', configError);
 
-    // Enviar confirmação
-    if (whatsappConfig?.session_name && webhookData.customer_phone) {
+    // Buscar configuração de mensagem para status 'pending'
+    const { data: statusMessageConfig } = await supabase
+      .from('whatsapp_config')
+      .select('*')
+      .eq('company_id', webhookData.company_id)
+      .eq('config_type', 'status_message')
+      .eq('status', 'pending')
+      .eq('is_active', true)
+      .single();
+
+    console.log(`📊 Status: pending, Config encontrada: ${!!statusMessageConfig}, is_active: ${statusMessageConfig?.is_active}`);
+
+    // Enviar confirmação se configurado e com mensagem ativa
+    if (whatsappConfig?.session_name && webhookData.customer_phone && statusMessageConfig?.message_template) {
       try {
-        // Formatar itens do pedido
-        const itemsList = webhookData.items?.map((item: any) => 
-          `${item.quantity}x ${item.name} - R$ ${((item.price || 0) * (item.quantity || 0)).toFixed(2).replace('.', ',')}`
-        ).join('\n') || '';
+        // Formatar lista de itens
+        const items = webhookData.items || [];
+        const itemsList = items.map((item: any) => {
+          const extrasText = item.extras?.length > 0 
+            ? `\n  + ${item.extras.map((e: any) => e.name).join(', ')}` 
+            : '';
+          return `${item.quantity}x ${item.name} - R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}${extrasText}`;
+        }).join('\n');
 
         // Formatar valor total
-        const totalFormatted = (webhookData.total || 0).toFixed(2).replace('.', ',');
+        const totalFormatted = `R$ ${(webhookData.total || 0).toFixed(2).replace('.', ',')}`;
 
-        const message = `✅ *Pedido Recebido!*\n\nNúmero: #${nextNumber}\n\n📦 *Itens:*\n${itemsList}\n\n💰 *Total: R$ ${totalFormatted}*\n\nObrigado! Seu pedido está sendo preparado! 🍕`;
+        // Formatar endereço
+        const deliveryAddress = webhookData.address || 'Retirada no local';
+
+        // Substituir variáveis no template
+        let message = statusMessageConfig.message_template
+          .replace(/{order_number}/g, nextNumber)
+          .replace(/{order_items}/g, itemsList || 'Sem itens')
+          .replace(/{order_total}/g, totalFormatted)
+          .replace(/{estimated_time}/g, webhookData.estimated_time ? `${webhookData.estimated_time} minutos` : 'A definir')
+          .replace(/{delivery_address}/g, deliveryAddress);
+
+        console.log('📝 Mensagem personalizada:', message.substring(0, 100) + '...');
         
         const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
         let phoneNumber = webhookData.customer_phone.replace(/\D/g, '');
@@ -112,7 +139,11 @@ serve(async (req) => {
         console.error('❌ Erro ao enviar WhatsApp:', error);
       }
     } else {
-      console.log('⚠️ WhatsApp não enviado. Config:', !!whatsappConfig, 'Session:', whatsappConfig?.session_name, 'Phone:', webhookData.customer_phone);
+      const reasons = [];
+      if (!whatsappConfig?.session_name) reasons.push('sem sessão WhatsApp');
+      if (!webhookData.customer_phone) reasons.push('sem telefone');
+      if (!statusMessageConfig?.message_template) reasons.push('sem template de mensagem para status pending');
+      console.log(`⚠️ WhatsApp não enviado. Motivo(s): ${reasons.join(', ')}`);
     }
 
     return new Response(

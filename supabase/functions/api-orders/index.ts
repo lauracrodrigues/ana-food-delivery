@@ -288,18 +288,45 @@ Deno.serve(async (req: Request) => {
           .eq('is_active', true)
           .single();
 
-        // Enviar confirmação via WhatsApp se configurado
-        if (whatsappConfig?.session_name && orderData.customer_phone) {
+        // Buscar configuração de mensagem para status 'pending'
+        const { data: statusMessageConfig } = await supabaseServiceRole
+          .from('whatsapp_config')
+          .select('*')
+          .eq('company_id', orderData.company_id)
+          .eq('config_type', 'status_message')
+          .eq('status', 'pending')
+          .eq('is_active', true)
+          .single();
+
+        console.log(`📊 Status: pending, Config encontrada: ${!!statusMessageConfig}, is_active: ${statusMessageConfig?.is_active}`);
+
+        // Enviar confirmação via WhatsApp se configurado e com mensagem ativa
+        if (whatsappConfig?.session_name && orderData.customer_phone && statusMessageConfig?.message_template) {
           try {
-            // Formatar itens do pedido
-            const itemsList = orderData.items?.map((item: any) => 
-              `${item.quantity}x ${item.name} - R$ ${((item.price || 0) * (item.quantity || 0)).toFixed(2).replace('.', ',')}`
-            ).join('\n') || '';
+            // Formatar lista de itens
+            const items = orderData.items || [];
+            const itemsList = items.map((item: any) => {
+              const extrasText = item.extras?.length > 0 
+                ? `\n  + ${item.extras.map((e: any) => e.name).join(', ')}` 
+                : '';
+              return `${item.quantity}x ${item.name} - R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}${extrasText}`;
+            }).join('\n');
 
             // Formatar valor total
-            const totalFormatted = (orderData.total || 0).toFixed(2).replace('.', ',');
+            const totalFormatted = `R$ ${(orderData.total || 0).toFixed(2).replace('.', ',')}`;
 
-            const message = `🎉 *Pedido Confirmado!*\n\nNúmero: #${nextNumber}\n\n📦 *Itens:*\n${itemsList}\n\n💰 *Total: R$ ${totalFormatted}*\n\nSeu pedido foi recebido e está sendo preparado! ⏱️`;
+            // Formatar endereço
+            const deliveryAddress = orderData.address || 'Retirada no local';
+
+            // Substituir variáveis no template
+            let message = statusMessageConfig.message_template
+              .replace(/{order_number}/g, nextNumber)
+              .replace(/{order_items}/g, itemsList || 'Sem itens')
+              .replace(/{order_total}/g, totalFormatted)
+              .replace(/{estimated_time}/g, orderData.estimated_time ? `${orderData.estimated_time} minutos` : 'A definir')
+              .replace(/{delivery_address}/g, deliveryAddress);
+
+            console.log('📝 Mensagem personalizada:', message.substring(0, 100) + '...');
             
             const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
             let phoneNumber = orderData.customer_phone.replace(/\D/g, '');
@@ -307,6 +334,8 @@ Deno.serve(async (req: Request) => {
             if (phoneNumber.startsWith('55')) {
               phoneNumber = phoneNumber.substring(2);
             }
+
+            console.log('📱 Telefone formatado:', phoneNumber, '-> 55' + phoneNumber);
 
             await fetch(`https://evo.anafood.vip/message/sendText/${whatsappConfig.session_name}`, {
               method: 'POST',
@@ -324,6 +353,12 @@ Deno.serve(async (req: Request) => {
           } catch (error) {
             console.error('❌ Erro ao enviar WhatsApp:', error);
           }
+        } else {
+          const reasons = [];
+          if (!whatsappConfig?.session_name) reasons.push('sem sessão WhatsApp');
+          if (!orderData.customer_phone) reasons.push('sem telefone');
+          if (!statusMessageConfig?.message_template) reasons.push('sem template de mensagem para status pending');
+          console.log(`⚠️ WhatsApp não enviado. Motivo(s): ${reasons.join(', ')}`);
         }
 
         return new Response(
