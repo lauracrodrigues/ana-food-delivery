@@ -7,8 +7,8 @@ interface ThermalPaperSimulatorProps {
   config: ExtendedLayoutConfig;
   companyData?: {
     name: string;
-    phone: string;
-    address: string;
+    phone?: string;
+    address?: string;
   };
 }
 

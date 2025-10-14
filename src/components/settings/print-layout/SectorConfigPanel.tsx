@@ -9,6 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Separator } from '@/components/ui/separator';
 import { Printer, Save } from 'lucide-react';
 import { UnifiedFieldsList } from './UnifiedFieldsList';
+import { ThermalPaperSimulator } from './ThermalPaperSimulator';
 import type { SectorConfig, PrintSector } from '@/types/printer-settings';
 import type { ExtendedLayoutConfig } from '@/types/printer-layout-extended';
 
@@ -18,6 +19,11 @@ interface SectorConfigPanelProps {
   sectorIcon: string;
   config: SectorConfig;
   availablePrinters: string[];
+  companyData?: {
+    name: string;
+    phone?: string;
+    address?: string;
+  };
   onConfigChange: (config: SectorConfig) => void;
   onTestPrint: () => void;
   onSave: () => void;
@@ -31,6 +37,7 @@ export function SectorConfigPanel({
   sectorIcon,
   config,
   availablePrinters,
+  companyData,
   onConfigChange,
   onTestPrint,
   onSave,
@@ -59,7 +66,9 @@ export function SectorConfigPanel({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="grid grid-cols-1 lg:grid-cols-[1fr,400px] gap-6">
+        {/* Coluna Esquerda: Configurações */}
+        <div className="space-y-6">
         {/* Seleção de Impressora */}
         <div className="space-y-2">
           <Label htmlFor={`printer-${sector}`}>Impressora</Label>
@@ -236,6 +245,17 @@ export function SectorConfigPanel({
             <Save className="mr-2 h-4 w-4" />
             {isSaving ? 'Salvando...' : 'Salvar'}
           </Button>
+        </div>
+        </div>
+
+        {/* Coluna Direita: Preview */}
+        <div className="hidden lg:block">
+          <div className="sticky top-4">
+            <ThermalPaperSimulator 
+              config={config.layout} 
+              companyData={companyData}
+            />
+          </div>
         </div>
       </CardContent>
     </Card>

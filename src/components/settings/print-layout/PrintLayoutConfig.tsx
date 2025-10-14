@@ -69,7 +69,11 @@ export function PrintLayoutConfig() {
         .single();
       
       if (error) throw error;
-      return data;
+      return {
+        name: data.name,
+        phone: data.phone ? String(data.phone) : undefined,
+        address: data.address ? String(data.address) : undefined
+      };
     },
     enabled: !!companyId
   });
@@ -314,6 +318,7 @@ export function PrintLayoutConfig() {
                 sectorIcon={SECTOR_LABELS_MAP[sector].icon}
                 config={sectorsConfig[sector]}
                 availablePrinters={availablePrinters}
+                companyData={companyData}
                 onConfigChange={(config) => handleConfigChange(sector, config)}
                 onTestPrint={() => handleTestPrint(sector)}
                 onSave={() => handleSave(sector)}
