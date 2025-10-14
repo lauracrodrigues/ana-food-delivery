@@ -1,6 +1,6 @@
 // QZ Tray integration for printing
-import type { LayoutConfig, PrintSector } from '@/types/printer-layout';
-import { FONT_SIZE_COMMANDS, LINE_SPACING_VALUES, PAPER_WIDTHS, DEFAULT_LAYOUT_CONFIG } from '@/types/printer-layout';
+import type { LayoutConfig, PrintSector, TextFormatting } from '@/types/printer-layout';
+import { FONT_SIZE_COMMANDS, LINE_SPACING_VALUES, TEXT_FORMATTING_COMMANDS, PAPER_WIDTHS, DEFAULT_LAYOUT_CONFIG } from '@/types/printer-layout';
 
 declare global {
   interface Window {
@@ -185,6 +185,31 @@ export class QZTrayPrinter {
     return FONT_SIZE_COMMANDS[size as keyof typeof FONT_SIZE_COMMANDS] || FONT_SIZE_COMMANDS.normal;
   }
 
+  private applyFormatting(formatting: TextFormatting): string {
+    let commands = '';
+    
+    // Alignment
+    commands += TEXT_FORMATTING_COMMANDS.align[formatting.align];
+    
+    // Bold
+    if (formatting.bold) {
+      commands += TEXT_FORMATTING_COMMANDS.bold.on;
+    }
+    
+    // Underline
+    if (formatting.underline) {
+      commands += TEXT_FORMATTING_COMMANDS.underline.on;
+    }
+    
+    return commands;
+  }
+
+  private resetFormatting(): string {
+    return TEXT_FORMATTING_COMMANDS.bold.off + 
+           TEXT_FORMATTING_COMMANDS.underline.off + 
+           TEXT_FORMATTING_COMMANDS.align.left;
+  }
+
   private addSpacing(spacing: string, lines: number = 1): string {
     const spaceCount = LINE_SPACING_VALUES[spacing as keyof typeof LINE_SPACING_VALUES] || LINE_SPACING_VALUES.normal;
     return '\n'.repeat(spaceCount * lines);
@@ -202,20 +227,23 @@ export class QZTrayPrinter {
     
     // Comandos de inicialização
     receipt += ESC + '@'; // Reset printer
-    receipt += ESC + 'a' + '\x01'; // Center align
     
     // Cabeçalho (se configurado)
     if (config.show_company_logo) {
+      receipt += this.applyFormatting(config.formatting.header);
       receipt += this.applyFontSize(config.font_sizes.header);
-      receipt += this.formatLine('PEDIDO', 'center', maxChars);
+      receipt += this.formatLine('PEDIDO', config.formatting.header.align, maxChars);
       receipt += GS + '!' + '\x00'; // Reset size
+      receipt += this.resetFormatting();
       receipt += this.addSpacing(config.line_spacing);
     }
     
     // Número do pedido
+    receipt += this.applyFormatting(config.formatting.order_number);
     receipt += this.applyFontSize(config.font_sizes.order_number);
-    receipt += this.formatLine(`#${order.order_number}`, 'center', maxChars);
+    receipt += this.formatLine(`#${order.order_number}`, config.formatting.order_number.align, maxChars);
     receipt += GS + '!' + '\x00'; // Reset size
+    receipt += this.resetFormatting();
     receipt += this.addSpacing(config.line_spacing);
     
     // Tipo de pedido e origem
@@ -232,16 +260,18 @@ export class QZTrayPrinter {
     
     // Cliente (se configurado)
     if (config.show_customer_info) {
+      receipt += this.applyFormatting(config.formatting.customer_info);
       receipt += this.applyFontSize(config.font_sizes.item_details);
-      receipt += this.formatLine('CLIENTE:', 'left', maxChars);
-      receipt += this.formatLine(order.customer_name, 'left', maxChars);
-      receipt += this.formatLine(`Tel: ${order.customer_phone}`, 'left', maxChars);
+      receipt += this.formatLine('CLIENTE:', config.formatting.customer_info.align, maxChars);
+      receipt += this.formatLine(order.customer_name, config.formatting.customer_info.align, maxChars);
+      receipt += this.formatLine(`Tel: ${order.customer_phone}`, config.formatting.customer_info.align, maxChars);
       
       if (config.show_customer_address && order.type === 'delivery' && order.address) {
-        receipt += this.formatLine(`Endereco: ${order.address}`, 'left', maxChars);
+        receipt += this.formatLine(`Endereco: ${order.address}`, config.formatting.customer_info.align, maxChars);
       }
       
       receipt += GS + '!' + '\x00';
+      receipt += this.resetFormatting();
       receipt += this.addSpacing(config.line_spacing);
     }
     
@@ -249,28 +279,36 @@ export class QZTrayPrinter {
     receipt += this.formatLine('='.repeat(maxChars), 'left', maxChars);
     
     // Itens do pedido
-    receipt += this.applyFontSize(config.font_sizes.item_name);
     order.items.forEach((item: any) => {
-      receipt += this.formatLine(`${item.quantity}x ${item.name}`, 'left', maxChars);
+      receipt += this.applyFormatting(config.formatting.items);
+      receipt += this.applyFontSize(config.font_sizes.item_name);
+      receipt += this.formatLine(`${item.quantity}x ${item.name}`, config.formatting.items.align, maxChars);
       receipt += GS + '!' + '\x00';
+      receipt += this.resetFormatting();
       
       if (item.extras && item.extras.length > 0) {
+        receipt += this.applyFormatting(config.formatting.item_details);
         receipt += this.applyFontSize(config.font_sizes.item_details);
         item.extras.forEach((extra: any) => {
-          receipt += this.formatLine(`  + ${extra.name}`, 'left', maxChars);
+          receipt += this.formatLine(`  + ${extra.name}`, config.formatting.item_details.align, maxChars);
         });
         receipt += GS + '!' + '\x00';
+        receipt += this.resetFormatting();
       }
       
       if (config.show_item_observations && item.observations) {
+        receipt += this.applyFormatting(config.formatting.item_details);
         receipt += this.applyFontSize(config.font_sizes.item_details);
-        receipt += this.formatLine(`  Obs: ${item.observations}`, 'left', maxChars);
+        receipt += this.formatLine(`  Obs: ${item.observations}`, config.formatting.item_details.align, maxChars);
         receipt += GS + '!' + '\x00';
+        receipt += this.resetFormatting();
       }
       
+      receipt += this.applyFormatting(config.formatting.item_details);
       receipt += this.applyFontSize(config.font_sizes.item_details);
-      receipt += this.formatLine(`  R$ ${Number(item.price).toFixed(2)}`, 'left', maxChars);
+      receipt += this.formatLine(`  R$ ${Number(item.price).toFixed(2)}`, config.formatting.item_details.align, maxChars);
       receipt += GS + '!' + '\x00';
+      receipt += this.resetFormatting();
       receipt += '\n';
     });
     
@@ -278,15 +316,17 @@ export class QZTrayPrinter {
     receipt += this.formatLine('='.repeat(maxChars), 'left', maxChars);
     
     // Totais
+    receipt += this.applyFormatting(config.formatting.totals);
     receipt += this.applyFontSize(config.font_sizes.totals);
     
     if (order.delivery_fee && order.delivery_fee > 0) {
-      receipt += this.formatLine(`Subtotal: R$ ${(Number(order.total) - Number(order.delivery_fee)).toFixed(2)}`, 'left', maxChars);
-      receipt += this.formatLine(`Taxa Entrega: R$ ${Number(order.delivery_fee).toFixed(2)}`, 'left', maxChars);
+      receipt += this.formatLine(`Subtotal: R$ ${(Number(order.total) - Number(order.delivery_fee)).toFixed(2)}`, config.formatting.totals.align, maxChars);
+      receipt += this.formatLine(`Taxa Entrega: R$ ${Number(order.delivery_fee).toFixed(2)}`, config.formatting.totals.align, maxChars);
     }
     
-    receipt += this.formatLine(`TOTAL: R$ ${Number(order.total).toFixed(2)}`, 'left', maxChars);
+    receipt += this.formatLine(`TOTAL: R$ ${Number(order.total).toFixed(2)}`, config.formatting.totals.align, maxChars);
     receipt += GS + '!' + '\x00'; // Reset size
+    receipt += this.resetFormatting();
     receipt += this.addSpacing(config.line_spacing);
     
     // Forma de pagamento (se configurado)
@@ -316,10 +356,11 @@ export class QZTrayPrinter {
     
     // Rodapé (se configurado)
     if (config.show_footer_message && config.footer_message) {
-      receipt += ESC + 'a' + '\x01'; // Center align
+      receipt += this.applyFormatting(config.formatting.footer);
       receipt += this.applyFontSize(config.font_sizes.item_details);
-      receipt += this.formatLine(config.footer_message, 'center', maxChars);
+      receipt += this.formatLine(config.footer_message, config.formatting.footer.align, maxChars);
       receipt += GS + '!' + '\x00';
+      receipt += this.resetFormatting();
       receipt += this.addSpacing(config.line_spacing);
     }
     
