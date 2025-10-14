@@ -269,7 +269,7 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
             </div>
 
             {/* Cut line */}
-            {config.auto_cut && (
+            {config.cut_paper && (
               <div className="border-t-2 border-dashed border-muted-foreground/30 text-center py-2 text-xs text-muted-foreground">
                 ✂️ Corte Automático
               </div>

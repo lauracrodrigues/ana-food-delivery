@@ -1,7 +1,9 @@
 // Extended types for the new print layout configuration system
 
+import type { LayoutConfig } from './printer-layout';
+
 // Tags dinâmicas disponíveis
-export type PrintTag = 
+export type PrintTag =
   | '{nome_empresa}'
   | '{logo}'
   | '{telefone}'
@@ -50,12 +52,8 @@ export interface SectionConfig {
   separator: SeparatorConfig;
 }
 
-// Layout completo expandido
-export interface ExtendedLayoutConfig {
-  paper_width: '57mm' | '80mm';
-  chars_per_line: number;
-  allow_custom_chars_per_line: boolean;
-  
+// Layout completo expandido - extends LayoutConfig for backward compatibility
+export interface ExtendedLayoutConfig extends LayoutConfig {
   header: SectionConfig;
   body: SectionConfig;
   footer: SectionConfig;
@@ -65,32 +63,56 @@ export interface ExtendedLayoutConfig {
   item_price_position: 'inline' | 'next_line';
   show_item_extras: boolean;
   item_extras_prefix: string;
-  show_item_observations: boolean;
   item_observations_prefix: string;
   
   // Totals
   show_subtotal: boolean;
   show_delivery_fee: boolean;
-  show_payment_method: boolean;
-  
-  // Footer
-  footer_message: string;
-  extra_feed_lines: number;
-  auto_cut: boolean;
   
   // Advanced
   encoding: 'UTF-8' | 'Windows-1252';
   margin_left: number;
   margin_right: number;
-  line_spacing: 'compact' | 'normal' | 'relaxed';
 }
 
 // Default configuration
 export const DEFAULT_EXTENDED_CONFIG: ExtendedLayoutConfig = {
+  // Base LayoutConfig fields
   paper_width: '80mm',
   chars_per_line: 48,
   allow_custom_chars_per_line: false,
+  font_sizes: {
+    header: 'medium',
+    order_number: 'xlarge',
+    item_name: 'medium',
+    item_details: 'normal',
+    totals: 'large',
+  },
+  formatting: {
+    header: { bold: true, underline: false, align: 'center' },
+    order_number: { bold: true, underline: false, align: 'center' },
+    customer_info: { bold: false, underline: false, align: 'left' },
+    items: { bold: true, underline: false, align: 'left' },
+    item_details: { bold: false, underline: false, align: 'left' },
+    totals: { bold: true, underline: false, align: 'left' },
+    footer: { bold: false, underline: false, align: 'center' },
+  },
+  show_company_logo: true,
+  show_company_address: true,
+  show_company_phone: true,
+  show_order_source: true,
+  show_customer_info: true,
+  show_customer_address: true,
+  show_item_observations: true,
+  show_order_observations: true,
+  show_payment_method: true,
+  show_footer_message: true,
+  footer_message: 'Obrigado pela preferência!',
+  line_spacing: 'normal',
+  cut_paper: true,
+  extra_feed_lines: 3,
   
+  // Extended fields
   header: {
     elements: [
       {
@@ -212,21 +234,14 @@ export const DEFAULT_EXTENDED_CONFIG: ExtendedLayoutConfig = {
   item_price_position: 'next_line',
   show_item_extras: true,
   item_extras_prefix: '+ ',
-  show_item_observations: true,
   item_observations_prefix: 'Obs: ',
   
   show_subtotal: true,
   show_delivery_fee: true,
-  show_payment_method: true,
-  
-  footer_message: 'Obrigado pela preferência!',
-  extra_feed_lines: 3,
-  auto_cut: true,
   
   encoding: 'UTF-8',
   margin_left: 0,
   margin_right: 0,
-  line_spacing: 'normal'
 };
 
 // Tag metadata for UI

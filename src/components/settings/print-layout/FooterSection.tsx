@@ -188,8 +188,8 @@ export function FooterSection({ config, layoutConfig, onChange, onLayoutChange }
             </p>
           </div>
           <Switch
-            checked={layoutConfig.auto_cut}
-            onCheckedChange={(checked) => onLayoutChange({ auto_cut: checked })}
+            checked={layoutConfig.cut_paper}
+            onCheckedChange={(checked) => onLayoutChange({ cut_paper: checked })}
           />
         </div>
       </div>
