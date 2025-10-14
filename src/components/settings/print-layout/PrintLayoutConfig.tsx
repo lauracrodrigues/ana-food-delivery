@@ -13,6 +13,7 @@ import { HeaderSection } from './HeaderSection';
 import { BodySection } from './BodySection';
 import { FooterSection } from './FooterSection';
 import { AdvancedSection } from './AdvancedSection';
+import { UnifiedFieldsList } from './UnifiedFieldsList';
 import { ThermalPaperSimulator } from './ThermalPaperSimulator';
 import type { ExtendedLayoutConfig, SectionConfig } from '@/types/printer-layout-extended';
 import { DEFAULT_EXTENDED_CONFIG } from '@/types/printer-layout-extended';
@@ -277,61 +278,28 @@ export function PrintLayoutConfig() {
         <div>
           <Card>
             <CardContent className="p-6">
-              <Accordion type="single" collapsible defaultValue="header" className="w-full">
-                <AccordionItem value="header">
-                  <AccordionTrigger className="text-base font-semibold">
-                    📄 Cabeçalho
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <HeaderSection
-                      config={config.header}
-                      onChange={(sectionConfig) => updateSection('header', sectionConfig)}
-                    />
-                  </AccordionContent>
-                </AccordionItem>
+              <Tabs defaultValue="advanced" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="advanced">⚙️ Configuração da Impressora</TabsTrigger>
+                  <TabsTrigger value="layout">📄 Layout do Cupom</TabsTrigger>
+                </TabsList>
 
-                <AccordionItem value="body">
-                  <AccordionTrigger className="text-base font-semibold">
-                    🍽️ Corpo / Itens
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <BodySection
-                      config={config.body}
-                      layoutConfig={config}
-                      onChange={(sectionConfig) => updateSection('body', sectionConfig)}
-                      onLayoutChange={updateConfig}
-                    />
-                  </AccordionContent>
-                </AccordionItem>
+                <TabsContent value="advanced" className="space-y-4">
+                  <AdvancedSection
+                    config={config}
+                    onChange={updateConfig}
+                    onCalibrationPrint={handleCalibrationPrint}
+                    isPrinting={isCalibrating}
+                  />
+                </TabsContent>
 
-                <AccordionItem value="footer">
-                  <AccordionTrigger className="text-base font-semibold">
-                    📝 Rodapé
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <FooterSection
-                      config={config.footer}
-                      layoutConfig={config}
-                      onChange={(sectionConfig) => updateSection('footer', sectionConfig)}
-                      onLayoutChange={updateConfig}
-                    />
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="advanced">
-                  <AccordionTrigger className="text-base font-semibold">
-                    ⚙️ Avançado
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <AdvancedSection
-                      config={config}
-                      onChange={updateConfig}
-                      onCalibrationPrint={handleCalibrationPrint}
-                      isPrinting={isCalibrating}
-                    />
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+                <TabsContent value="layout" className="space-y-4">
+                  <UnifiedFieldsList
+                    config={config}
+                    onChange={updateConfig}
+                  />
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </div>

@@ -39,6 +39,15 @@ export interface PrintElement {
   order: number;
 }
 
+// Elemento unificado com separador
+export interface UnifiedPrintElement extends PrintElement {
+  separator_below: {
+    show: boolean;
+    type: SeparatorType;
+    char: string;
+  };
+}
+
 // Configuração de separador
 export interface SeparatorConfig {
   show: boolean;
@@ -54,6 +63,10 @@ export interface SectionConfig {
 
 // Layout completo expandido - extends LayoutConfig for backward compatibility
 export interface ExtendedLayoutConfig extends LayoutConfig {
+  // Nova estrutura unificada (opcional para migração gradual)
+  elements?: UnifiedPrintElement[];
+  
+  // Estrutura antiga (mantida para compatibilidade)
   header: SectionConfig;
   body: SectionConfig;
   footer: SectionConfig;
@@ -64,6 +77,7 @@ export interface ExtendedLayoutConfig extends LayoutConfig {
   show_item_extras: boolean;
   item_extras_prefix: string;
   item_observations_prefix: string;
+  show_item_observations: boolean;
   
   // Totals
   show_subtotal: boolean;

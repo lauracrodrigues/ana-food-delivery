@@ -132,6 +132,46 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
     );
   };
 
+  // Renderizar elementos unificados (nova estrutura)
+  const renderUnifiedElements = () => {
+    if (!config.elements || config.elements.length === 0) {
+      // Fallback para estrutura antiga
+      return (
+        <>
+          {/* Header */}
+          <div className="space-y-1 mb-2">
+            {config.header.elements
+              .sort((a, b) => a.order - b.order)
+              .map(renderElement)}
+          </div>
+          {renderSeparator(config.header.separator)}
+
+          {/* Body */}
+          <div className="space-y-1 my-2">
+            {config.body.elements
+              .sort((a, b) => a.order - b.order)
+              .map(renderElement)}
+          </div>
+          {renderSeparator(config.body.separator)}
+        </>
+      );
+    }
+
+    // Nova estrutura unificada
+    return (
+      <>
+        {config.elements
+          .sort((a, b) => a.order - b.order)
+          .map((element) => (
+            <div key={element.id}>
+              {renderElement(element)}
+              {element.separator_below.show && renderSeparator(element.separator_below)}
+            </div>
+          ))}
+      </>
+    );
+  };
+
   const renderSeparator = (separator: { show: boolean; type: string; char: string }) => {
     if (!separator.show) return null;
     const char = separator.char || '-';
@@ -178,21 +218,8 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
                 overflowWrap: 'break-word'
               }}
             >
-              {/* Header */}
-              <div className="space-y-1 mb-2">
-                {config.header.elements
-                  .sort((a, b) => a.order - b.order)
-                  .map(renderElement)}
-              </div>
-              {renderSeparator(config.header.separator)}
-
-              {/* Body */}
-              <div className="space-y-1 my-2">
-                {config.body.elements
-                  .sort((a, b) => a.order - b.order)
-                  .map(renderElement)}
-              </div>
-              {renderSeparator(config.body.separator)}
+              {/* Elementos do cupom (nova estrutura unificada ou antiga) */}
+              {renderUnifiedElements()}
 
               {/* Items */}
               <div className="my-2 space-y-2">
@@ -253,14 +280,17 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
                 )}
               </div>
 
-              {renderSeparator(config.footer.separator)}
-
-              {/* Footer */}
-              <div className="space-y-1 mt-2">
-                {config.footer.elements
-                  .sort((a, b) => a.order - b.order)
-                  .map(renderElement)}
-              </div>
+              {/* Footer (se usando estrutura antiga) */}
+              {(!config.elements || config.elements.length === 0) && (
+                <>
+                  {renderSeparator(config.footer.separator)}
+                  <div className="space-y-1 mt-2">
+                    {config.footer.elements
+                      .sort((a, b) => a.order - b.order)
+                      .map(renderElement)}
+                  </div>
+                </>
+              )}
 
               {/* Extra feed */}
               {config.extra_feed_lines > 0 && (
