@@ -73,7 +73,7 @@ export function SectorConfigPanel({
             </SelectTrigger>
             <SelectContent>
               {availablePrinters.length === 0 ? (
-                <SelectItem value="" disabled>
+                <SelectItem value="no-printer-available" disabled>
                   Nenhuma impressora disponível
                 </SelectItem>
               ) : (
