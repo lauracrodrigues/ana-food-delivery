@@ -273,11 +273,10 @@ export function Settings() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-4xl">
+          <TabsList className="grid grid-cols-3 w-full max-w-4xl">
             <TabsTrigger value="general">Geral</TabsTrigger>
             <TabsTrigger value="appearance">Aparência</TabsTrigger>
-            <TabsTrigger value="printer">Impressoras</TabsTrigger>
-            <TabsTrigger value="layout">Layout</TabsTrigger>
+            <TabsTrigger value="print">Configurações de Impressão</TabsTrigger>
           </TabsList>
 
           {/* General Settings */}
@@ -595,143 +594,8 @@ export function Settings() {
             </Card>
           </TabsContent>
 
-          {/* Printer Settings */}
-          <TabsContent value="printer" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Printer className="h-5 w-5" />
-                  Configuração de Impressoras
-                </CardTitle>
-                <CardDescription>
-                  Defina as impressoras padrão para cada setor
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    {availablePrinters.length > 0 
-                      ? `${availablePrinters.length} impressora(s) disponível(is)`
-                      : "Clique em buscar para encontrar impressoras"}
-                  </p>
-                  <Button
-                    onClick={() => fetchPrinters(true)}
-                    disabled={loadingPrinters}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <RefreshCw className={`h-4 w-4 mr-2 ${loadingPrinters ? 'animate-spin' : ''}`} />
-                    {loadingPrinters ? "Buscando..." : "Buscar Impressoras"}
-                  </Button>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="printer-caixa">Impressora - CAIXA</Label>
-                    <Select
-                      value={printerSettings.caixa || ""}
-                      onValueChange={(value) => handlePrinterUpdate("caixa", value)}
-                      disabled={availablePrinters.length === 0}
-                    >
-                      <SelectTrigger id="printer-caixa">
-                        <SelectValue placeholder="Selecione a impressora do caixa" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availablePrinters.map((printer) => (
-                          <SelectItem key={printer} value={printer}>
-                            {printer}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="printer-cozinha1">Impressora - Cozinha 1</Label>
-                    <Select
-                      value={printerSettings.cozinha1 || ""}
-                      onValueChange={(value) => handlePrinterUpdate("cozinha1", value)}
-                      disabled={availablePrinters.length === 0}
-                    >
-                      <SelectTrigger id="printer-cozinha1">
-                        <SelectValue placeholder="Selecione a impressora da cozinha 1" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availablePrinters.map((printer) => (
-                          <SelectItem key={printer} value={printer}>
-                            {printer}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="printer-cozinha2">Impressora - Cozinha 2</Label>
-                    <Select
-                      value={printerSettings.cozinha2 || ""}
-                      onValueChange={(value) => handlePrinterUpdate("cozinha2", value)}
-                      disabled={availablePrinters.length === 0}
-                    >
-                      <SelectTrigger id="printer-cozinha2">
-                        <SelectValue placeholder="Selecione a impressora da cozinha 2" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availablePrinters.map((printer) => (
-                          <SelectItem key={printer} value={printer}>
-                            {printer}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="printer-copa-bar">Impressora - Copa/Bar</Label>
-                    <Select
-                      value={printerSettings.copa_bar || ""}
-                      onValueChange={(value) => handlePrinterUpdate("copa_bar", value)}
-                      disabled={availablePrinters.length === 0}
-                    >
-                      <SelectTrigger id="printer-copa-bar">
-                        <SelectValue placeholder="Selecione a impressora da copa/bar" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availablePrinters.map((printer) => (
-                          <SelectItem key={printer} value={printer}>
-                            {printer}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-                  <p className="text-sm font-medium flex items-center gap-2">
-                    <Printer className="h-4 w-4" />
-                    Importante
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    • Certifique-se que o QZ Tray está aberto e rodando no Windows
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    • As impressoras devem estar instaladas e configuradas no sistema
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    • Use "Buscar Impressoras" para atualizar a lista
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Layout Settings */}
-          <TabsContent value="layout" className="space-y-6">
+          {/* Print Settings - replaces old Printer and Layout tabs */}
+          <TabsContent value="print" className="space-y-6">
             {profile?.company_id ? (
               <PrintLayoutConfig />
             ) : (

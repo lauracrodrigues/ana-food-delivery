@@ -1,39 +1,62 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Printer, Save } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { RefreshCw } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompanyId } from '@/hooks/useCompanyId';
 import { QZTrayPrinter } from '@/lib/qz-tray';
-import { HeaderSection } from './HeaderSection';
-import { BodySection } from './BodySection';
-import { FooterSection } from './FooterSection';
-import { AdvancedSection } from './AdvancedSection';
-import { UnifiedFieldsList } from './UnifiedFieldsList';
-import { ThermalPaperSimulator } from './ThermalPaperSimulator';
-import type { ExtendedLayoutConfig, SectionConfig } from '@/types/printer-layout-extended';
+import { printerCache } from '@/lib/printer-cache';
+import { SectorConfigPanel } from './SectorConfigPanel';
+import type { PrintSector, SectorConfig, SECTOR_LABELS } from '@/types/printer-settings';
 import { DEFAULT_EXTENDED_CONFIG } from '@/types/printer-layout-extended';
 
-type PrintSector = 'caixa' | 'cozinha_1' | 'cozinha_2' | 'copa_bar';
+const SECTORS: PrintSector[] = ['caixa', 'cozinha_1', 'cozinha_2', 'copa_bar'];
 
-const SECTORS: { id: PrintSector; label: string; icon: string }[] = [
-  { id: 'caixa', label: 'Caixa', icon: '💰' },
-  { id: 'cozinha_1', label: 'Cozinha 1', icon: '👨‍🍳' },
-  { id: 'cozinha_2', label: 'Cozinha 2', icon: '👩‍🍳' },
-  { id: 'copa_bar', label: 'Copa/Bar', icon: '🍹' }
-];
+const SECTOR_LABELS_MAP = {
+  caixa: { label: 'Caixa', icon: '💰' },
+  cozinha_1: { label: 'Cozinha 1', icon: '👨‍🍳' },
+  cozinha_2: { label: 'Cozinha 2', icon: '👩‍🍳' },
+  copa_bar: { label: 'Copa/Bar', icon: '🍹' }
+};
 
 export function PrintLayoutConfig() {
   const { companyId } = useCompanyId();
   const queryClient = useQueryClient();
-  const [selectedSector, setSelectedSector] = useState<PrintSector>('caixa');
-  const [isTesting, setIsTesting] = useState(false);
-  const [isCalibrating, setIsCalibrating] = useState(false);
-  const [config, setConfig] = useState<ExtendedLayoutConfig>(DEFAULT_EXTENDED_CONFIG);
+  const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
+  const [loadingPrinters, setLoadingPrinters] = useState(false);
+  const [testingSector, setTestingSector] = useState<PrintSector | null>(null);
+  const [savingSector, setSavingSector] = useState<PrintSector | null>(null);
+  
+  // Estado dos setores
+  const [sectorsConfig, setSectorsConfig] = useState<Record<PrintSector, SectorConfig>>({
+    caixa: {
+      enabled: true,
+      printer_name: '',
+      copies: 1,
+      layout: DEFAULT_EXTENDED_CONFIG
+    },
+    cozinha_1: {
+      enabled: false,
+      printer_name: '',
+      copies: 1,
+      layout: DEFAULT_EXTENDED_CONFIG
+    },
+    cozinha_2: {
+      enabled: false,
+      printer_name: '',
+      copies: 1,
+      layout: DEFAULT_EXTENDED_CONFIG
+    },
+    copa_bar: {
+      enabled: false,
+      printer_name: '',
+      copies: 1,
+      layout: DEFAULT_EXTENDED_CONFIG
+    }
+  });
 
   // Fetch company data
   const { data: companyData } = useQuery({
@@ -68,36 +91,91 @@ export function PrintLayoutConfig() {
     staleTime: 0
   });
 
+  // Carregar impressoras do cache ou buscar
+  useEffect(() => {
+    const loadPrinters = async () => {
+      // Tentar carregar do cache primeiro
+      const cached = printerCache.get();
+      if (cached) {
+        setAvailablePrinters(cached);
+        return;
+      }
+
+      // Se não tem cache, buscar
+      await fetchPrinters(false);
+    };
+
+    loadPrinters();
+  }, []);
+
   // Load config when settings change
   useEffect(() => {
-    const printerSettings = settings?.printer_settings as any;
-    const savedConfig = printerSettings?.layout_configs?.[selectedSector];
-    
-    if (savedConfig) {
-      // Merge saved config with defaults to ensure all new properties exist
-      setConfig({
-        ...DEFAULT_EXTENDED_CONFIG,
-        ...savedConfig,
-        header: savedConfig.header || DEFAULT_EXTENDED_CONFIG.header,
-        body: savedConfig.body || DEFAULT_EXTENDED_CONFIG.body,
-        footer: savedConfig.footer || DEFAULT_EXTENDED_CONFIG.footer,
-      });
-    } else {
-      setConfig(DEFAULT_EXTENDED_CONFIG);
+    if (!settings?.printer_settings) return;
+
+    const printerSettings = settings.printer_settings as any;
+    const newConfig: Record<PrintSector, SectorConfig> = {} as any;
+
+    SECTORS.forEach(sector => {
+      const sectorData = printerSettings.sectors?.[sector];
+      
+      if (sectorData) {
+        newConfig[sector] = {
+          ...sectorData,
+          layout: {
+            ...DEFAULT_EXTENDED_CONFIG,
+            ...sectorData.layout
+          }
+        };
+      } else {
+        // Fallback para estrutura antiga
+        const oldPrinterName = printerSettings[sector] || printerSettings.printers?.[sector];
+        const oldLayoutConfig = printerSettings.layout_configs?.[sector];
+        
+        newConfig[sector] = {
+          enabled: sector === 'caixa',
+          printer_name: oldPrinterName || '',
+          copies: 1,
+          layout: oldLayoutConfig ? { ...DEFAULT_EXTENDED_CONFIG, ...oldLayoutConfig } : DEFAULT_EXTENDED_CONFIG
+        };
+      }
+    });
+
+    setSectorsConfig(newConfig);
+  }, [settings]);
+
+  // Fetch printers
+  const fetchPrinters = async (showToast = true) => {
+    setLoadingPrinters(true);
+    try {
+      const qzTray = QZTrayPrinter.getInstance();
+      const printers = await qzTray.getPrinters();
+      setAvailablePrinters(printers);
+      printerCache.set(printers);
+      
+      if (showToast) {
+        toast.success(`${printers.length} impressora(s) encontrada(s)`);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar impressoras:', error);
+      if (showToast) {
+        toast.error('Certifique-se que o QZ Tray está aberto e rodando');
+      }
+    } finally {
+      setLoadingPrinters(false);
     }
-  }, [settings, selectedSector]);
+  };
 
   // Save mutation
   const saveMutation = useMutation({
-    mutationFn: async (newConfig: ExtendedLayoutConfig) => {
+    mutationFn: async ({ sector, config }: { sector: PrintSector; config: SectorConfig }) => {
       const currentSettings = (settings?.printer_settings as any) || {};
-      const layoutConfigs = currentSettings.layout_configs || {};
       
       const updatedSettings = {
         ...currentSettings,
-        layout_configs: {
-          ...layoutConfigs,
-          [selectedSector]: newConfig
+        auto_print: currentSettings.auto_print ?? true,
+        sectors: {
+          ...(currentSettings.sectors || {}),
+          [sector]: config
         }
       };
 
@@ -108,21 +186,29 @@ export function PrintLayoutConfig() {
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, { sector }) => {
       queryClient.invalidateQueries({ queryKey: ['store-settings', companyId] });
-      toast.success('Configurações salvas com sucesso!');
+      toast.success(`Configurações do ${SECTOR_LABELS_MAP[sector].label} salvas!`);
+      setSavingSector(null);
     },
-    onError: (error) => {
+    onError: (error, { sector }) => {
       console.error('Erro ao salvar:', error);
-      toast.error('Erro ao salvar configurações');
+      toast.error(`Erro ao salvar configurações do ${SECTOR_LABELS_MAP[sector].label}`);
+      setSavingSector(null);
     }
   });
 
   // Test print
-  const handleTestPrint = async () => {
+  const handleTestPrint = async (sector: PrintSector) => {
     try {
-      setIsTesting(true);
+      setTestingSector(sector);
       
+      const config = sectorsConfig[sector];
+      if (!config.printer_name) {
+        toast.error('Selecione uma impressora primeiro');
+        return;
+      }
+
       const testOrder = {
         order_number: "TESTE-001",
         customer_name: "Cliente Teste",
@@ -146,176 +232,98 @@ export function PrintLayoutConfig() {
         observations: "Entregar na portaria",
         created_at: new Date().toISOString()
       };
-      
-      const printerSettings = settings?.printer_settings as any;
-      const printerName = printerSettings?.printers?.[selectedSector];
-      if (!printerName) {
-        toast.error('Nenhuma impressora configurada para este setor');
-        return;
-      }
 
       const qzTray = QZTrayPrinter.getInstance();
       await qzTray.connect();
-      await qzTray.printOrder(testOrder, printerName, false, selectedSector as any, config);
+      await qzTray.printOrder(
+        testOrder,
+        config.printer_name,
+        false,
+        sector as any,
+        config.layout,
+        config.copies
+      );
       
       toast.success('Impressão de teste enviada!');
     } catch (error) {
       console.error('Erro na impressão de teste:', error);
       toast.error('Erro ao imprimir teste');
     } finally {
-      setIsTesting(false);
+      setTestingSector(null);
     }
   };
 
-  // Calibration print
-  const handleCalibrationPrint = async () => {
-    try {
-      setIsCalibrating(true);
-      
-      const printerSettings = settings?.printer_settings as any;
-      const printerName = printerSettings?.printers?.[selectedSector];
-      if (!printerName) {
-        toast.error('Nenhuma impressora configurada para este setor');
-        return;
-      }
-
-      // Calibration print - simplified test
-      toast.info('Função de calibração em desenvolvimento');
-      
-      toast.success('Régua de calibração enviada!');
-    } catch (error) {
-      console.error('Erro na impressão de calibração:', error);
-      toast.error('Erro ao imprimir calibração');
-    } finally {
-      setIsCalibrating(false);
-    }
+  const handleSave = (sector: PrintSector) => {
+    setSavingSector(sector);
+    saveMutation.mutate({ sector, config: sectorsConfig[sector] });
   };
 
-  const handleSave = () => {
-    saveMutation.mutate(config);
+  const handleConfigChange = (sector: PrintSector, config: SectorConfig) => {
+    setSectorsConfig(prev => ({
+      ...prev,
+      [sector]: config
+    }));
   };
-
-  const updateConfig = (updates: Partial<ExtendedLayoutConfig>) => {
-    setConfig(prev => ({ ...prev, ...updates }));
-  };
-
-  const updateSection = (section: 'header' | 'body' | 'footer', sectionConfig: SectionConfig) => {
-    setConfig(prev => ({ ...prev, [section]: sectionConfig }));
-  };
-
-  // Update config when sector changes
-  const handleSectorChange = (sector: PrintSector) => {
-    setSelectedSector(sector);
-    const printerSettings = settings?.printer_settings as any;
-    const savedConfig = printerSettings?.layout_configs?.[sector];
-    
-    if (savedConfig) {
-      // Merge saved config with defaults to ensure all new properties exist
-      setConfig({
-        ...DEFAULT_EXTENDED_CONFIG,
-        ...savedConfig,
-        header: savedConfig.header || DEFAULT_EXTENDED_CONFIG.header,
-        body: savedConfig.body || DEFAULT_EXTENDED_CONFIG.body,
-        footer: savedConfig.footer || DEFAULT_EXTENDED_CONFIG.footer,
-      });
-    } else {
-      setConfig(DEFAULT_EXTENDED_CONFIG);
-    }
-  };
-
-  // Safety check - ensure config has required properties
-  if (!config?.header || !config?.body || !config?.footer) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Carregando configurações...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
-      {/* Sector Selector */}
+      {/* Header Card */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between gap-4">
-            <Tabs value={selectedSector} onValueChange={(v) => handleSectorChange(v as PrintSector)} className="flex-1">
-              <TabsList className="grid w-full grid-cols-4">
-                {SECTORS.map(sector => (
-                  <TabsTrigger key={sector.id} value={sector.id}>
-                    <span className="mr-2">{sector.icon}</span>
-                    {sector.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-
-            <div className="flex gap-2">
-              <Button 
-                onClick={handleTestPrint} 
-                disabled={isTesting}
-                variant="outline"
-                size="sm"
-              >
-                <Printer className="mr-2 h-4 w-4" />
-                {isTesting ? 'Imprimindo...' : 'Teste'}
-              </Button>
-              <Button 
-                onClick={handleSave} 
-                disabled={saveMutation.isPending}
-                size="sm"
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {saveMutation.isPending ? 'Salvando...' : 'Salvar'}
-              </Button>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Configurações de Impressão</CardTitle>
+              <CardDescription>
+                Configure impressoras, layout e número de vias por setor
+              </CardDescription>
             </div>
+            <Button
+              onClick={() => fetchPrinters(true)}
+              disabled={loadingPrinters}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${loadingPrinters ? 'animate-spin' : ''}`} />
+              {loadingPrinters ? 'Buscando...' : 'Buscar Impressoras'}
+            </Button>
           </div>
-        </CardContent>
+        </CardHeader>
       </Card>
 
-      {/* Main Content - Two Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column - Configuration */}
-        <div>
-          <Card>
-            <CardContent className="p-6">
-              <Tabs defaultValue="advanced" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="advanced">⚙️ Configuração da Impressora</TabsTrigger>
-                  <TabsTrigger value="layout">📄 Layout do Cupom</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="advanced" className="space-y-4">
-                  <AdvancedSection
-                    config={config}
-                    onChange={updateConfig}
-                    onCalibrationPrint={handleCalibrationPrint}
-                    isPrinting={isCalibrating}
-                  />
-                </TabsContent>
-
-                <TabsContent value="layout" className="space-y-4">
-                  <UnifiedFieldsList
-                    config={config}
-                    onChange={updateConfig}
-                  />
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column - Preview */}
-        <div>
-          <ThermalPaperSimulator
-            config={config}
-            companyData={companyData ? {
-              name: companyData.name,
-              phone: companyData.phone || '',
-              address: String(companyData.address || '')
-            } : undefined}
-          />
-        </div>
-      </div>
+      {/* Sectors Accordion */}
+      <Accordion type="single" collapsible defaultValue="caixa" className="space-y-2">
+        {SECTORS.map(sector => (
+          <AccordionItem key={sector} value={sector} className="border rounded-lg">
+            <AccordionTrigger className="px-4 hover:no-underline">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{SECTOR_LABELS_MAP[sector].icon}</span>
+                <div className="text-left">
+                  <div className="font-semibold">{SECTOR_LABELS_MAP[sector].label}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {sectorsConfig[sector].enabled
+                      ? sectorsConfig[sector].printer_name || 'Nenhuma impressora configurada'
+                      : 'Desativado'}
+                  </div>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4">
+              <SectorConfigPanel
+                sector={sector}
+                sectorLabel={SECTOR_LABELS_MAP[sector].label}
+                sectorIcon={SECTOR_LABELS_MAP[sector].icon}
+                config={sectorsConfig[sector]}
+                availablePrinters={availablePrinters}
+                onConfigChange={(config) => handleConfigChange(sector, config)}
+                onTestPrint={() => handleTestPrint(sector)}
+                onSave={() => handleSave(sector)}
+                isTesting={testingSector === sector}
+                isSaving={savingSector === sector}
+              />
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
     </div>
   );
 }

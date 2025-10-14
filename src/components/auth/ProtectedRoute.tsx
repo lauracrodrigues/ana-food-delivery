@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useUserRole, UserRole } from "@/hooks/use-user-role";
 import { Loader2 } from "lucide-react";
+import { usePrinterCache } from "@/hooks/usePrinterCache";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -18,6 +19,9 @@ export function ProtectedRoute({
   requiredRole = ["company_admin"], 
   fallbackPath = "/" 
 }: ProtectedRouteProps) {
+  // Inicializar cache de impressoras no login
+  usePrinterCache();
+  
   const { role, isLoading } = useUserRole();
 
   // Show loading state while checking role

@@ -134,7 +134,7 @@ export class QZTrayPrinter {
   }
 
   // Print order receipt
-  async printOrder(order: any, printerName?: string, isReprint: boolean = false, sector: PrintSector = 'caixa', layoutConfig?: LayoutConfig): Promise<void> {
+  async printOrder(order: any, printerName?: string, isReprint: boolean = false, sector: PrintSector = 'caixa', layoutConfig?: LayoutConfig, copies: number = 1): Promise<void> {
     try {
       await this.connect();
 
@@ -155,7 +155,14 @@ export class QZTrayPrinter {
         data: receipt
       }];
       
-      await window.qz.print(config, data);
+      // Print multiple copies
+      for (let i = 0; i < copies; i++) {
+        await window.qz.print(config, data);
+        // Pequeno delay entre impressões para evitar problemas
+        if (i < copies - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
     } catch (error: any) {
       console.error('Erro ao imprimir:', error);
       throw new Error(error?.message || 'Erro ao imprimir pedido');

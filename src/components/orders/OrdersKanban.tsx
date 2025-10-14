@@ -263,28 +263,38 @@ export function OrdersKanban() {
 
       await apiClient.updateOrderStatus(orderId, status, companyId);
       
-      // Auto-print when accepting order (non-blocking) if enabled
-      if (previousStatus === 'pending' && status === 'preparing' && order) {
-        stopNotificationSound();
-        
-        // Get current settings
-        const { data: currentSettings } = await supabase
-          .from("store_settings")
-          .select("printer_settings")
-          .eq("company_id", companyId)
-          .single();
-        
-        const printerSettings = currentSettings?.printer_settings as any;
-        const autoPrintEnabled = printerSettings?.auto_print ?? true;
-        
-        if (autoPrintEnabled) {
-          // Para novos pedidos, sempre usar setor caixa
-          const layoutConfig = printerSettings?.layout_configs?.caixa;
-          qzPrinter.printOrder(order, undefined, false, 'caixa', layoutConfig)
-            .then(() => console.log('✅ Impressão automática realizada'))
-            .catch(error => console.error('❌ Erro na impressão automática:', error));
+          // Auto-print when accepting order (non-blocking) if enabled
+        if (previousStatus === 'pending' && status === 'preparing' && order) {
+          stopNotificationSound();
+          
+          // Get current settings
+          const { data: currentSettings } = await supabase
+            .from("store_settings")
+            .select("printer_settings")
+            .eq("company_id", companyId)
+            .single();
+          
+          const printerSettings = currentSettings?.printer_settings as any;
+          const autoPrintEnabled = printerSettings?.auto_print ?? true;
+          
+          if (autoPrintEnabled) {
+            // Buscar config do setor caixa
+            const caixaConfig = printerSettings?.sectors?.caixa;
+            
+            if (caixaConfig?.enabled && caixaConfig?.printer_name) {
+              qzPrinter.printOrder(
+                order,
+                caixaConfig.printer_name,
+                false,
+                'caixa',
+                caixaConfig.layout,
+                caixaConfig.copies || 1
+              )
+                .then(() => console.log('✅ Impressão automática realizada'))
+                .catch(error => console.error('❌ Erro na impressão automática:', error));
+            }
+          }
         }
-      }
       
       return { orderId, status };
     },
@@ -344,11 +354,26 @@ export function OrdersKanban() {
     try {
       console.log('Chamando qzPrinter.printOrder...');
       // Determinar setor baseado no status do pedido
-      const sector = order.status === 'pending' ? 'caixa' : 'cozinha1';
-      const layoutConfig = layoutConfigs?.[sector];
-      console.log('Usando setor:', sector, 'com config:', layoutConfig ? 'encontrada' : 'usando padrão');
+      const sector = order.status === 'pending' ? 'caixa' : 'cozinha_1';
       
-      await qzPrinter.printOrder(order, undefined, isReprint, sector, layoutConfig);
+      // Buscar config do setor apropriado
+      const printerSettings = storeSettings?.printer_settings as any;
+      const sectorConfig = printerSettings?.sectors?.[sector];
+      
+      if (sectorConfig?.enabled && sectorConfig?.printer_name) {
+        await qzPrinter.printOrder(
+          order,
+          sectorConfig.printer_name,
+          isReprint,
+          sector as any,
+          sectorConfig.layout,
+          sectorConfig.copies || 1
+        );
+      } else {
+        // Fallback para estrutura antiga
+        const layoutConfig = layoutConfigs?.[sector];
+        await qzPrinter.printOrder(order, undefined, isReprint, sector as any, layoutConfig, 1);
+      }
       
       console.log('✅ Impressão concluída com sucesso!');
       toast({

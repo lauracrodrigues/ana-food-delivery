@@ -83,6 +83,12 @@ export interface ExtendedLayoutConfig extends LayoutConfig {
   show_subtotal: boolean;
   show_delivery_fee: boolean;
   
+  // Novos campos de visibilidade
+  show_datetime: boolean;
+  show_delivery_type: boolean;
+  show_main_items: boolean;
+  show_extras: boolean;
+  
   // Advanced
   encoding: 'UTF-8' | 'Windows-1252';
   margin_left: number;
@@ -252,6 +258,12 @@ export const DEFAULT_EXTENDED_CONFIG: ExtendedLayoutConfig = {
   
   show_subtotal: true,
   show_delivery_fee: true,
+  
+  // Novos campos
+  show_datetime: true,
+  show_delivery_type: true,
+  show_main_items: true,
+  show_extras: true,
   
   encoding: 'UTF-8',
   margin_left: 0,
