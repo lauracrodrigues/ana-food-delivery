@@ -81,6 +81,28 @@ export function OrdersKanban() {
     refetchOnWindowFocus: false,
   });
 
+  // Load store settings to get layout configs
+  const { data: storeSettings } = useQuery({
+    queryKey: ["store-settings", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      
+      const { data, error } = await supabase
+        .from("store_settings")
+        .select("*")
+        .eq("company_id", companyId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!companyId,
+  });
+
+  // Extract layout configs from store settings
+  const printerSettings = storeSettings?.printer_settings as any;
+  const layoutConfigs = printerSettings?.layout_configs;
+
   // Pré-carregar áudio na primeira interação do usuário
   useEffect(() => {
     const preloadAudio = () => {
@@ -256,7 +278,9 @@ export function OrdersKanban() {
         const autoPrintEnabled = printerSettings?.auto_print ?? true;
         
         if (autoPrintEnabled) {
-          qzPrinter.printOrder(order, undefined, false)
+          // Para novos pedidos, sempre usar setor caixa
+          const layoutConfig = printerSettings?.layout_configs?.caixa;
+          qzPrinter.printOrder(order, undefined, false, 'caixa', layoutConfig)
             .then(() => console.log('✅ Impressão automática realizada'))
             .catch(error => console.error('❌ Erro na impressão automática:', error));
         }
@@ -319,7 +343,12 @@ export function OrdersKanban() {
     
     try {
       console.log('Chamando qzPrinter.printOrder...');
-      await qzPrinter.printOrder(order, undefined, isReprint);
+      // Determinar setor baseado no status do pedido
+      const sector = order.status === 'pending' ? 'caixa' : 'cozinha1';
+      const layoutConfig = layoutConfigs?.[sector];
+      console.log('Usando setor:', sector, 'com config:', layoutConfig ? 'encontrada' : 'usando padrão');
+      
+      await qzPrinter.printOrder(order, undefined, isReprint, sector, layoutConfig);
       
       console.log('✅ Impressão concluída com sucesso!');
       toast({

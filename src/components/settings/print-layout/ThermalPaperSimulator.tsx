@@ -99,7 +99,7 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
         content = format(new Date(mockOrder.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR });
         break;
       case '{origem_pedido}':
-        content = `Origem: ${mockOrder.source === 'whatsapp' ? 'WhatsApp' : 'Cardápio Digital'}`;
+        content = `Origem: ${mockOrder.source === 'whatsapp' ? 'WhatsApp' : 'Cardapio Digital'}`;
         break;
       case '{nome_cliente}':
         content = `Cliente: ${mockOrder.customer_name}`;
@@ -165,7 +165,7 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
 
           {/* Paper simulation */}
           <div 
-            className="bg-white shadow-lg mx-auto"
+            className="bg-[#F5E6D3] shadow-lg mx-auto"
             style={{ 
               width: `${paperWidthPx}px`,
               maxWidth: '100%'

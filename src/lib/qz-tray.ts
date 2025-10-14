@@ -215,6 +215,31 @@ export class QZTrayPrinter {
     return '\n'.repeat(spaceCount * lines);
   }
 
+  // Sanitize text for thermal printer (remove emojis)
+  private sanitizeForThermalPrint(text: string): string {
+    const EMOJI_TO_TEXT: Record<string, string> = {
+      '🛵': 'ENTREGA',
+      '🏪': 'RETIRADA',
+      '📱': '',
+      '🍽️': '',
+      '💰': '',
+      '📝': 'Obs:',
+      '✅': '',
+      '⚠️': '',
+    };
+    
+    let sanitized = text;
+    // Substituir emojis conhecidos
+    for (const [emoji, replacement] of Object.entries(EMOJI_TO_TEXT)) {
+      sanitized = sanitized.replace(new RegExp(emoji, 'g'), replacement);
+    }
+    
+    // Remover qualquer emoji restante (Unicode range)
+    sanitized = sanitized.replace(/[\u{1F300}-\u{1F9FF}]/gu, '');
+    
+    return sanitized;
+  }
+
   // Format order data for thermal printer (ESC/POS)
   private formatOrderReceipt(order: any, isReprint: boolean = false, layoutConfig?: LayoutConfig): string {
     const config = this.getLayoutConfig(layoutConfig);
@@ -249,10 +274,10 @@ export class QZTrayPrinter {
     // Tipo de pedido e origem
     receipt += ESC + 'a' + '\x00'; // Left align
     receipt += this.applyFontSize(config.font_sizes.header);
-    receipt += this.formatLine(`${order.type === 'delivery' ? '🛵 ENTREGA' : '🏪 RETIRADA'}`, 'left', maxChars);
+    receipt += this.formatLine(this.sanitizeForThermalPrint(`${order.type === 'delivery' ? '🛵 ENTREGA' : '🏪 RETIRADA'}`), 'left', maxChars);
     
     if (config.show_order_source && order.source) {
-      receipt += this.formatLine(`Origem: ${order.source === 'whatsapp' ? 'WhatsApp' : 'Cardápio Digital'}`, 'left', maxChars);
+      receipt += this.formatLine(this.sanitizeForThermalPrint(`Origem: ${order.source === 'whatsapp' ? 'WhatsApp' : 'Cardapio Digital'}`), 'left', maxChars);
     }
     
     receipt += GS + '!' + '\x00';
@@ -263,11 +288,11 @@ export class QZTrayPrinter {
       receipt += this.applyFormatting(config.formatting.customer_info);
       receipt += this.applyFontSize(config.font_sizes.item_details);
       receipt += this.formatLine('CLIENTE:', config.formatting.customer_info.align, maxChars);
-      receipt += this.formatLine(order.customer_name, config.formatting.customer_info.align, maxChars);
-      receipt += this.formatLine(`Tel: ${order.customer_phone}`, config.formatting.customer_info.align, maxChars);
+      receipt += this.formatLine(this.sanitizeForThermalPrint(order.customer_name), config.formatting.customer_info.align, maxChars);
+      receipt += this.formatLine(this.sanitizeForThermalPrint(`Tel: ${order.customer_phone}`), config.formatting.customer_info.align, maxChars);
       
       if (config.show_customer_address && order.type === 'delivery' && order.address) {
-        receipt += this.formatLine(`Endereco: ${order.address}`, config.formatting.customer_info.align, maxChars);
+        receipt += this.formatLine(this.sanitizeForThermalPrint(`Endereco: ${order.address}`), config.formatting.customer_info.align, maxChars);
       }
       
       receipt += GS + '!' + '\x00';
@@ -282,7 +307,7 @@ export class QZTrayPrinter {
     order.items.forEach((item: any) => {
       receipt += this.applyFormatting(config.formatting.items);
       receipt += this.applyFontSize(config.font_sizes.item_name);
-      receipt += this.formatLine(`${item.quantity}x ${item.name}`, config.formatting.items.align, maxChars);
+      receipt += this.formatLine(this.sanitizeForThermalPrint(`${item.quantity}x ${item.name}`), config.formatting.items.align, maxChars);
       receipt += GS + '!' + '\x00';
       receipt += this.resetFormatting();
       
@@ -290,7 +315,7 @@ export class QZTrayPrinter {
         receipt += this.applyFormatting(config.formatting.item_details);
         receipt += this.applyFontSize(config.font_sizes.item_details);
         item.extras.forEach((extra: any) => {
-          receipt += this.formatLine(`  + ${extra.name}`, config.formatting.item_details.align, maxChars);
+          receipt += this.formatLine(this.sanitizeForThermalPrint(`  + ${extra.name}`), config.formatting.item_details.align, maxChars);
         });
         receipt += GS + '!' + '\x00';
         receipt += this.resetFormatting();
@@ -299,7 +324,7 @@ export class QZTrayPrinter {
       if (config.show_item_observations && item.observations) {
         receipt += this.applyFormatting(config.formatting.item_details);
         receipt += this.applyFontSize(config.font_sizes.item_details);
-        receipt += this.formatLine(`  Obs: ${item.observations}`, config.formatting.item_details.align, maxChars);
+        receipt += this.formatLine(this.sanitizeForThermalPrint(`  Obs: ${item.observations}`), config.formatting.item_details.align, maxChars);
         receipt += GS + '!' + '\x00';
         receipt += this.resetFormatting();
       }
@@ -341,7 +366,7 @@ export class QZTrayPrinter {
     if (config.show_order_observations && order.observations) {
       receipt += this.applyFontSize(config.font_sizes.item_details);
       receipt += this.formatLine('OBSERVACOES:', 'left', maxChars);
-      receipt += this.formatLine(order.observations, 'left', maxChars);
+      receipt += this.formatLine(this.sanitizeForThermalPrint(order.observations), 'left', maxChars);
       receipt += GS + '!' + '\x00';
       receipt += this.addSpacing(config.line_spacing);
     }
@@ -358,7 +383,7 @@ export class QZTrayPrinter {
     if (config.show_footer_message && config.footer_message) {
       receipt += this.applyFormatting(config.formatting.footer);
       receipt += this.applyFontSize(config.font_sizes.item_details);
-      receipt += this.formatLine(config.footer_message, config.formatting.footer.align, maxChars);
+      receipt += this.formatLine(this.sanitizeForThermalPrint(config.footer_message), config.formatting.footer.align, maxChars);
       receipt += GS + '!' + '\x00';
       receipt += this.resetFormatting();
       receipt += this.addSpacing(config.line_spacing);
