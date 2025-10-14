@@ -33,6 +33,8 @@ import { qzPrinter } from "@/lib/qz-tray";
 import { useTheme } from "@/components/theme-provider";
 import { useColorPalette, type ColorPalette } from "@/hooks/use-color-palette";
 import { usePreloadedAudios } from "@/hooks/usePreloadedAudios";
+import { PrintLayoutConfig } from "@/components/settings/PrintLayoutConfig";
+import type { LayoutConfig, PrintSector } from "@/types/printer-layout";
 
 interface StoreSettings {
   id?: string;
@@ -272,10 +274,11 @@ export function Settings() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-3 w-full max-w-3xl">
+          <TabsList className="grid grid-cols-4 w-full max-w-4xl">
             <TabsTrigger value="general">Geral</TabsTrigger>
             <TabsTrigger value="appearance">Aparência</TabsTrigger>
-            <TabsTrigger value="printer">Impressão</TabsTrigger>
+            <TabsTrigger value="printer">Impressoras</TabsTrigger>
+            <TabsTrigger value="layout">Layout</TabsTrigger>
           </TabsList>
 
           {/* General Settings */}
@@ -726,6 +729,23 @@ export function Settings() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Layout Settings */}
+          <TabsContent value="layout" className="space-y-6">
+            {profile?.company_id && (
+              <PrintLayoutConfig
+                companyId={profile.company_id}
+                initialConfig={storeSettings?.printer_settings?.layout_configs}
+                onSave={async (configs) => {
+                  const newPrinterSettings = {
+                    ...printerSettings,
+                    layout_configs: configs
+                  };
+                  await handleSettingsUpdate("printer_settings", newPrinterSettings);
+                }}
+              />
+            )}
           </TabsContent>
 
         </Tabs>

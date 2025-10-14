@@ -1,4 +1,7 @@
 // QZ Tray integration for printing
+import type { LayoutConfig, PrintSector } from '@/types/printer-layout';
+import { FONT_SIZE_COMMANDS, LINE_SPACING_VALUES, PAPER_WIDTHS, DEFAULT_LAYOUT_CONFIG } from '@/types/printer-layout';
+
 declare global {
   interface Window {
     qz: any;
@@ -131,7 +134,7 @@ export class QZTrayPrinter {
   }
 
   // Print order receipt
-  async printOrder(order: any, printerName?: string, isReprint: boolean = false): Promise<void> {
+  async printOrder(order: any, printerName?: string, isReprint: boolean = false, sector: PrintSector = 'caixa', layoutConfig?: LayoutConfig): Promise<void> {
     try {
       await this.connect();
 
@@ -142,7 +145,7 @@ export class QZTrayPrinter {
       const config = window.qz.configs.create(printer);
 
       // Format receipt data
-      const receipt = this.formatOrderReceipt(order, isReprint);
+      const receipt = this.formatOrderReceipt(order, isReprint, layoutConfig);
 
       // Print with proper format for QZ Tray 2.x
       // QZ Tray handles encoding internally when we pass string data
@@ -159,129 +162,180 @@ export class QZTrayPrinter {
     }
   }
 
+  // Helper methods for formatting
+  private getLayoutConfig(config?: LayoutConfig): LayoutConfig {
+    return config || DEFAULT_LAYOUT_CONFIG;
+  }
+
+  private formatLine(text: string, align: 'left' | 'center' | 'right', maxChars: number): string {
+    const cleanText = text.substring(0, maxChars);
+    
+    if (align === 'center') {
+      const padding = Math.max(0, Math.floor((maxChars - cleanText.length) / 2));
+      return ' '.repeat(padding) + cleanText + '\n';
+    } else if (align === 'right') {
+      const padding = Math.max(0, maxChars - cleanText.length);
+      return ' '.repeat(padding) + cleanText + '\n';
+    }
+    
+    return cleanText + '\n';
+  }
+
+  private applyFontSize(size: string): string {
+    return FONT_SIZE_COMMANDS[size as keyof typeof FONT_SIZE_COMMANDS] || FONT_SIZE_COMMANDS.normal;
+  }
+
+  private addSpacing(spacing: string, lines: number = 1): string {
+    const spaceCount = LINE_SPACING_VALUES[spacing as keyof typeof LINE_SPACING_VALUES] || LINE_SPACING_VALUES.normal;
+    return '\n'.repeat(spaceCount * lines);
+  }
+
   // Format order data for thermal printer (ESC/POS)
-  private formatOrderReceipt(order: any, isReprint: boolean = false): string {
+  private formatOrderReceipt(order: any, isReprint: boolean = false, layoutConfig?: LayoutConfig): string {
+    const config = this.getLayoutConfig(layoutConfig);
+    const maxChars = config.chars_per_line;
+    
     const ESC = '\x1B';
     const GS = '\x1D';
     
-    // Build receipt string
     let receipt = '';
     
-    // Initialize printer
-    receipt += `${ESC}@`; // Reset printer
-    receipt += `${ESC}t\x10`; // Set code page to UTF-8 (code page 16)
-    receipt += `${ESC}a\x01`; // Center align
-    receipt += `${ESC}E\x01`; // Bold on
+    // Comandos de inicialização
+    receipt += ESC + '@'; // Reset printer
+    receipt += ESC + 'a' + '\x01'; // Center align
     
-    // Dados da loja no topo
-    if (order.company_name) {
-      receipt += `${order.company_name}\n`;
-    }
-    if (order.company_address) {
-      receipt += `${order.company_address}\n`;
-    }
-    if (order.company_phone) {
-      receipt += `Tel: ${order.company_phone}\n`;
-    }
-    receipt += '\n';
-    
-    // Se for reimpressão, mostrar em destaque
-    if (isReprint) {
-      receipt += '********************************\n';
-      receipt += '*     REIMPRESSÃO     *\n';
-      receipt += '********************************\n';
-      receipt += '\n';
+    // Cabeçalho (se configurado)
+    if (config.show_company_logo) {
+      receipt += this.applyFontSize(config.font_sizes.header);
+      receipt += this.formatLine('PEDIDO', 'center', maxChars);
+      receipt += GS + '!' + '\x00'; // Reset size
+      receipt += this.addSpacing(config.line_spacing);
     }
     
-    // Número do pedido com fonte maior
-    receipt += `${GS}!\x11`; // Double height and width
-    receipt += `PEDIDO #${order.order_number || order.id.slice(0, 8)}\n`;
-    receipt += `${GS}!\x00`; // Normal size
-    receipt += `${ESC}E\x00`; // Bold off
-    receipt += '\n';
+    // Número do pedido
+    receipt += this.applyFontSize(config.font_sizes.order_number);
+    receipt += this.formatLine(`#${order.order_number}`, 'center', maxChars);
+    receipt += GS + '!' + '\x00'; // Reset size
+    receipt += this.addSpacing(config.line_spacing);
     
-    // Origem do pedido - centralizada
-    const source = order.source === "whatsapp" ? "WhatsApp" : 
-                   order.source === "digital_menu" ? "Cardapio Digital" :
-                   "Balcao";
-    receipt += `Origem: ${source}\n`;
-    receipt += `${ESC}a\x00`; // Left align
-    receipt += '\n';
-
-    // Order info
-    receipt += `Data: ${new Date(order.created_at).toLocaleString('pt-BR')}\n`;
-    receipt += `Tipo: ${order.type === 'delivery' ? 'Entrega' : 'Retirada'}\n`;
-    receipt += '--------------------------------\n';
-
-    // Customer info
-    receipt += `${ESC}E\x01`; // Bold on
-    receipt += 'CLIENTE:\n';
-    receipt += `${ESC}E\x00`; // Bold off
-    receipt += `Nome: ${order.customer_name}\n`;
-    if (order.customer_phone) {
-      receipt += `Telefone: ${order.customer_phone}\n`;
-    }
-    if (order.address && order.type === 'delivery') {
-      receipt += `Endereco: ${order.address}\n`;
-    }
-    receipt += '--------------------------------\n';
-
-    // Items
-    receipt += `${ESC}E\x01`; // Bold on
-    receipt += 'ITENS:\n';
-    receipt += `${ESC}E\x00`; // Bold off
+    // Tipo de pedido e origem
+    receipt += ESC + 'a' + '\x00'; // Left align
+    receipt += this.applyFontSize(config.font_sizes.header);
+    receipt += this.formatLine(`${order.type === 'delivery' ? '🛵 ENTREGA' : '🏪 RETIRADA'}`, 'left', maxChars);
     
-    let subtotal = 0;
-    (order.items || []).forEach((item: any) => {
-      const itemTotal = (item.price || 0) * (item.quantity || 1);
-      subtotal += itemTotal;
+    if (config.show_order_source && order.source) {
+      receipt += this.formatLine(`Origem: ${order.source === 'whatsapp' ? 'WhatsApp' : 'Cardápio Digital'}`, 'left', maxChars);
+    }
+    
+    receipt += GS + '!' + '\x00';
+    receipt += this.addSpacing(config.line_spacing);
+    
+    // Cliente (se configurado)
+    if (config.show_customer_info) {
+      receipt += this.applyFontSize(config.font_sizes.item_details);
+      receipt += this.formatLine('CLIENTE:', 'left', maxChars);
+      receipt += this.formatLine(order.customer_name, 'left', maxChars);
+      receipt += this.formatLine(`Tel: ${order.customer_phone}`, 'left', maxChars);
       
-      // Nome do item maior e em negrito
-      receipt += `${ESC}E\x01`; // Bold on
-      receipt += `${GS}!\x01`; // Double width
-      receipt += `${item.quantity}x ${item.name}\n`;
-      receipt += `${GS}!\x00`; // Normal width
-      receipt += `${ESC}E\x00`; // Bold off
-      receipt += `   R$ ${item.price.toFixed(2)} = R$ ${itemTotal.toFixed(2)}\n`;
-      
-      if (item.observations) {
-        receipt += `   Obs: ${item.observations}\n`;
+      if (config.show_customer_address && order.type === 'delivery' && order.address) {
+        receipt += this.formatLine(`Endereco: ${order.address}`, 'left', maxChars);
       }
+      
+      receipt += GS + '!' + '\x00';
+      receipt += this.addSpacing(config.line_spacing);
+    }
+    
+    // Linha separadora
+    receipt += this.formatLine('='.repeat(maxChars), 'left', maxChars);
+    
+    // Itens do pedido
+    receipt += this.applyFontSize(config.font_sizes.item_name);
+    order.items.forEach((item: any) => {
+      receipt += this.formatLine(`${item.quantity}x ${item.name}`, 'left', maxChars);
+      receipt += GS + '!' + '\x00';
+      
+      if (item.extras && item.extras.length > 0) {
+        receipt += this.applyFontSize(config.font_sizes.item_details);
+        item.extras.forEach((extra: any) => {
+          receipt += this.formatLine(`  + ${extra.name}`, 'left', maxChars);
+        });
+        receipt += GS + '!' + '\x00';
+      }
+      
+      if (config.show_item_observations && item.observations) {
+        receipt += this.applyFontSize(config.font_sizes.item_details);
+        receipt += this.formatLine(`  Obs: ${item.observations}`, 'left', maxChars);
+        receipt += GS + '!' + '\x00';
+      }
+      
+      receipt += this.applyFontSize(config.font_sizes.item_details);
+      receipt += this.formatLine(`  R$ ${Number(item.price).toFixed(2)}`, 'left', maxChars);
+      receipt += GS + '!' + '\x00';
+      receipt += '\n';
     });
     
-    receipt += '--------------------------------\n';
-
-    // Totals
-    receipt += `Subtotal: R$ ${subtotal.toFixed(2)}\n`;
+    // Linha separadora
+    receipt += this.formatLine('='.repeat(maxChars), 'left', maxChars);
+    
+    // Totais
+    receipt += this.applyFontSize(config.font_sizes.totals);
+    
     if (order.delivery_fee && order.delivery_fee > 0) {
-      receipt += `Taxa de entrega: R$ ${order.delivery_fee.toFixed(2)}\n`;
+      receipt += this.formatLine(`Subtotal: R$ ${(Number(order.total) - Number(order.delivery_fee)).toFixed(2)}`, 'left', maxChars);
+      receipt += this.formatLine(`Taxa Entrega: R$ ${Number(order.delivery_fee).toFixed(2)}`, 'left', maxChars);
     }
-    receipt += `${ESC}E\x01`; // Bold on
-    const total = subtotal + (order.delivery_fee || 0);
-    receipt += `TOTAL: R$ ${total.toFixed(2)}\n`;
-    receipt += `${ESC}E\x00`; // Bold off
-    receipt += '--------------------------------\n';
-
-    // Payment method
-    receipt += `Forma de pagamento: ${this.formatPaymentMethod(order.payment_method)}\n`;
     
-    // Observations
-    if (order.observations) {
-      receipt += '--------------------------------\n';
-      receipt += `Observacoes: ${order.observations}\n`;
+    receipt += this.formatLine(`TOTAL: R$ ${Number(order.total).toFixed(2)}`, 'left', maxChars);
+    receipt += GS + '!' + '\x00'; // Reset size
+    receipt += this.addSpacing(config.line_spacing);
+    
+    // Forma de pagamento (se configurado)
+    if (config.show_payment_method) {
+      receipt += this.applyFontSize(config.font_sizes.item_details);
+      receipt += this.formatLine(`Pagamento: ${order.payment_method || 'Não informado'}`, 'left', maxChars);
+      receipt += GS + '!' + '\x00';
+      receipt += this.addSpacing(config.line_spacing);
     }
-
-    // Footer
-    receipt += '================================\n';
-    receipt += `${ESC}a\x01`; // Center align
-    receipt += 'Obrigado pela preferencia!\n';
-    receipt += `${ESC}a\x00`; // Left align
     
-    // Cut paper
-    receipt += '\n\n\n\n';
-    receipt += `${GS}V\x00`; // Full cut
-
-    // Return receipt string (will be wrapped in object by printOrder)
+    // Observações do pedido (se configurado)
+    if (config.show_order_observations && order.observations) {
+      receipt += this.applyFontSize(config.font_sizes.item_details);
+      receipt += this.formatLine('OBSERVACOES:', 'left', maxChars);
+      receipt += this.formatLine(order.observations, 'left', maxChars);
+      receipt += GS + '!' + '\x00';
+      receipt += this.addSpacing(config.line_spacing);
+    }
+    
+    // Data/hora
+    const orderDate = new Date(order.created_at);
+    receipt += this.applyFontSize(config.font_sizes.item_details);
+    receipt += this.formatLine(`Data: ${orderDate.toLocaleDateString('pt-BR')}`, 'left', maxChars);
+    receipt += this.formatLine(`Hora: ${orderDate.toLocaleTimeString('pt-BR')}`, 'left', maxChars);
+    receipt += GS + '!' + '\x00';
+    receipt += this.addSpacing(config.line_spacing);
+    
+    // Rodapé (se configurado)
+    if (config.show_footer_message && config.footer_message) {
+      receipt += ESC + 'a' + '\x01'; // Center align
+      receipt += this.applyFontSize(config.font_sizes.item_details);
+      receipt += this.formatLine(config.footer_message, 'center', maxChars);
+      receipt += GS + '!' + '\x00';
+      receipt += this.addSpacing(config.line_spacing);
+    }
+    
+    // Via de reimpressão
+    if (isReprint) {
+      receipt += ESC + 'a' + '\x01'; // Center align
+      receipt += this.formatLine('*** VIA REIMPRESSA ***', 'center', maxChars);
+      receipt += this.addSpacing(config.line_spacing);
+    }
+    
+    // Avançar papel e cortar (se configurado)
+    if (config.cut_paper) {
+      receipt += '\n'.repeat(config.extra_feed_lines);
+      receipt += GS + 'V' + '\x41' + '\x03'; // Corte parcial
+    }
+    
     return receipt;
   }
 
@@ -295,22 +349,6 @@ export class QZTrayPrinter {
       'vale_refeicao': 'Vale Refeição'
     };
     return methods[method] || method;
-  }
-
-  // Default certificate for development (you should replace this in production)
-  private getDefaultCertificate(): string {
-    return `-----BEGIN CERTIFICATE-----
-MIIFAzCCAuugAwIBAgIUJSWYOq9SLSvZaZApOeMXKLs9m7wwDQYJKoZIhvcNAQEL
-BQAwETEPMA0GA1UEAwwGUVogVHJheTAeFw0yNDAxMDEwMDAwMDBaFw0zNDAxMDEw
-MDAwMDBaMBExDzANBgNVBAMMBlFaIFRyYXkwggIiMA0GCSqGSIb3DQEBAQUAA4IC
-DwAwggIKAoICAQC5W8rE2KPzokHgOVGdV5rnrGaGZQHMKvQqmKBfJTkC5GtYh8DW
------END CERTIFICATE-----`;
-  }
-
-  // Sign data for QZ Tray (you should implement proper signing in production)
-  private sign(toSign: string): string {
-    // This is a placeholder. In production, you should implement proper signing
-    return btoa(toSign);
   }
 
   // Disconnect from QZ Tray
