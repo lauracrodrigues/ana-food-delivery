@@ -222,6 +222,15 @@ export function PrintLayoutConfig() {
     }
   };
 
+  // Safety check - ensure config has required properties
+  if (!config?.header || !config?.body || !config?.footer) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Carregando configurações...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Sector Selector */}
