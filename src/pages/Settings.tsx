@@ -35,6 +35,7 @@ import { useColorPalette, type ColorPalette } from "@/hooks/use-color-palette";
 import { usePreloadedAudios } from "@/hooks/usePreloadedAudios";
 import { PrintLayoutConfig } from "@/components/settings/PrintLayoutConfig";
 import type { LayoutConfig, PrintSector } from "@/types/printer-layout";
+import { DEFAULT_LAYOUT_CONFIG } from "@/types/printer-layout";
 
 interface StoreSettings {
   id?: string;
@@ -733,18 +734,43 @@ export function Settings() {
 
           {/* Layout Settings */}
           <TabsContent value="layout" className="space-y-6">
-            {profile?.company_id && (
+            {loadingSettings ? (
+              <Card>
+                <CardContent className="py-10">
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <span className="ml-2">Carregando configurações...</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : profile?.company_id ? (
               <PrintLayoutConfig
                 companyId={profile.company_id}
-                initialConfig={storeSettings?.printer_settings?.layout_configs}
+                initialConfig={
+                  storeSettings?.printer_settings?.layout_configs || {
+                    caixa: { ...DEFAULT_LAYOUT_CONFIG },
+                    cozinha1: { ...DEFAULT_LAYOUT_CONFIG, show_company_logo: false, show_payment_method: false },
+                    cozinha2: { ...DEFAULT_LAYOUT_CONFIG, show_company_logo: false, show_payment_method: false },
+                    copa_bar: { ...DEFAULT_LAYOUT_CONFIG, show_company_logo: false, show_payment_method: false }
+                  }
+                }
                 onSave={async (configs) => {
                   const newPrinterSettings = {
+                    ...storeSettings?.printer_settings,
                     ...printerSettings,
                     layout_configs: configs
                   };
                   await handleSettingsUpdate("printer_settings", newPrinterSettings);
                 }}
               />
+            ) : (
+              <Card>
+                <CardContent className="py-10">
+                  <p className="text-center text-muted-foreground">
+                    Erro ao carregar configurações. Por favor, recarregue a página.
+                  </p>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
 
