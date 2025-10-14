@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Printer, Save } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -68,14 +68,23 @@ export function PrintLayoutConfig() {
   });
 
   // Load config when settings change
-  useState(() => {
+  useEffect(() => {
     const printerSettings = settings?.printer_settings as any;
-    if (printerSettings?.layout_configs?.[selectedSector]) {
-      setConfig(printerSettings.layout_configs[selectedSector]);
+    const savedConfig = printerSettings?.layout_configs?.[selectedSector];
+    
+    if (savedConfig) {
+      // Merge saved config with defaults to ensure all new properties exist
+      setConfig({
+        ...DEFAULT_EXTENDED_CONFIG,
+        ...savedConfig,
+        header: savedConfig.header || DEFAULT_EXTENDED_CONFIG.header,
+        body: savedConfig.body || DEFAULT_EXTENDED_CONFIG.body,
+        footer: savedConfig.footer || DEFAULT_EXTENDED_CONFIG.footer,
+      });
     } else {
       setConfig(DEFAULT_EXTENDED_CONFIG);
     }
-  });
+  }, [settings, selectedSector]);
 
   // Save mutation
   const saveMutation = useMutation({
@@ -197,8 +206,17 @@ export function PrintLayoutConfig() {
   const handleSectorChange = (sector: PrintSector) => {
     setSelectedSector(sector);
     const printerSettings = settings?.printer_settings as any;
-    if (printerSettings?.layout_configs?.[sector]) {
-      setConfig(printerSettings.layout_configs[sector]);
+    const savedConfig = printerSettings?.layout_configs?.[sector];
+    
+    if (savedConfig) {
+      // Merge saved config with defaults to ensure all new properties exist
+      setConfig({
+        ...DEFAULT_EXTENDED_CONFIG,
+        ...savedConfig,
+        header: savedConfig.header || DEFAULT_EXTENDED_CONFIG.header,
+        body: savedConfig.body || DEFAULT_EXTENDED_CONFIG.body,
+        footer: savedConfig.footer || DEFAULT_EXTENDED_CONFIG.footer,
+      });
     } else {
       setConfig(DEFAULT_EXTENDED_CONFIG);
     }
