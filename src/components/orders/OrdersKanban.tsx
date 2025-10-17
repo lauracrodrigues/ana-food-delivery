@@ -42,7 +42,7 @@ export function OrdersKanban() {
     pickupTime: 45,
     alertTime: 10,
     autoPrint: true,
-    notificationSound: '/sounds/bell.mp3',
+    notificationSound: '/sounds/default-notification.mp3',
     visibleColumns: {
       pending: true,
       preparing: true,
@@ -107,7 +107,7 @@ export function OrdersKanban() {
   useEffect(() => {
     const preloadAudio = () => {
       if (!audioPreloaded) {
-        const soundUrl = settings.notificationSound || '/sounds/bell.mp3';
+        const soundUrl = settings.notificationSound || '/sounds/default-notification.mp3';
         const audio = new Audio(soundUrl);
         audio.volume = 0.01;
         audio.play().then(() => {
@@ -157,7 +157,7 @@ export function OrdersKanban() {
             stopNotificationSound();
             
             if (settings.soundEnabled && audioPreloaded) {
-              const soundUrl = settings.notificationSound || '/sounds/bell.mp3';
+              const soundUrl = settings.notificationSound || '/sounds/default-notification.mp3';
               const audio = new Audio(soundUrl);
               audio.loop = true;
               audio.volume = 0.7;
@@ -231,7 +231,7 @@ export function OrdersKanban() {
           pickupTime: data.pickup_time ?? 45,
           alertTime: data.alert_time ?? 10,
           autoPrint: printerSettings?.auto_print ?? true,
-          notificationSound: data.notification_sound ?? '/sounds/bell.mp3',
+          notificationSound: data.notification_sound ?? '/sounds/default-notification.mp3',
           visibleColumns: {
             pending: columns?.pending ?? true,
             preparing: columns?.preparing ?? true,

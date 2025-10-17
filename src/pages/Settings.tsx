@@ -19,10 +19,7 @@ import {
   RefreshCw,
   Palette,
   Sun,
-  Moon,
-  Play,
-  Pause,
-  Loader2
+  Moon
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,7 +29,6 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { qzPrinter } from "@/lib/qz-tray";
 import { useTheme } from "@/components/theme-provider";
 import { useColorPalette, type ColorPalette } from "@/hooks/use-color-palette";
-import { usePreloadedAudios } from "@/hooks/usePreloadedAudios";
 import { PrintLayoutConfig } from "@/components/settings/print-layout/PrintLayoutConfig";
 
 interface StoreSettings {
@@ -45,21 +41,11 @@ interface StoreSettings {
   pickup_time: number;
   delivery_fee: number;
   alert_time: number;
-  notification_sound?: string;
   printer_settings?: any;
   visible_columns?: any;
 }
 
 
-const availableSounds = [
-  { value: "/sounds/bell.mp3", label: "Campainha 1", icon: "🔔" },
-  { value: "/sounds/chime.mp3", label: "Campainha 2", icon: "🎶" },
-  { value: "/sounds/ping.mp3", label: "Campainha 3", icon: "📢" },
-  { value: "/notification.mp3", label: "Campainha Clássica", icon: "🔊" },
-  { value: "/sounds/notification.mp3", label: "Notificação", icon: "📣" },
-  { value: "/sounds/campainha_casa.mp3", label: "Campainha Casa", icon: "🏠" },
-  { value: "/sounds/old_phone.mp3", label: "Telefone Antigo", icon: "☎️" },
-];
 
 export function Settings() {
   const { toast } = useToast();
@@ -75,16 +61,6 @@ export function Settings() {
     cozinha2: "",
     copa_bar: ""
   });
-  const [playingSound, setPlayingSound] = useState<string | null>(null);
-  
-  // Pré-carregar todos os áudios
-  const { 
-    play: playPreloadedAudio, 
-    stop: stopPreloadedAudio,
-    loading: audiosLoading, 
-    loadedCount, 
-    totalCount 
-  } = usePreloadedAudios(availableSounds.map(s => s.value));
 
   // Get company ID from user profile
   const { data: profile } = useQuery({
@@ -224,32 +200,6 @@ export function Settings() {
     handleSettingsUpdate("printer_settings", newSettings);
   };
 
-  const handleSoundTest = (soundPath: string) => {
-    // Se o mesmo som está tocando, pausar
-    if (playingSound === soundPath) {
-      stopPreloadedAudio();
-      setPlayingSound(null);
-      return;
-    }
-
-    // Parar qualquer som anterior e tocar novo
-    stopPreloadedAudio();
-    playPreloadedAudio(soundPath);
-    setPlayingSound(soundPath);
-
-    // Resetar quando terminar (aproximadamente)
-    setTimeout(() => {
-      setPlayingSound(null);
-    }, 3000); // Ajustar conforme duração dos áudios
-  };
-
-  // Limpar áudio ao desmontar
-  useEffect(() => {
-    return () => {
-      stopPreloadedAudio();
-    };
-  }, [stopPreloadedAudio]);
-
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
@@ -378,67 +328,6 @@ export function Settings() {
 
                 <Separator />
 
-                <div className="space-y-4">
-                  <Label>
-                    <Volume2 className="inline h-4 w-4 mr-2" />
-                    Escolha o Som de Notificação
-                  </Label>
-                  {audiosLoading && (
-                    <div className="space-y-2 p-3 rounded-lg border bg-muted/50">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Carregando áudios... {loadedCount}/{totalCount}
-                      </div>
-                      <Progress value={(loadedCount / totalCount) * 100} className="h-2" />
-                    </div>
-                  )}
-                  <RadioGroup
-                    value={storeSettings?.notification_sound || '/sounds/bell.mp3'}
-                    onValueChange={(value) => handleSettingsUpdate("notification_sound", value)}
-                    disabled={loadingSettings}
-                    className="space-y-3"
-                  >
-                    {availableSounds.map((sound) => (
-                      <div 
-                        key={sound.value}
-                        className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <RadioGroupItem value={sound.value} id={sound.value} />
-                          <Label 
-                            htmlFor={sound.value} 
-                            className="cursor-pointer font-medium flex items-center gap-2"
-                          >
-                            <span className="text-lg">{sound.icon}</span>
-                            <span>{sound.label}</span>
-                          </Label>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleSoundTest(sound.value)}
-                          disabled={loadingSettings || !storeSettings?.sound_enabled || audiosLoading}
-                          className="gap-2"
-                        >
-                          {playingSound === sound.value ? (
-                            <>
-                              <Pause className="h-4 w-4" />
-                              Pausar
-                            </>
-                          ) : (
-                            <>
-                              <Play className="h-4 w-4" />
-                              {audiosLoading ? 'Carregando...' : 'Testar'}
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                </div>
-
-                <Separator />
-
                 <div className="space-y-2">
                   <Label htmlFor="delayed-alert">
                     <Clock className="inline h-4 w-4 mr-2" />
@@ -465,31 +354,6 @@ export function Settings() {
                   </p>
                 </div>
 
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="auto-print">
-                      <Printer className="inline h-4 w-4 mr-2" />
-                      Impressão Automática ao Aceitar
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Imprimir automaticamente quando aceitar um pedido
-                    </p>
-                  </div>
-                  <Switch
-                    id="auto-print"
-                    checked={(storeSettings?.printer_settings as any)?.auto_print ?? true}
-                    onCheckedChange={(checked) => {
-                      const currentPrinterSettings = storeSettings?.printer_settings || {};
-                      handleSettingsUpdate("printer_settings", {
-                        ...(typeof currentPrinterSettings === 'object' ? currentPrinterSettings : {}),
-                        auto_print: checked
-                      });
-                    }}
-                    disabled={loadingSettings}
-                  />
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -597,7 +461,42 @@ export function Settings() {
           {/* Print Settings - replaces old Printer and Layout tabs */}
           <TabsContent value="print" className="space-y-6">
             {profile?.company_id ? (
-              <PrintLayoutConfig />
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Printer className="h-5 w-5" />
+                      Impressão Automática
+                    </CardTitle>
+                    <CardDescription>
+                      Configure quando imprimir pedidos automaticamente
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label htmlFor="auto-print">Impressão Automática ao Aceitar</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Imprimir automaticamente quando aceitar um pedido
+                        </p>
+                      </div>
+                      <Switch
+                        id="auto-print"
+                        checked={(storeSettings?.printer_settings as any)?.auto_print ?? true}
+                        onCheckedChange={(checked) => {
+                          const currentPrinterSettings = storeSettings?.printer_settings || {};
+                          handleSettingsUpdate("printer_settings", {
+                            ...(typeof currentPrinterSettings === 'object' ? currentPrinterSettings : {}),
+                            auto_print: checked
+                          });
+                        }}
+                        disabled={loadingSettings}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+                <PrintLayoutConfig />
+              </>
             ) : (
               <Card>
                 <CardContent className="py-10">
