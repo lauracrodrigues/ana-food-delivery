@@ -751,6 +751,7 @@ export type Database = {
       }
       products: {
         Row: {
+          available_weekdays: string[] | null
           category_id: string | null
           company_id: string
           created_at: string | null
@@ -765,6 +766,7 @@ export type Database = {
           print_sector: string | null
         }
         Insert: {
+          available_weekdays?: string[] | null
           category_id?: string | null
           company_id: string
           created_at?: string | null
@@ -779,6 +781,7 @@ export type Database = {
           print_sector?: string | null
         }
         Update: {
+          available_weekdays?: string[] | null
           category_id?: string | null
           company_id?: string
           created_at?: string | null

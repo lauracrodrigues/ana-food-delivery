@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/select";
 import { Upload, X } from "lucide-react";
 import { ProductGroupsTab } from "./ProductGroupsTab";
+import { Checkbox } from "@/components/ui/checkbox";
+import { WEEKDAYS, ALL_WEEKDAYS } from "@/lib/weekday-utils";
 
 interface ProductEditDialogProps {
   product: any;
@@ -53,6 +55,7 @@ export function ProductEditDialog({
     image_url: product?.image_url || "",
     internal_code: product?.internal_code || "",
     on_off: product?.on_off ?? true,
+    available_weekdays: product?.available_weekdays || ALL_WEEKDAYS,
   });
   const [imagePreview, setImagePreview] = useState<string | null>(product?.image_url || null);
   const [uploading, setUploading] = useState(false);
@@ -68,6 +71,7 @@ export function ProductEditDialog({
         image_url: product.image_url || "",
         internal_code: product.internal_code || "",
         on_off: product.on_off ?? true,
+        available_weekdays: product.available_weekdays || ALL_WEEKDAYS,
       });
       setImagePreview(product.image_url || null);
     }
@@ -134,6 +138,10 @@ export function ProductEditDialog({
       const price = parseFloat(formData.price);
       if (isNaN(price)) {
         throw new Error("Preço inválido");
+      }
+
+      if (!formData.available_weekdays || formData.available_weekdays.length === 0) {
+        throw new Error("Selecione pelo menos um dia da semana");
       }
 
       const dataToSave = {
@@ -354,6 +362,43 @@ export function ProductEditDialog({
                 }
               />
             </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div className="space-y-2">
+                <Label>Disponibilidade</Label>
+                <p className="text-sm text-muted-foreground">
+                  Selecione os dias da semana em que este produto estará disponível
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {WEEKDAYS.map((day) => (
+                  <div key={day.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`weekday-${day.value}`}
+                      checked={formData.available_weekdays?.includes(day.value)}
+                      onCheckedChange={(checked) => {
+                        const current = formData.available_weekdays || [];
+                        const updated = checked
+                          ? [...current, day.value]
+                          : current.filter((d) => d !== day.value);
+                        setFormData({ ...formData, available_weekdays: updated });
+                      }}
+                    />
+                    <Label
+                      htmlFor={`weekday-${day.value}`}
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {day.label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              {formData.available_weekdays?.length === 0 && (
+                <p className="text-sm text-destructive">
+                  Selecione pelo menos um dia da semana
+                </p>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="groups" className="space-y-4 py-4">
@@ -376,7 +421,12 @@ export function ProductEditDialog({
           </Button>
           <Button
             onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !formData.name || !formData.price}
+            disabled={
+              saveMutation.isPending || 
+              !formData.name || 
+              !formData.price || 
+              !formData.available_weekdays?.length
+            }
           >
             {saveMutation.isPending ? "Salvando..." : "Salvar"}
           </Button>
