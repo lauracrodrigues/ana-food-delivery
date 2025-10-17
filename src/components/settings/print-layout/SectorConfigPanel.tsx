@@ -5,7 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+
 import { Separator } from '@/components/ui/separator';
 import { Printer, Save } from 'lucide-react';
 import { UnifiedFieldsList } from './UnifiedFieldsList';
@@ -121,108 +121,11 @@ export function SectorConfigPanel({
 
         <Separator />
 
-        {/* Campos de Exibição */}
-        <div className="space-y-4">
-          <Label className="text-base font-semibold">Campos de Exibição</Label>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`${sector}-logo`} className="cursor-pointer">Logo da empresa</Label>
-              <Switch
-                id={`${sector}-logo`}
-                checked={config.layout.show_company_logo}
-                onCheckedChange={(checked) => updateLayout({ show_company_logo: checked })}
-                disabled={!config.enabled}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`${sector}-datetime`} className="cursor-pointer">Data e hora</Label>
-              <Switch
-                id={`${sector}-datetime`}
-                checked={config.layout.show_datetime}
-                onCheckedChange={(checked) => updateLayout({ show_datetime: checked })}
-                disabled={!config.enabled}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`${sector}-source`} className="cursor-pointer">Origem do pedido</Label>
-              <Switch
-                id={`${sector}-source`}
-                checked={config.layout.show_order_source}
-                onCheckedChange={(checked) => updateLayout({ show_order_source: checked })}
-                disabled={!config.enabled}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`${sector}-address`} className="cursor-pointer">Endereço do cliente</Label>
-              <Switch
-                id={`${sector}-address`}
-                checked={config.layout.show_customer_address}
-                onCheckedChange={(checked) => updateLayout({ show_customer_address: checked })}
-                disabled={!config.enabled}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`${sector}-delivery-type`} className="cursor-pointer">Tipo de entrega</Label>
-              <Switch
-                id={`${sector}-delivery-type`}
-                checked={config.layout.show_delivery_type}
-                onCheckedChange={(checked) => updateLayout({ show_delivery_type: checked })}
-                disabled={!config.enabled}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`${sector}-obs`} className="cursor-pointer">Observações</Label>
-              <Switch
-                id={`${sector}-obs`}
-                checked={config.layout.show_order_observations}
-                onCheckedChange={(checked) => updateLayout({ show_order_observations: checked })}
-                disabled={!config.enabled}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`${sector}-items`} className="cursor-pointer">Itens principais</Label>
-              <Switch
-                id={`${sector}-items`}
-                checked={config.layout.show_main_items}
-                onCheckedChange={(checked) => updateLayout({ show_main_items: checked })}
-                disabled={!config.enabled}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`${sector}-extras`} className="cursor-pointer">Complementos</Label>
-              <Switch
-                id={`${sector}-extras`}
-                checked={config.layout.show_extras}
-                onCheckedChange={(checked) => updateLayout({ show_extras: checked })}
-                disabled={!config.enabled}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`${sector}-payment`} className="cursor-pointer">Forma de pagamento</Label>
-              <Switch
-                id={`${sector}-payment`}
-                checked={config.layout.show_payment_method}
-                onCheckedChange={(checked) => updateLayout({ show_payment_method: checked })}
-                disabled={!config.enabled}
-              />
-            </div>
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* Configurações Avançadas */}
-        <Accordion type="single" collapsible>
-          <AccordionItem value="advanced">
-            <AccordionTrigger>Configurações Avançadas</AccordionTrigger>
-            <AccordionContent>
-              <UnifiedFieldsList
-                config={config.layout}
-                onChange={updateLayout}
-              />
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+        {/* Configuração dos Campos */}
+        <UnifiedFieldsList
+          config={config.layout}
+          onChange={updateLayout}
+        />
 
         <Separator />
 

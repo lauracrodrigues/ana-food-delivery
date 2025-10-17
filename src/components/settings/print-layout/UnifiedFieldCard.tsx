@@ -11,9 +11,11 @@ interface UnifiedFieldCardProps {
   element: UnifiedPrintElement;
   onUpdate: (updated: Partial<UnifiedPrintElement>) => void;
   onRemove: () => void;
+  disableRemove?: boolean;
+  disableVisibilityToggle?: boolean;
 }
 
-export function UnifiedFieldCard({ element, onUpdate, onRemove }: UnifiedFieldCardProps) {
+export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = false, disableVisibilityToggle = false }: UnifiedFieldCardProps) {
   const {
     attributes,
     listeners,
@@ -66,6 +68,7 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove }: UnifiedFieldCa
                 <Switch
                   checked={element.visible}
                   onCheckedChange={(checked) => onUpdate({ visible: checked })}
+                  disabled={disableVisibilityToggle}
                 />
                 {element.visible ? (
                   <Eye className="h-4 w-4 text-green-600" />
@@ -171,14 +174,16 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove }: UnifiedFieldCa
           </div>
 
           {/* Botão remover */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={onRemove}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {!disableRemove && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={onRemove}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </Card>
     </div>

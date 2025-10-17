@@ -1,9 +1,9 @@
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
 import { UnifiedFieldCard } from './UnifiedFieldCard';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ExtendedLayoutConfig, UnifiedPrintElement, PrintTag } from '@/types/printer-layout-extended';
+import { TAG_METADATA } from '@/types/printer-layout-extended';
 
 interface UnifiedFieldsListProps {
   config: ExtendedLayoutConfig;
@@ -97,11 +97,19 @@ export function UnifiedFieldsList({ config, onChange }: UnifiedFieldsListProps) 
     onChange({ ...config, elements: filtered });
   };
 
-  const handleAddField = () => {
+  // Obter todos os PrintTags disponíveis
+  const allTags = Object.keys(TAG_METADATA) as PrintTag[];
+  
+  // Filtrar tags já utilizadas
+  const usedTags = elements.map(el => el.tag);
+  const availableTags = allTags.filter(tag => !usedTags.includes(tag));
+
+  const handleAddField = (tag: PrintTag) => {
+    const metadata = TAG_METADATA[tag];
     const newElement: UnifiedPrintElement = {
-      id: `custom_${Date.now()}`,
-      tag: '{nome_empresa}' as PrintTag,
-      label: 'Novo Campo',
+      id: `field_${Date.now()}`,
+      tag: tag,
+      label: metadata.label,
       visible: true,
       order: elements.length + 1,
       formatting: { bold: false, underline: false, align: 'left' },
@@ -112,19 +120,30 @@ export function UnifiedFieldsList({ config, onChange }: UnifiedFieldsListProps) 
     onChange({ ...config, elements: [...elements, newElement] });
   };
 
+  // Garantir que o campo {itens} sempre esteja presente e visível
+  const hasItemsField = elements.some(el => el.tag === '{itens}');
+  if (!hasItemsField && elements.length > 0) {
+    const itemsMetadata = TAG_METADATA['{itens}'];
+    const itemsElement: UnifiedPrintElement = {
+      id: 'items_field',
+      tag: '{itens}',
+      label: itemsMetadata.label,
+      visible: true,
+      order: elements.length + 1,
+      formatting: { bold: false, underline: false, align: 'left' },
+      fontSize: 'medium',
+      separator_below: { show: false, type: 'line', char: '-' }
+    };
+    onChange({ ...config, elements: [...elements, itemsElement] });
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">Campos do Cupom</h3>
-          <p className="text-sm text-muted-foreground">
-            Arraste para reordenar os campos na impressão
-          </p>
-        </div>
-        <Button onClick={handleAddField} size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          Adicionar Campo
-        </Button>
+      <div>
+        <h3 className="text-lg font-semibold">Campos do Cupom</h3>
+        <p className="text-sm text-muted-foreground">
+          Arraste para reordenar os campos na impressão
+        </p>
       </div>
 
       <DndContext
@@ -143,17 +162,57 @@ export function UnifiedFieldsList({ config, onChange }: UnifiedFieldsListProps) 
                 <UnifiedFieldCard
                   key={element.id}
                   element={element}
-                  onUpdate={(updates) => handleUpdateElement(element.id, updates)}
-                  onRemove={() => handleRemoveElement(element.id)}
+                  onUpdate={(updates) => {
+                    // Garantir que o campo {itens} sempre fique visível
+                    if (element.tag === '{itens}' && updates.visible === false) {
+                      return;
+                    }
+                    handleUpdateElement(element.id, updates);
+                  }}
+                  onRemove={() => {
+                    // Não permitir remover o campo {itens}
+                    if (element.tag === '{itens}') {
+                      return;
+                    }
+                    handleRemoveElement(element.id);
+                  }}
+                  disableRemove={element.tag === '{itens}'}
+                  disableVisibilityToggle={element.tag === '{itens}'}
                 />
               ))}
           </div>
         </SortableContext>
       </DndContext>
 
+      {/* Adicionar novo campo - aparece depois dos campos existentes */}
+      {availableTags.length > 0 && (
+        <div className="pt-4 border-t">
+          <div className="flex items-center gap-3">
+            <Select onValueChange={(value) => handleAddField(value as PrintTag)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Adicionar novo campo..." />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTags.map(tag => {
+                  const metadata = TAG_METADATA[tag];
+                  return (
+                    <SelectItem key={tag} value={tag}>
+                      <span className="flex items-center gap-2">
+                        <span>{metadata.icon}</span>
+                        <span>{metadata.label}</span>
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
       <div className="bg-muted/50 border border-dashed rounded-lg p-4 text-sm text-muted-foreground">
         <p className="font-medium mb-1">ℹ️ Nota:</p>
-        <p>Os itens do pedido são fixos e aparecem após os campos configuráveis acima.</p>
+        <p>O campo "Itens do Pedido" é obrigatório e não pode ser removido ou desabilitado.</p>
       </div>
     </div>
   );
