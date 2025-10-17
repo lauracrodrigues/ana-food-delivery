@@ -77,6 +77,42 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
   const renderElement = (element: PrintElement) => {
     if (!element.visible) return null;
 
+    // Special handling for {itens} tag
+    if (element.tag === '{itens}') {
+      return (
+        <div key={element.id} className="my-2 space-y-2">
+          <div className="font-bold text-sm">ITENS:</div>
+          {mockOrder.items.map((item, idx) => (
+            <div key={idx} className="space-y-0.5">
+              <div className="flex justify-between">
+                <span>
+                  {config.item_quantity_format === '2x' 
+                    ? `${item.quantity}x ${item.name}`
+                    : `Qtd: ${item.quantity} - ${item.name}`
+                  }
+                </span>
+              </div>
+              {config.show_item_extras && item.extras && item.extras.map((extra, i) => (
+                <div key={i} className="text-xs pl-4">
+                  {config.item_extras_prefix}{extra.name}
+                </div>
+              ))}
+              {config.show_item_observations && item.observations && (
+                <div className="text-xs pl-4">
+                  {config.item_observations_prefix}{item.observations}
+                </div>
+              )}
+              {config.item_price_position === 'next_line' ? (
+                <div className="text-xs pl-4">R$ {item.price.toFixed(2)}</div>
+              ) : (
+                <div className="text-xs text-right">R$ {item.price.toFixed(2)}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     const classes = `${getFontSizeClass(element.fontSize)} ${getAlignClass(element.formatting.align)} ${
       element.formatting.bold ? "font-bold" : ""
     } ${element.formatting.underline ? "underline" : ""}`;
@@ -90,7 +126,7 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
         content = `Tel: ${company.phone}`;
         break;
       case '{endereco}':
-        content = company.address;
+        content = company.address || '';
         break;
       case '{numero_pedido}':
         content = `Pedido #${mockOrder.order_number}`;
@@ -114,7 +150,7 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
         content = mockOrder.observations ? `Obs: ${mockOrder.observations}` : '';
         break;
       case '{mensagem_rodape}':
-        content = config.footer_message;
+        content = config.footer_message || '';
         break;
       default:
         content = element.label;
@@ -158,9 +194,12 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
     }
 
     // Nova estrutura unificada
+    const itemsElement = config.elements.find(el => el.tag === '{itens}');
+    const otherElements = config.elements.filter(el => el.tag !== '{itens}');
+    
     return (
       <>
-        {config.elements
+        {otherElements
           .sort((a, b) => a.order - b.order)
           .map((element) => (
             <div key={element.id}>
@@ -168,6 +207,39 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
               {element.separator_below.show && renderSeparator(element.separator_below)}
             </div>
           ))}
+        
+        {/* Render items section */}
+        {itemsElement && (
+          <div key={itemsElement.id}>
+            {renderElement(itemsElement)}
+            {itemsElement.separator_below.show && renderSeparator(itemsElement.separator_below)}
+          </div>
+        )}
+        
+        {/* Render totals */}
+        <div className="my-2 space-y-1">
+          {config.show_subtotal && (
+            <div className="flex justify-between text-sm">
+              <span>Subtotal:</span>
+              <span>R$ {mockOrder.subtotal.toFixed(2)}</span>
+            </div>
+          )}
+          {config.show_delivery_fee && mockOrder.delivery_fee > 0 && (
+            <div className="flex justify-between text-sm">
+              <span>Taxa de Entrega:</span>
+              <span>R$ {mockOrder.delivery_fee.toFixed(2)}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-bold text-base">
+            <span>TOTAL:</span>
+            <span>R$ {mockOrder.total.toFixed(2)}</span>
+          </div>
+          {config.show_payment_method && (
+            <div className="text-sm mt-1">
+              Pagamento: {mockOrder.payment_method}
+            </div>
+          )}
+        </div>
       </>
     );
   };
@@ -220,77 +292,6 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
             >
               {/* Elementos do cupom (nova estrutura unificada ou antiga) */}
               {renderUnifiedElements()}
-
-              {/* Items */}
-              <div className="my-2 space-y-2">
-                <div className="font-bold text-sm">ITENS:</div>
-                {mockOrder.items.map((item, idx) => (
-                  <div key={idx} className="space-y-0.5">
-                    <div className="flex justify-between">
-                      <span>
-                        {config.item_quantity_format === '2x' 
-                          ? `${item.quantity}x ${item.name}`
-                          : `Qtd: ${item.quantity} - ${item.name}`
-                        }
-                      </span>
-                    </div>
-                    {config.show_item_extras && item.extras && item.extras.map((extra, i) => (
-                      <div key={i} className="text-xs pl-4">
-                        {config.item_extras_prefix}{extra.name}
-                      </div>
-                    ))}
-                    {config.show_item_observations && item.observations && (
-                      <div className="text-xs pl-4">
-                        {config.item_observations_prefix}{item.observations}
-                      </div>
-                    )}
-                    {config.item_price_position === 'next_line' ? (
-                      <div className="text-xs pl-4">R$ {item.price.toFixed(2)}</div>
-                    ) : (
-                      <div className="text-xs text-right">R$ {item.price.toFixed(2)}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {renderSeparator(config.body.separator)}
-
-              {/* Totals */}
-              <div className="my-2 space-y-1">
-                {config.show_subtotal && (
-                  <div className="flex justify-between text-sm">
-                    <span>Subtotal:</span>
-                    <span>R$ {mockOrder.subtotal.toFixed(2)}</span>
-                  </div>
-                )}
-                {config.show_delivery_fee && mockOrder.delivery_fee > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span>Taxa de Entrega:</span>
-                    <span>R$ {mockOrder.delivery_fee.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-bold text-base">
-                  <span>TOTAL:</span>
-                  <span>R$ {mockOrder.total.toFixed(2)}</span>
-                </div>
-                {config.show_payment_method && (
-                  <div className="text-sm mt-1">
-                    Pagamento: {mockOrder.payment_method}
-                  </div>
-                )}
-              </div>
-
-              {/* Footer (se usando estrutura antiga) */}
-              {(!config.elements || config.elements.length === 0) && (
-                <>
-                  {renderSeparator(config.footer.separator)}
-                  <div className="space-y-1 mt-2">
-                    {config.footer.elements
-                      .sort((a, b) => a.order - b.order)
-                      .map(renderElement)}
-                  </div>
-                </>
-              )}
 
               {/* Extra feed */}
               {config.extra_feed_lines > 0 && (

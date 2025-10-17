@@ -1,6 +1,9 @@
 // QZ Tray integration for printing
 import type { LayoutConfig, PrintSector, TextFormatting } from '@/types/printer-layout';
+import type { ExtendedLayoutConfig, UnifiedPrintElement } from '@/types/printer-layout-extended';
 import { FONT_SIZE_COMMANDS, LINE_SPACING_VALUES, TEXT_FORMATTING_COMMANDS, PAPER_WIDTHS, DEFAULT_LAYOUT_CONFIG } from '@/types/printer-layout';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 declare global {
   interface Window {
@@ -134,7 +137,7 @@ export class QZTrayPrinter {
   }
 
   // Print order receipt
-  async printOrder(order: any, printerName?: string, isReprint: boolean = false, sector: PrintSector = 'caixa', layoutConfig?: LayoutConfig, copies: number = 1): Promise<void> {
+  async printOrder(order: any, printerName?: string, isReprint: boolean = false, sector: PrintSector = 'caixa', layoutConfig?: LayoutConfig | ExtendedLayoutConfig, copies: number = 1): Promise<void> {
     try {
       await this.connect();
 
@@ -248,8 +251,8 @@ export class QZTrayPrinter {
   }
 
   // Format order data for thermal printer (ESC/POS)
-  private formatOrderReceipt(order: any, isReprint: boolean = false, layoutConfig?: LayoutConfig): string {
-    const config = this.getLayoutConfig(layoutConfig);
+  private formatOrderReceipt(order: any, isReprint: boolean = false, layoutConfig?: LayoutConfig | ExtendedLayoutConfig): string {
+    const config = layoutConfig || this.getLayoutConfig();
     const maxChars = config.chars_per_line;
     
     const ESC = '\x1B';
@@ -259,6 +262,190 @@ export class QZTrayPrinter {
     
     // Comandos de inicialização
     receipt += ESC + '@'; // Reset printer
+    
+    // Check if we have the new unified structure
+    const extendedConfig = config as ExtendedLayoutConfig;
+    if (extendedConfig.elements && extendedConfig.elements.length > 0) {
+      // Use new unified structure
+      const sortedElements = [...extendedConfig.elements].sort((a, b) => a.order - b.order);
+      
+      for (const element of sortedElements) {
+        if (!element.visible) continue;
+        
+        // Get element content
+        const content = this.getElementContent(element, order, extendedConfig);
+        if (!content) continue;
+        
+        // Special handling for {itens} tag
+        if (element.tag === '{itens}') {
+          receipt += this.formatItems(order, extendedConfig, maxChars);
+        } else {
+          // Apply formatting and font size
+          receipt += this.applyFormatting(element.formatting);
+          receipt += this.applyFontSizeFromElement(element.fontSize);
+          receipt += this.formatLine(content, element.formatting.align, maxChars);
+          receipt += GS + '!' + '\x00'; // Reset size
+          receipt += this.resetFormatting();
+        }
+        
+        // Add separator if configured
+        if (element.separator_below.show) {
+          const char = element.separator_below.char || '-';
+          const effectiveWidth = maxChars - (extendedConfig.margin_left || 0) - (extendedConfig.margin_right || 0);
+          receipt += this.formatLine(char.repeat(effectiveWidth), 'left', maxChars);
+        }
+      }
+      
+      // Add totals section (always shown)
+      receipt += this.formatTotals(order, extendedConfig, maxChars);
+      
+    } else {
+      // Fallback to old structure
+      receipt += this.formatOrderReceiptOldStructure(order, config as LayoutConfig, maxChars, ESC, GS);
+    }
+    
+    // Via de reimpressão
+    if (isReprint) {
+      receipt += ESC + 'a' + '\x01'; // Center align
+      receipt += this.formatLine('*** VIA REIMPRESSA ***', 'center', maxChars);
+      receipt += this.addSpacing(config.line_spacing);
+    }
+    
+    // Avançar papel e cortar (se configurado)
+    if (config.cut_paper) {
+      receipt += '\n'.repeat(config.extra_feed_lines);
+      receipt += GS + 'V' + '\x41' + '\x03'; // Corte parcial
+    }
+    
+    return receipt;
+  }
+
+  // Get content for a specific element
+  private getElementContent(element: UnifiedPrintElement, order: any, config: ExtendedLayoutConfig): string {
+    let content = '';
+    switch (element.tag) {
+      case '{nome_empresa}':
+        content = order.company_name || 'EMPRESA';
+        break;
+      case '{telefone}':
+        content = `Tel: ${order.company_phone || ''}`;
+        break;
+      case '{endereco}':
+        content = order.company_address || '';
+        break;
+      case '{numero_pedido}':
+        content = `Pedido #${order.order_number}`;
+        break;
+      case '{data_hora}':
+        content = format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR });
+        break;
+      case '{origem_pedido}':
+        content = `Origem: ${order.source === 'whatsapp' ? 'WhatsApp' : 'Cardapio Digital'}`;
+        break;
+      case '{nome_cliente}':
+        content = `Cliente: ${order.customer_name}`;
+        break;
+      case '{telefone_cliente}':
+        content = `Tel: ${order.customer_phone}`;
+        break;
+      case '{endereco_cliente}':
+        content = order.type === 'delivery' && order.address ? `End: ${order.address}` : '';
+        break;
+      case '{observacoes_pedido}':
+        content = order.observations ? `Obs: ${order.observations}` : '';
+        break;
+      case '{mensagem_rodape}':
+        content = config.footer_message || '';
+        break;
+      default:
+        return '';
+    }
+    
+    return this.sanitizeForThermalPrint(content);
+  }
+
+  // Apply font size from element
+  private applyFontSizeFromElement(fontSize: string): string {
+    const sizeMap: Record<string, string> = {
+      'small': 'normal',
+      'medium': 'normal',
+      'large': 'large',
+      'xlarge': 'xlarge'
+    };
+    return this.applyFontSize(sizeMap[fontSize] || 'normal');
+  }
+
+  // Format items section
+  private formatItems(order: any, config: ExtendedLayoutConfig, maxChars: number): string {
+    const GS = '\x1D';
+    let receipt = '';
+    
+    receipt += this.formatLine('ITENS:', 'left', maxChars);
+    receipt += '\n';
+    
+    order.items.forEach((item: any) => {
+      const itemText = config.item_quantity_format === '2x' 
+        ? `${item.quantity}x ${item.name}`
+        : `Qtd: ${item.quantity} - ${item.name}`;
+      
+      receipt += this.formatLine(this.sanitizeForThermalPrint(itemText), 'left', maxChars);
+      
+      if (config.show_item_extras && item.extras && item.extras.length > 0) {
+        item.extras.forEach((extra: any) => {
+          receipt += this.formatLine(this.sanitizeForThermalPrint(`  ${config.item_extras_prefix}${extra.name}`), 'left', maxChars);
+        });
+      }
+      
+      if (config.show_item_observations && item.observations) {
+        receipt += this.formatLine(this.sanitizeForThermalPrint(`  ${config.item_observations_prefix}${item.observations}`), 'left', maxChars);
+      }
+      
+      if (config.item_price_position === 'next_line') {
+        receipt += this.formatLine(`  R$ ${Number(item.price).toFixed(2)}`, 'left', maxChars);
+      } else {
+        receipt += this.formatLine(`R$ ${Number(item.price).toFixed(2)}`, 'right', maxChars);
+      }
+      
+      receipt += '\n';
+    });
+    
+    return receipt;
+  }
+
+  // Format totals section
+  private formatTotals(order: any, config: ExtendedLayoutConfig, maxChars: number): string {
+    const GS = '\x1D';
+    let receipt = '';
+    
+    const char = '-';
+    receipt += this.formatLine(char.repeat(maxChars), 'left', maxChars);
+    
+    if (config.show_subtotal && order.delivery_fee && order.delivery_fee > 0) {
+      receipt += this.formatLine(`Subtotal: R$ ${(Number(order.total) - Number(order.delivery_fee)).toFixed(2)}`, 'left', maxChars);
+    }
+    
+    if (config.show_delivery_fee && order.delivery_fee && order.delivery_fee > 0) {
+      receipt += this.formatLine(`Taxa de Entrega: R$ ${Number(order.delivery_fee).toFixed(2)}`, 'left', maxChars);
+    }
+    
+    receipt += this.applyFormatting({ bold: true, underline: false, align: 'left' });
+    receipt += this.applyFontSize('large');
+    receipt += this.formatLine(`TOTAL: R$ ${Number(order.total).toFixed(2)}`, 'left', maxChars);
+    receipt += GS + '!' + '\x00'; // Reset size
+    receipt += this.resetFormatting();
+    receipt += '\n';
+    
+    if (config.show_payment_method && order.payment_method) {
+      receipt += this.formatLine(`Pagamento: ${order.payment_method}`, 'left', maxChars);
+      receipt += '\n';
+    }
+    
+    return receipt;
+  }
+
+  // Old structure fallback
+  private formatOrderReceiptOldStructure(order: any, config: LayoutConfig, maxChars: number, ESC: string, GS: string): string {
+    let receipt = '';
     
     // Cabeçalho (se configurado)
     if (config.show_company_logo) {
@@ -281,7 +468,7 @@ export class QZTrayPrinter {
     // Tipo de pedido e origem
     receipt += ESC + 'a' + '\x00'; // Left align
     receipt += this.applyFontSize(config.font_sizes.header);
-    receipt += this.formatLine(this.sanitizeForThermalPrint(`${order.type === 'delivery' ? '🛵 ENTREGA' : '🏪 RETIRADA'}`), 'left', maxChars);
+    receipt += this.formatLine(this.sanitizeForThermalPrint(`${order.type === 'delivery' ? 'ENTREGA' : 'RETIRADA'}`), 'left', maxChars);
     
     if (config.show_order_source && order.source) {
       receipt += this.formatLine(this.sanitizeForThermalPrint(`Origem: ${order.source === 'whatsapp' ? 'WhatsApp' : 'Cardapio Digital'}`), 'left', maxChars);
@@ -394,19 +581,6 @@ export class QZTrayPrinter {
       receipt += GS + '!' + '\x00';
       receipt += this.resetFormatting();
       receipt += this.addSpacing(config.line_spacing);
-    }
-    
-    // Via de reimpressão
-    if (isReprint) {
-      receipt += ESC + 'a' + '\x01'; // Center align
-      receipt += this.formatLine('*** VIA REIMPRESSA ***', 'center', maxChars);
-      receipt += this.addSpacing(config.line_spacing);
-    }
-    
-    // Avançar papel e cortar (se configurado)
-    if (config.cut_paper) {
-      receipt += '\n'.repeat(config.extra_feed_lines);
-      receipt += GS + 'V' + '\x41' + '\x03'; // Corte parcial
     }
     
     return receipt;
