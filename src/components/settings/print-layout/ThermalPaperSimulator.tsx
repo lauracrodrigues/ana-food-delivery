@@ -1,4 +1,9 @@
 import { Card, CardContent } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Button } from '@/components/ui/button';
+import { Printer } from 'lucide-react';
+import { shortenName } from '@/lib/text-formatters';
 import type { ExtendedLayoutConfig, PrintElement } from '@/types/printer-layout-extended';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -10,9 +15,26 @@ interface ThermalPaperSimulatorProps {
     phone?: string;
     address?: string;
   };
+  onTestPrint?: () => void;
+  isTesting?: boolean;
+  cutType?: 'none' | 'partial' | 'full';
+  textMode?: 'condensed' | 'normal' | 'expanded';
+  onCutTypeChange?: (cutType: 'none' | 'partial' | 'full') => void;
+  onTextModeChange?: (textMode: 'condensed' | 'normal' | 'expanded') => void;
+  printerConnected?: boolean;
 }
 
-export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimulatorProps) {
+export function ThermalPaperSimulator({ 
+  config, 
+  companyData,
+  onTestPrint,
+  isTesting = false,
+  cutType = 'partial',
+  textMode = 'normal',
+  onCutTypeChange,
+  onTextModeChange,
+  printerConnected = false
+}: ThermalPaperSimulatorProps) {
   // Mock data
   const mockOrder = {
     order_number: "123",
@@ -138,7 +160,25 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
         content = `Origem: ${mockOrder.source === 'whatsapp' ? 'WhatsApp' : 'Cardapio Digital'}`;
         break;
       case '{nome_cliente}':
-        content = `Cliente: ${mockOrder.customer_name}`;
+        content = `Cliente: ${shortenName(mockOrder.customer_name)}`;
+        break;
+      case '{tipo_entrega}':
+        content = mockOrder.type === 'delivery' ? 'DELIVERY' : 'RETIRADA';
+        break;
+      case '{cnpj}':
+        content = 'CNPJ: 00.000.000/0001-00';
+        break;
+      case '{bairro}':
+        content = 'Bairro: Centro';
+        break;
+      case '{cidade}':
+        content = 'Cidade: São Paulo - SP';
+        break;
+      case '{referencia}':
+        content = 'Ref: Próximo ao mercado';
+        break;
+      case '{totais}':
+        return null; // Handled separately
         break;
       case '{telefone_cliente}':
         content = `Tel: ${mockOrder.customer_phone}`;
@@ -260,9 +300,82 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
 
   // Calculate paper width in pixels (approx)
   const paperWidthPx = config.chars_per_line * 8.5; // ~8.5px per char for monospace
+  
+  // Apply text mode to width
+  const getTextModeClass = () => {
+    switch (textMode) {
+      case 'condensed': return 'scale-x-75';
+      case 'expanded': return 'scale-x-110';
+      default: return '';
+    }
+  };
 
   return (
-    <div className="sticky top-4">
+    <div className="space-y-4">
+      {/* Controles de Impressão */}
+      {(onCutTypeChange || onTextModeChange || onTestPrint) && (
+        <Card>
+          <CardContent className="p-4 space-y-4">
+            {onCutTypeChange && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Tipo de Corte</Label>
+                <RadioGroup value={cutType} onValueChange={onCutTypeChange}>
+                  <div className="flex gap-4">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="partial" id="cut-partial" />
+                      <Label htmlFor="cut-partial" className="cursor-pointer font-normal">Parcial</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="full" id="cut-full" />
+                      <Label htmlFor="cut-full" className="cursor-pointer font-normal">Total</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="none" id="cut-none" />
+                      <Label htmlFor="cut-none" className="cursor-pointer font-normal">Sem corte</Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+            )}
+            
+            {onTextModeChange && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Largura do Texto</Label>
+                <RadioGroup value={textMode} onValueChange={onTextModeChange}>
+                  <div className="flex gap-4">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="condensed" id="text-condensed" />
+                      <Label htmlFor="text-condensed" className="cursor-pointer font-normal">Condensado</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="normal" id="text-normal" />
+                      <Label htmlFor="text-normal" className="cursor-pointer font-normal">Normal</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="expanded" id="text-expanded" />
+                      <Label htmlFor="text-expanded" className="cursor-pointer font-normal">Expandido</Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+            )}
+            
+            {onTestPrint && (
+              <Button 
+                onClick={onTestPrint} 
+                disabled={!printerConnected || isTesting}
+                className="w-full"
+                variant="outline"
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                {isTesting ? 'Imprimindo...' : 'Imprimir Teste'}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    
+      {/* Preview do Cupom */}
       <Card className="bg-muted/30">
         <CardContent className="p-6">
           {/* Ruler */}
@@ -284,7 +397,7 @@ export function ThermalPaperSimulator({ config, companyData }: ThermalPaperSimul
             }}
           >
             <div 
-              className={`font-mono text-xs p-4 ${getLineSpacing()}`}
+              className={`font-mono text-xs p-4 ${getLineSpacing()} ${getTextModeClass()} origin-left`}
               style={{ 
                 wordBreak: 'break-word',
                 overflowWrap: 'break-word'

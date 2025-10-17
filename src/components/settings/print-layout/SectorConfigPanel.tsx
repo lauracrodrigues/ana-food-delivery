@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Save } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { UnifiedFieldsList } from './UnifiedFieldsList';
 import { ThermalPaperSimulator } from './ThermalPaperSimulator';
+import { SECTOR_TEMPLATES } from '@/lib/print-templates';
 import type { SectorConfig, PrintSector } from '@/types/printer-settings';
 import type { ExtendedLayoutConfig } from '@/types/printer-layout-extended';
 
@@ -44,12 +45,50 @@ export function SectorConfigPanel({
   isTesting,
   isSaving
 }: SectorConfigPanelProps) {
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('custom');
+
   const updateLayout = (updates: Partial<ExtendedLayoutConfig>) => {
     onConfigChange({
       ...config,
       layout: { ...config.layout, ...updates }
     });
   };
+
+  const handleTemplateChange = (templateKey: string) => {
+    setSelectedTemplate(templateKey);
+    if (templateKey !== 'custom') {
+      const template = SECTOR_TEMPLATES[templateKey];
+      if (template) {
+        onConfigChange({
+          ...config,
+          layout: {
+            ...config.layout,
+            elements: template.elements
+          }
+        });
+      }
+    }
+  };
+
+  // Auto-save com debounce
+  useEffect(() => {
+    if (!config.enabled) return;
+    
+    setSaveStatus('idle');
+    const timer = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        await onSave();
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch {
+        setSaveStatus('idle');
+      }
+    }, 1500);
+    
+    return () => clearTimeout(timer);
+  }, [config, config.enabled, onSave]);
 
   return (
     <Card>
@@ -59,16 +98,51 @@ export function SectorConfigPanel({
             <span>{sectorIcon}</span>
             {sectorLabel}
           </CardTitle>
-          <Switch
-            checked={config.enabled}
-            onCheckedChange={(enabled) => onConfigChange({ ...config, enabled })}
-          />
+          <div className="flex items-center gap-3">
+            {saveStatus === 'saving' && (
+              <Badge variant="outline" className="animate-pulse">
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                Salvando...
+              </Badge>
+            )}
+            {saveStatus === 'saved' && (
+              <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400">
+                <Check className="h-3 w-3 mr-1" />
+                Salvo
+              </Badge>
+            )}
+            <Switch
+              checked={config.enabled}
+              onCheckedChange={(enabled) => onConfigChange({ ...config, enabled })}
+            />
+          </div>
         </div>
       </CardHeader>
 
       <CardContent className="grid grid-cols-1 lg:grid-cols-[1fr,400px] gap-6">
         {/* Coluna Esquerda: Configurações */}
         <div className="space-y-6">
+        {/* Seleção de Template */}
+        <div className="space-y-2">
+          <Label htmlFor={`template-${sector}`}>Template Base</Label>
+          <Select
+            value={selectedTemplate}
+            onValueChange={handleTemplateChange}
+            disabled={!config.enabled}
+          >
+            <SelectTrigger id={`template-${sector}`}>
+              <SelectValue placeholder="Selecione um template" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="complete">📋 Completo (Caixa)</SelectItem>
+              <SelectItem value="simplified">👨‍🍳 Simplificado (Cozinha/Bar)</SelectItem>
+              <SelectItem value="custom">⚙️ Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Separator />
+
         {/* Seleção de Impressora */}
         <div className="space-y-2">
           <Label htmlFor={`printer-${sector}`}>Impressora</Label>
@@ -128,27 +202,6 @@ export function SectorConfigPanel({
         />
 
         <Separator />
-
-        {/* Ações */}
-        <div className="flex gap-2">
-          <Button
-            onClick={onTestPrint}
-            disabled={!config.enabled || !config.printer_name || isTesting}
-            variant="outline"
-            className="flex-1"
-          >
-            <Printer className="mr-2 h-4 w-4" />
-            {isTesting ? 'Imprimindo...' : 'Imprimir Teste'}
-          </Button>
-          <Button
-            onClick={onSave}
-            disabled={!config.enabled || isSaving}
-            className="flex-1"
-          >
-            <Save className="mr-2 h-4 w-4" />
-            {isSaving ? 'Salvando...' : 'Salvar'}
-          </Button>
-        </div>
         </div>
 
         {/* Coluna Direita: Preview */}
@@ -157,6 +210,13 @@ export function SectorConfigPanel({
             <ThermalPaperSimulator 
               config={config.layout} 
               companyData={companyData}
+              onTestPrint={onTestPrint}
+              isTesting={isTesting}
+              cutType={config.cut_type}
+              textMode={config.text_mode}
+              onCutTypeChange={(cut_type) => onConfigChange({ ...config, cut_type })}
+              onTextModeChange={(text_mode) => onConfigChange({ ...config, text_mode })}
+              printerConnected={!!config.printer_name}
             />
           </div>
         </div>

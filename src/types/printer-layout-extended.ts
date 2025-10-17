@@ -17,12 +17,20 @@ export type PrintTag =
   | '{itens}'
   | '{observacoes_item}'
   | '{observacoes_pedido}'
-  | '{mensagem_rodape}';
+  | '{mensagem_rodape}'
+  | '{tipo_entrega}'
+  | '{cnpj}'
+  | '{bairro}'
+  | '{cidade}'
+  | '{referencia}'
+  | '{totais}';
+
+export type TextAlign = 'left' | 'center' | 'right';
 
 export interface TextFormatting {
   bold: boolean;
   underline: boolean;
-  align: 'left' | 'center' | 'right';
+  align: TextAlign;
 }
 
 export type FontSize = 'small' | 'medium' | 'large' | 'xlarge';
@@ -276,14 +284,20 @@ export const TAG_METADATA: Record<PrintTag, { label: string; icon: string; categ
   '{logo}': { label: 'Logo', icon: '🖼️', category: 'header' },
   '{telefone}': { label: 'Telefone', icon: '📱', category: 'header' },
   '{endereco}': { label: 'Endereço', icon: '📍', category: 'header' },
+  '{cnpj}': { label: 'CNPJ', icon: '🏛️', category: 'header' },
   '{origem_pedido}': { label: 'Origem do Pedido', icon: '📲', category: 'body' },
   '{data_hora}': { label: 'Data e Hora', icon: '🕐', category: 'body' },
+  '{tipo_entrega}': { label: 'Tipo de Entrega', icon: '🚚', category: 'body' },
   '{nome_cliente}': { label: 'Nome do Cliente', icon: '👤', category: 'body' },
   '{telefone_cliente}': { label: 'Telefone do Cliente', icon: '📞', category: 'body' },
   '{endereco_cliente}': { label: 'Endereço do Cliente', icon: '🏠', category: 'body' },
+  '{bairro}': { label: 'Bairro', icon: '🏘️', category: 'body' },
+  '{cidade}': { label: 'Cidade', icon: '🏙️', category: 'body' },
+  '{referencia}': { label: 'Ponto de Referência', icon: '📌', category: 'body' },
   '{numero_pedido}': { label: 'Número do Pedido', icon: '#️⃣', category: 'body' },
   '{itens}': { label: 'Itens do Pedido', icon: '🍽️', category: 'body' },
   '{observacoes_item}': { label: 'Observações do Item', icon: '📝', category: 'body' },
+  '{totais}': { label: 'Totais', icon: '💰', category: 'body' },
   '{observacoes_pedido}': { label: 'Observações do Pedido', icon: '💬', category: 'footer' },
   '{mensagem_rodape}': { label: 'Mensagem de Rodapé', icon: '✉️', category: 'footer' }
 };

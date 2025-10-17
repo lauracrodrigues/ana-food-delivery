@@ -37,24 +37,32 @@ export function PrintLayoutConfig() {
       printer_name: "",
       copies: 1,
       layout: DEFAULT_EXTENDED_CONFIG,
+      cut_type: 'partial',
+      text_mode: 'normal',
     },
     cozinha_1: {
       enabled: false,
       printer_name: "",
       copies: 1,
       layout: DEFAULT_EXTENDED_CONFIG,
+      cut_type: 'partial',
+      text_mode: 'normal',
     },
     cozinha_2: {
       enabled: false,
       printer_name: "",
       copies: 1,
       layout: DEFAULT_EXTENDED_CONFIG,
+      cut_type: 'partial',
+      text_mode: 'normal',
     },
     copa_bar: {
       enabled: false,
       printer_name: "",
       copies: 1,
       layout: DEFAULT_EXTENDED_CONFIG,
+      cut_type: 'partial',
+      text_mode: 'normal',
     },
   });
 
@@ -140,6 +148,8 @@ export function PrintLayoutConfig() {
           printer_name: oldPrinterName || "",
           copies: 1,
           layout: oldLayoutConfig ? { ...DEFAULT_EXTENDED_CONFIG, ...oldLayoutConfig } : DEFAULT_EXTENDED_CONFIG,
+          cut_type: 'partial',
+          text_mode: 'normal',
         };
       }
     });
