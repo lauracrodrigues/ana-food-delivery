@@ -172,7 +172,7 @@ export function InteractiveThermalPreview({
     return modes[textMode as keyof typeof modes] || modes.normal;
   };
 
-  const visibleElements = config.elements
+  const visibleElements = (config?.elements || [])
     .filter((el) => el.visible)
     .sort((a, b) => a.order - b.order);
 
