@@ -270,11 +270,18 @@ export class QZTrayPrinter {
       const sortedElements = [...extendedConfig.elements].sort((a, b) => a.order - b.order);
       
       for (const element of sortedElements) {
-        if (!element.visible) continue;
+        // ⚠️ IMPORTANTE: Respeitar visible - pular elementos não visíveis
+        if (!element.visible) {
+          console.log(`⏭️ Pulando elemento ${element.tag} - não visível`);
+          continue;
+        }
         
         // Get element content
         const content = this.getElementContent(element, order, extendedConfig);
-        if (!content) continue;
+        if (!content) {
+          console.log(`⏭️ Pulando elemento ${element.tag} - sem conteúdo`);
+          continue;
+        }
         
         // Special handling for {itens} tag
         if (element.tag === '{itens}') {
@@ -357,6 +364,24 @@ export class QZTrayPrinter {
       case '{mensagem_rodape}':
         content = config.footer_message || '';
         break;
+      case '{tipo_entrega}':
+        content = order.type === 'delivery' ? 'ENTREGA' : 'RETIRADA';
+        break;
+      case '{cnpj}':
+        content = order.company_cnpj ? `CNPJ: ${order.company_cnpj}` : '';
+        break;
+      case '{bairro}':
+        content = order.company_bairro ? `Bairro: ${order.company_bairro}` : '';
+        break;
+      case '{cidade}':
+        content = order.company_cidade ? `Cidade: ${order.company_cidade}` : '';
+        break;
+      case '{referencia}':
+        content = order.referencia ? `Ref: ${order.referencia}` : '';
+        break;
+      case '{totais}':
+        // Handled separately
+        return '';
       default:
         return '';
     }

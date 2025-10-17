@@ -9,9 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Check, Loader2 } from 'lucide-react';
 import { UnifiedFieldsList } from './UnifiedFieldsList';
-import { ThermalPaperSimulator } from './ThermalPaperSimulator';
+import { InteractiveThermalPreview } from './InteractiveThermalPreview';
 import { SECTOR_TEMPLATES } from '@/lib/print-templates';
-import type { SectorConfig, PrintSector } from '@/types/printer-settings';
+import type { SectorConfig, PrintSector, CutType, TextMode } from '@/types/printer-settings';
 import type { ExtendedLayoutConfig } from '@/types/printer-layout-extended';
 
 interface SectorConfigPanelProps {
@@ -207,16 +207,15 @@ export function SectorConfigPanel({
         {/* Coluna Direita: Preview */}
         <div className="hidden lg:block">
           <div className="sticky top-4">
-            <ThermalPaperSimulator 
+            <InteractiveThermalPreview 
               config={config.layout} 
+              onChange={updateLayout}
               companyData={companyData}
               onTestPrint={onTestPrint}
-              isTesting={isTesting}
               cutType={config.cut_type}
               textMode={config.text_mode}
-              onCutTypeChange={(cut_type) => onConfigChange({ ...config, cut_type })}
-              onTextModeChange={(text_mode) => onConfigChange({ ...config, text_mode })}
-              printerConnected={!!config.printer_name}
+              onCutTypeChange={(value) => onConfigChange({ ...config, cut_type: value as CutType })}
+              onTextModeChange={(value) => onConfigChange({ ...config, text_mode: value as TextMode })}
             />
           </div>
         </div>
