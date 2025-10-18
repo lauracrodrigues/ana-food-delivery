@@ -37,32 +37,32 @@ export function PrintLayoutConfig() {
       printer_name: "",
       copies: 1,
       layout: DEFAULT_EXTENDED_CONFIG,
-      cut_type: 'partial',
-      text_mode: 'normal',
+      cut_type: "partial",
+      text_mode: "normal",
     },
     cozinha_1: {
       enabled: false,
       printer_name: "",
       copies: 1,
       layout: DEFAULT_EXTENDED_CONFIG,
-      cut_type: 'partial',
-      text_mode: 'normal',
+      cut_type: "partial",
+      text_mode: "normal",
     },
     cozinha_2: {
       enabled: false,
       printer_name: "",
       copies: 1,
       layout: DEFAULT_EXTENDED_CONFIG,
-      cut_type: 'partial',
-      text_mode: 'normal',
+      cut_type: "partial",
+      text_mode: "normal",
     },
     copa_bar: {
       enabled: false,
       printer_name: "",
       copies: 1,
       layout: DEFAULT_EXTENDED_CONFIG,
-      cut_type: 'partial',
-      text_mode: 'normal',
+      cut_type: "partial",
+      text_mode: "normal",
     },
   });
 
@@ -148,8 +148,8 @@ export function PrintLayoutConfig() {
           printer_name: oldPrinterName || "",
           copies: 1,
           layout: oldLayoutConfig ? { ...DEFAULT_EXTENDED_CONFIG, ...oldLayoutConfig } : DEFAULT_EXTENDED_CONFIG,
-          cut_type: 'partial',
-          text_mode: 'normal',
+          cut_type: "partial",
+          text_mode: "normal",
         };
       }
     });
@@ -224,7 +224,7 @@ export function PrintLayoutConfig() {
       }
 
       const testOrder = {
-        order_number: "PEDIDO TESTE #001",
+        order_number: "#001",
         customer_name: "Cliente Teste",
         customer_phone: "(99) 99999-9999",
         address: "Rua Exemplo, 123 - Centro, São Paulo",
