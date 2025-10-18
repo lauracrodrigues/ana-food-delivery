@@ -177,9 +177,16 @@ export class QZTrayPrinter {
     return config || DEFAULT_LAYOUT_CONFIG;
   }
 
-  private formatLine(text: string, align: 'left' | 'center' | 'right', maxChars: number): string {
+  private formatLine(text: string, align: 'left' | 'center' | 'right', maxChars: number, useEscPosCommands: boolean = true): string {
     const cleanText = text.substring(0, maxChars);
     
+    // When using ESC/POS commands, don't add manual spacing
+    // The printer will handle alignment via ESC/POS commands
+    if (useEscPosCommands) {
+      return cleanText + '\n';
+    }
+    
+    // Manual spacing (for preview or non-ESC/POS contexts)
     if (align === 'center') {
       const padding = Math.max(0, Math.floor((maxChars - cleanText.length) / 2));
       return ' '.repeat(padding) + cleanText + '\n';
@@ -405,7 +412,7 @@ export class QZTrayPrinter {
     const GS = '\x1D';
     let receipt = '';
     
-    receipt += this.formatLine('ITENS:', 'left', maxChars);
+    receipt += this.formatLine('ITENS:', 'left', maxChars, false);
     receipt += '\n';
     
     order.items.forEach((item: any) => {
@@ -413,22 +420,22 @@ export class QZTrayPrinter {
         ? `${item.quantity}x ${item.name}`
         : `Qtd: ${item.quantity} - ${item.name}`;
       
-      receipt += this.formatLine(this.sanitizeForThermalPrint(itemText), 'left', maxChars);
+      receipt += this.formatLine(this.sanitizeForThermalPrint(itemText), 'left', maxChars, false);
       
       if (config.show_item_extras && item.extras && item.extras.length > 0) {
         item.extras.forEach((extra: any) => {
-          receipt += this.formatLine(this.sanitizeForThermalPrint(`  ${config.item_extras_prefix}${extra.name}`), 'left', maxChars);
+          receipt += this.formatLine(this.sanitizeForThermalPrint(`  ${config.item_extras_prefix}${extra.name}`), 'left', maxChars, false);
         });
       }
       
       if (config.show_item_observations && item.observations) {
-        receipt += this.formatLine(this.sanitizeForThermalPrint(`  ${config.item_observations_prefix}${item.observations}`), 'left', maxChars);
+        receipt += this.formatLine(this.sanitizeForThermalPrint(`  ${config.item_observations_prefix}${item.observations}`), 'left', maxChars, false);
       }
       
       if (config.item_price_position === 'next_line') {
-        receipt += this.formatLine(`  R$ ${Number(item.price).toFixed(2)}`, 'left', maxChars);
+        receipt += this.formatLine(`  R$ ${Number(item.price).toFixed(2)}`, 'left', maxChars, false);
       } else {
-        receipt += this.formatLine(`R$ ${Number(item.price).toFixed(2)}`, 'right', maxChars);
+        receipt += this.formatLine(`R$ ${Number(item.price).toFixed(2)}`, 'right', maxChars, false);
       }
       
       receipt += '\n';
@@ -443,14 +450,14 @@ export class QZTrayPrinter {
     let receipt = '';
     
     const char = '-';
-    receipt += this.formatLine(char.repeat(maxChars), 'left', maxChars);
+    receipt += this.formatLine(char.repeat(maxChars), 'left', maxChars, false);
     
     if (config.show_subtotal && order.delivery_fee && order.delivery_fee > 0) {
-      receipt += this.formatLine(`Subtotal: R$ ${(Number(order.total) - Number(order.delivery_fee)).toFixed(2)}`, 'left', maxChars);
+      receipt += this.formatLine(`Subtotal: R$ ${(Number(order.total) - Number(order.delivery_fee)).toFixed(2)}`, 'left', maxChars, false);
     }
     
     if (config.show_delivery_fee && order.delivery_fee && order.delivery_fee > 0) {
-      receipt += this.formatLine(`Taxa de Entrega: R$ ${Number(order.delivery_fee).toFixed(2)}`, 'left', maxChars);
+      receipt += this.formatLine(`Taxa de Entrega: R$ ${Number(order.delivery_fee).toFixed(2)}`, 'left', maxChars, false);
     }
     
     receipt += this.applyFormatting({ bold: true, underline: false, align: 'left' });
@@ -461,7 +468,7 @@ export class QZTrayPrinter {
     receipt += '\n';
     
     if (config.show_payment_method && order.payment_method) {
-      receipt += this.formatLine(`Pagamento: ${order.payment_method}`, 'left', maxChars);
+      receipt += this.formatLine(`Pagamento: ${order.payment_method}`, 'left', maxChars, false);
       receipt += '\n';
     }
     

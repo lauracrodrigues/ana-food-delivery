@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -47,6 +47,12 @@ export function SectorConfigPanel({
 }: SectorConfigPanelProps) {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('custom');
+  
+  // Use ref to avoid onSave dependency causing infinite loop
+  const onSaveRef = useRef(onSave);
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
 
   const updateLayout = (updates: Partial<ExtendedLayoutConfig>) => {
     onConfigChange({
@@ -79,7 +85,7 @@ export function SectorConfigPanel({
     const timer = setTimeout(async () => {
       setSaveStatus('saving');
       try {
-        await onSave();
+        await onSaveRef.current();
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2000);
       } catch {
@@ -88,7 +94,7 @@ export function SectorConfigPanel({
     }, 1500);
     
     return () => clearTimeout(timer);
-  }, [config, config.enabled, onSave]);
+  }, [config, config.enabled]);
 
   return (
     <Card>

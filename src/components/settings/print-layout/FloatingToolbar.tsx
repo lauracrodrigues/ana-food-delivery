@@ -13,7 +13,7 @@ interface FloatingToolbarProps {
 
 export function FloatingToolbar({ element, onUpdate, onEditContent, isEditable }: FloatingToolbarProps) {
   return (
-    <div className="absolute -top-14 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+    <div className="absolute -left-2 top-0 z-50 -translate-x-full animate-in fade-in slide-in-from-left-2 duration-200">
       <div className="bg-popover border rounded-lg shadow-lg p-2 flex gap-1 items-center">
         {/* Botões de tamanho */}
         <ToggleGroup 
