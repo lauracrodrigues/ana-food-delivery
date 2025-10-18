@@ -272,6 +272,17 @@ export class QZTrayPrinter {
 
   // Format order data for thermal printer (ESC/POS)
   private formatOrderReceipt(order: any, isReprint: boolean = false, layoutConfig?: LayoutConfig | ExtendedLayoutConfig): string {
+    console.log('🔍 formatOrderReceipt - Validando order:', {
+      hasOrder: !!order,
+      orderType: typeof order,
+      orderKeys: order ? Object.keys(order) : []
+    });
+    
+    if (!order) {
+      console.error('❌ ERRO CRÍTICO: Order está undefined em formatOrderReceipt');
+      throw new Error('Dados do pedido não disponíveis para formatação');
+    }
+    
     const config = layoutConfig || this.getLayoutConfig();
     const maxChars = config.chars_per_line;
     
@@ -349,6 +360,11 @@ export class QZTrayPrinter {
 
   // Get content for a specific element
   private getElementContent(element: UnifiedPrintElement, order: any, config: ExtendedLayoutConfig): string {
+    if (!order) {
+      console.error('❌ ERRO: Order undefined em getElementContent para tag:', element.tag);
+      return '';
+    }
+    
     let content = '';
     switch (element.tag) {
       case '{nome_empresa}':
@@ -441,6 +457,16 @@ export class QZTrayPrinter {
 
   // Format items section
   private formatItems(order: any, config: ExtendedLayoutConfig, maxChars: number): string {
+    if (!order) {
+      console.error('❌ ERRO: Order undefined em formatItems');
+      return '';
+    }
+    
+    if (!order.items || !Array.isArray(order.items)) {
+      console.error('❌ ERRO: order.items não é um array válido');
+      return '';
+    }
+    
     const GS = '\x1D';
     let receipt = '';
     
@@ -478,6 +504,11 @@ export class QZTrayPrinter {
 
   // Format totals section
   private formatTotals(order: any, config: ExtendedLayoutConfig, maxChars: number): string {
+    if (!order) {
+      console.error('❌ ERRO: Order undefined em formatTotals');
+      return '';
+    }
+    
     const GS = '\x1D';
     let receipt = '';
     
@@ -509,8 +540,16 @@ export class QZTrayPrinter {
 
   // Old structure fallback
   private formatOrderReceiptOldStructure(order: any, config: LayoutConfig, maxChars: number, ESC: string, GS: string): string {
+    console.log('🔍 formatOrderReceiptOldStructure - Validando order:', {
+      hasOrder: !!order,
+      orderType: typeof order,
+      orderKeys: order ? Object.keys(order) : [],
+      orderNumber: order?.order_number,
+      orderNumberDisplay: order?.order_number_display
+    });
+    
     if (!order) {
-      console.error('❌ Ordem não definida em formatOrderReceiptOldStructure');
+      console.error('❌ ERRO CRÍTICO: Order está undefined em formatOrderReceiptOldStructure');
       throw new Error('Dados do pedido não disponíveis para impressão');
     }
     

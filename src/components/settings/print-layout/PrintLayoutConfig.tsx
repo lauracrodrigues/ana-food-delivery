@@ -230,6 +230,12 @@ export function PrintLayoutConfig() {
         address: "Rua Exemplo, 123 - Centro, São Paulo",
         type: "delivery",
         source: "Cardápio Digital",
+        // Campos da empresa necessários para impressão
+        company_name: "Empresa Teste",
+        company_fantasy_name: "Empresa Teste",
+        company_phone: "(11) 1234-5678",
+        company_address: "Rua da Empresa, 456\nCentro\nSão Paulo - SP\nCEP: 01234-567",
+        company_email: "contato@empresa.com",
         items: [
           {
             name: "Produto Exemplo",

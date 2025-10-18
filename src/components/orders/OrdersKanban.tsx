@@ -296,12 +296,43 @@ export function OrdersKanban() {
           const autoPrintEnabled = printerSettings?.auto_print ?? true;
           
           if (autoPrintEnabled) {
+            // Buscar dados da empresa para enriquecer o pedido
+            const { data: companyDataForPrint } = await supabase
+              .from("companies")
+              .select("*")
+              .eq("id", companyId)
+              .single();
+            
+            // Helper para formatar endereço
+            const formatAddress = (addr: any): string => {
+              if (!addr) return '';
+              if (typeof addr === 'string') return addr;
+              const parts = [
+                addr.street && addr.number ? `${addr.street}, ${addr.number}` : addr.street,
+                addr.complement,
+                addr.neighborhood,
+                addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
+                addr.zip_code ? `CEP: ${addr.zip_code}` : null
+              ].filter(Boolean);
+              return parts.join('\n');
+            };
+            
+            // Enriquecer order com dados da empresa
+            const enrichedOrderForAutoPrint = {
+              ...order,
+              company_name: companyDataForPrint?.name || 'EMPRESA',
+              company_fantasy_name: companyDataForPrint?.fantasy_name || companyDataForPrint?.name,
+              company_phone: companyDataForPrint?.phone || '',
+              company_address: formatAddress(companyDataForPrint?.address),
+              company_email: companyDataForPrint?.email || '',
+            };
+            
             // Buscar config do setor caixa
             const caixaConfig = printerSettings?.sectors?.caixa;
             
             if (caixaConfig?.enabled && caixaConfig?.printer_name) {
               qzPrinter.printOrder(
-                order,
+                enrichedOrderForAutoPrint,
                 caixaConfig.printer_name,
                 false,
                 'caixa',
