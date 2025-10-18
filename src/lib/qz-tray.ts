@@ -139,6 +139,19 @@ export class QZTrayPrinter {
   // Print order receipt
   async printOrder(order: any, printerName?: string, isReprint: boolean = false, sector: PrintSector = 'caixa', layoutConfig?: LayoutConfig | ExtendedLayoutConfig, copies: number = 1): Promise<void> {
     try {
+      if (!order) {
+        console.error('❌ Tentativa de imprimir pedido vazio/undefined');
+        throw new Error('Dados do pedido não disponíveis para impressão');
+      }
+      
+      console.log('📋 Estrutura do pedido recebido:', {
+        hasOrder: !!order,
+        orderNumber: order.order_number,
+        orderNumberDisplay: order.order_number_display,
+        customerName: order.customer_name,
+        itemsCount: order.items?.length
+      });
+      
       await this.connect();
 
       // Use default printer if not specified
@@ -339,7 +352,8 @@ export class QZTrayPrinter {
     let content = '';
     switch (element.tag) {
       case '{nome_empresa}':
-        content = order.company_name || 'EMPRESA';
+        // Priorizar fantasy_name se disponível
+        content = order.company_fantasy_name || order.company_name || 'EMPRESA';
         break;
       case '{telefone}':
         content = `Tel: ${order.company_phone || ''}`;
@@ -351,7 +365,9 @@ export class QZTrayPrinter {
         content = order.company_email ? `Email: ${order.company_email}` : '';
         break;
       case '{numero_pedido}':
-        content = `Pedido #${order.order_number}`;
+        // Usar order_number ou order_number_display
+        const orderNum = order.order_number || order.order_number_display || 'S/N';
+        content = `Pedido #${orderNum}`;
         break;
       case '{data_hora}':
         content = format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR });
@@ -493,6 +509,11 @@ export class QZTrayPrinter {
 
   // Old structure fallback
   private formatOrderReceiptOldStructure(order: any, config: LayoutConfig, maxChars: number, ESC: string, GS: string): string {
+    if (!order) {
+      console.error('❌ Ordem não definida em formatOrderReceiptOldStructure');
+      throw new Error('Dados do pedido não disponíveis para impressão');
+    }
+    
     let receipt = '';
     
     // Cabeçalho (se configurado)
@@ -505,10 +526,11 @@ export class QZTrayPrinter {
       receipt += this.addSpacing(config.line_spacing);
     }
     
-    // Número do pedido
+    // Número do pedido - usar order_number ou order_number_display
+    const orderNumber = order.order_number || order.order_number_display || 'S/N';
     receipt += this.applyFormatting(config.formatting.order_number);
     receipt += this.applyFontSize(config.font_sizes.order_number);
-    receipt += this.formatLine(`#${order.order_number}`, config.formatting.order_number.align, maxChars);
+    receipt += this.formatLine(`#${orderNumber}`, config.formatting.order_number.align, maxChars);
     receipt += GS + '!' + '\x00'; // Reset size
     receipt += this.resetFormatting();
     receipt += this.addSpacing(config.line_spacing);

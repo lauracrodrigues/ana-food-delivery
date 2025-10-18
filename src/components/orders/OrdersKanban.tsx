@@ -99,6 +99,24 @@ export function OrdersKanban() {
     enabled: !!companyId,
   });
 
+  // Load company data for printing
+  const { data: companyData } = useQuery({
+    queryKey: ["company-data", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      
+      const { data, error } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("id", companyId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!companyId,
+  });
+
   // Extract layout configs from store settings
   const printerSettings = storeSettings?.printer_settings as any;
   const layoutConfigs = printerSettings?.layout_configs;
@@ -353,6 +371,32 @@ export function OrdersKanban() {
     
     try {
       console.log('Chamando qzPrinter.printOrder...');
+      
+      // Helper para formatar endereço completo
+      const formatAddress = (addr: any): string => {
+        if (!addr) return '';
+        if (typeof addr === 'string') return addr;
+        
+        const parts = [
+          addr.street && addr.number ? `${addr.street}, ${addr.number}` : addr.street,
+          addr.complement,
+          addr.neighborhood,
+          addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
+          addr.zip_code ? `CEP: ${addr.zip_code}` : null
+        ].filter(Boolean);
+        return parts.join('\n');
+      };
+      
+      // Enriquecer order com dados da empresa
+      const enrichedOrder = {
+        ...order,
+        company_name: companyData?.name || 'EMPRESA',
+        company_fantasy_name: companyData?.fantasy_name || companyData?.name,
+        company_phone: companyData?.phone || '',
+        company_address: formatAddress(companyData?.address),
+        company_email: companyData?.email || '',
+      };
+      
       // Determinar setor baseado no status do pedido
       const sector = order.status === 'pending' ? 'caixa' : 'cozinha_1';
       
@@ -362,7 +406,7 @@ export function OrdersKanban() {
       
       if (sectorConfig?.enabled && sectorConfig?.printer_name) {
         await qzPrinter.printOrder(
-          order,
+          enrichedOrder,
           sectorConfig.printer_name,
           isReprint,
           sector as any,
@@ -372,7 +416,7 @@ export function OrdersKanban() {
       } else {
         // Fallback para estrutura antiga
         const layoutConfig = layoutConfigs?.[sector];
-        await qzPrinter.printOrder(order, undefined, isReprint, sector as any, layoutConfig, 1);
+        await qzPrinter.printOrder(enrichedOrder, undefined, isReprint, sector as any, layoutConfig, 1);
       }
       
       console.log('✅ Impressão concluída com sucesso!');
