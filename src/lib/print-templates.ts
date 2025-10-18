@@ -60,62 +60,79 @@ export const SECTOR_TEMPLATES: Record<string, PrintTemplate> = {
         separatorEnabled: true,
         separatorChar: '='
       }),
-      createUnifiedElement('{numero_pedido}', 'Número do Pedido', 3, {
+      createUnifiedElement('{email_empresa}', 'Email', 3, {
+        fontSize: 'small',
+        align: 'center'
+      }),
+      createUnifiedElement('{numero_pedido}', 'Número do Pedido', 4, {
         fontSize: 'xlarge',
         bold: true,
         align: 'center'
       }),
-      createUnifiedElement('{data_hora}', 'Data e Hora', 4, {
+      createUnifiedElement('{data_hora}', 'Data e Hora', 5, {
         fontSize: 'medium',
         align: 'center'
       }),
-      createUnifiedElement('{tipo_entrega}', 'Tipo de Entrega', 5, {
+      createUnifiedElement('{tipo_entrega}', 'Tipo de Entrega', 6, {
         fontSize: 'medium',
         bold: true,
         align: 'center',
         separatorEnabled: true
       }),
-      createUnifiedElement('{nome_cliente}', 'Nome do Cliente', 6, {
+      createUnifiedElement('{nome_cliente}', 'Nome do Cliente', 7, {
         fontSize: 'medium',
         bold: true,
         align: 'left'
       }),
-      createUnifiedElement('{telefone_cliente}', 'Telefone do Cliente', 7, {
+      createUnifiedElement('{telefone_cliente}', 'Telefone do Cliente', 8, {
         fontSize: 'medium',
         align: 'left'
       }),
-      createUnifiedElement('{endereco_cliente}', 'Endereço do Cliente', 8, {
+      createUnifiedElement('{endereco_cliente}', 'Endereço do Cliente', 9, {
         fontSize: 'small',
         align: 'left'
       }),
-      createUnifiedElement('{bairro}', 'Bairro', 9, {
+      createUnifiedElement('{bairro}', 'Bairro', 10, {
         fontSize: 'small',
         align: 'left'
       }),
-      createUnifiedElement('{referencia}', 'Ponto de Referência', 10, {
+      createUnifiedElement('{referencia}', 'Ponto de Referência', 11, {
         fontSize: 'small',
         align: 'left',
         separatorEnabled: true,
         separatorChar: '='
       }),
-      createUnifiedElement('{itens}', 'Itens do Pedido', 11, {
+      createUnifiedElement('{itens}', 'Itens do Pedido', 12, {
+        fontSize: 'medium',
+        align: 'left',
+        visible: true,
+        separatorEnabled: true
+      }),
+      createUnifiedElement('{observacoes_pedido}', 'Observações', 13, {
         fontSize: 'medium',
         align: 'left',
         separatorEnabled: true
       }),
-      createUnifiedElement('{observacoes_pedido}', 'Observações', 12, {
+      createUnifiedElement('{subtotal}', 'Subtotal', 14, {
         fontSize: 'medium',
-        align: 'left',
-        separatorEnabled: true
+        align: 'left'
       }),
-      createUnifiedElement('{totais}', 'Totais', 13, {
+      createUnifiedElement('{taxa_entrega}', 'Taxa de Entrega', 15, {
         fontSize: 'medium',
+        align: 'left'
+      }),
+      createUnifiedElement('{total}', 'Total', 16, {
+        fontSize: 'large',
         bold: true,
+        align: 'left'
+      }),
+      createUnifiedElement('{forma_pagamento}', 'Forma de Pagamento', 17, {
+        fontSize: 'medium',
         align: 'left',
         separatorEnabled: true,
         separatorChar: '='
       }),
-      createUnifiedElement('{mensagem_rodape}', 'Mensagem de Rodapé', 14, {
+      createUnifiedElement('{mensagem_rodape}', 'Mensagem de Rodapé', 18, {
         fontSize: 'medium',
         align: 'center',
         separatorEnabled: true

@@ -1,6 +1,6 @@
 // Extended types for the new print layout configuration system
 
-import type { LayoutConfig } from './printer-layout';
+import type { LayoutConfig, FontSizeConfig, SectionFormatting, PaperWidth, LineSpacing } from './printer-layout';
 
 // Tags dinâmicas disponíveis
 export type PrintTag =
@@ -8,6 +8,7 @@ export type PrintTag =
   | '{logo}'
   | '{telefone}'
   | '{endereco}'
+  | '{email_empresa}'
   | '{origem_pedido}'
   | '{data_hora}'
   | '{nome_cliente}'
@@ -23,6 +24,10 @@ export type PrintTag =
   | '{bairro}'
   | '{cidade}'
   | '{referencia}'
+  | '{subtotal}'
+  | '{taxa_entrega}'
+  | '{total}'
+  | '{forma_pagamento}'
   | '{totais}';
 
 export type TextAlign = 'left' | 'center' | 'right';
@@ -79,33 +84,214 @@ export interface ExtendedLayoutConfig extends LayoutConfig {
   body: SectionConfig;
   footer: SectionConfig;
   
-  // Items formatting
-  item_quantity_format: '2x' | 'Qtd: 2';
-  item_price_position: 'inline' | 'next_line';
-  show_item_extras: boolean;
-  item_extras_prefix: string;
-  item_observations_prefix: string;
-  show_item_observations: boolean;
+  // Configurações de formatação de itens
+  item_quantity_format?: '2x' | 'Qtd: 2';
+  item_price_position?: 'same_line' | 'next_line';
+  item_extras_prefix?: string;
+  item_observations_prefix?: string;
+  show_item_extras?: boolean;
   
-  // Totals
-  show_subtotal: boolean;
-  show_delivery_fee: boolean;
+  // Configuração de totais
+  show_subtotal?: boolean;
+  show_delivery_fee?: boolean;
   
-  // Novos campos de visibilidade
-  show_datetime: boolean;
-  show_delivery_type: boolean;
-  show_main_items: boolean;
-  show_extras: boolean;
-  
-  // Advanced
-  encoding: 'UTF-8' | 'Windows-1252';
-  margin_left: number;
-  margin_right: number;
+  // Configurações avançadas
+  encoding?: string;
+  margin_left?: number;
+  margin_right?: number;
 }
 
-// Default configuration
+// Configuração padrão expandida
 export const DEFAULT_EXTENDED_CONFIG: ExtendedLayoutConfig = {
-  // Base LayoutConfig fields
+  // Estrutura unificada (nova)
+  elements: [],
+  
+  // Estrutura antiga (mantida para compatibilidade)
+  header: {
+    elements: [
+      {
+        id: 'nome_empresa',
+        tag: '{nome_empresa}',
+        label: 'Nome da Empresa',
+        visible: true,
+        fontSize: 'large',
+        formatting: {
+          bold: true,
+          underline: false,
+          align: 'center'
+        },
+        order: 0
+      },
+      {
+        id: 'telefone',
+        tag: '{telefone}',
+        label: 'Telefone',
+        visible: true,
+        fontSize: 'medium',
+        formatting: {
+          bold: false,
+          underline: false,
+          align: 'center'
+        },
+        order: 1
+      },
+      {
+        id: 'endereco',
+        tag: '{endereco}',
+        label: 'Endereço',
+        visible: true,
+        fontSize: 'small',
+        formatting: {
+          bold: false,
+          underline: false,
+          align: 'center'
+        },
+        order: 2
+      }
+    ],
+    separator: {
+      show: true,
+      type: 'equals',
+      char: '='
+    }
+  },
+  body: {
+    elements: [
+      {
+        id: 'numero_pedido',
+        tag: '{numero_pedido}',
+        label: 'Número do Pedido',
+        visible: true,
+        fontSize: 'xlarge',
+        formatting: {
+          bold: true,
+          underline: false,
+          align: 'center'
+        },
+        order: 0
+      },
+      {
+        id: 'data_hora',
+        tag: '{data_hora}',
+        label: 'Data e Hora',
+        visible: true,
+        fontSize: 'medium',
+        formatting: {
+          bold: false,
+          underline: false,
+          align: 'center'
+        },
+        order: 1
+      },
+      {
+        id: 'tipo_entrega',
+        tag: '{tipo_entrega}',
+        label: 'Tipo de Entrega',
+        visible: true,
+        fontSize: 'medium',
+        formatting: {
+          bold: true,
+          underline: false,
+          align: 'center'
+        },
+        order: 2
+      },
+      {
+        id: 'nome_cliente',
+        tag: '{nome_cliente}',
+        label: 'Nome do Cliente',
+        visible: true,
+        fontSize: 'medium',
+        formatting: {
+          bold: true,
+          underline: false,
+          align: 'left'
+        },
+        order: 3
+      },
+      {
+        id: 'telefone_cliente',
+        tag: '{telefone_cliente}',
+        label: 'Telefone do Cliente',
+        visible: true,
+        fontSize: 'medium',
+        formatting: {
+          bold: false,
+          underline: false,
+          align: 'left'
+        },
+        order: 4
+      },
+      {
+        id: 'endereco_cliente',
+        tag: '{endereco_cliente}',
+        label: 'Endereço do Cliente',
+        visible: true,
+        fontSize: 'small',
+        formatting: {
+          bold: false,
+          underline: false,
+          align: 'left'
+        },
+        order: 5
+      },
+      {
+        id: 'itens',
+        tag: '{itens}',
+        label: 'Itens do Pedido',
+        visible: true,
+        fontSize: 'medium',
+        formatting: {
+          bold: false,
+          underline: false,
+          align: 'left'
+        },
+        order: 6
+      },
+      {
+        id: 'totais',
+        tag: '{totais}',
+        label: 'Totais',
+        visible: true,
+        fontSize: 'medium',
+        formatting: {
+          bold: true,
+          underline: false,
+          align: 'left'
+        },
+        order: 7
+      }
+    ],
+    separator: {
+      show: true,
+      type: 'line',
+      char: '-'
+    }
+  },
+  footer: {
+    elements: [
+      {
+        id: 'mensagem_rodape',
+        tag: '{mensagem_rodape}',
+        label: 'Mensagem de Rodapé',
+        visible: true,
+        fontSize: 'medium',
+        formatting: {
+          bold: false,
+          underline: false,
+          align: 'center'
+        },
+        order: 0
+      }
+    ],
+    separator: {
+      show: true,
+      type: 'line',
+      char: '-'
+    }
+  },
+  
+  // Propriedades herdadas de LayoutConfig
   paper_width: '80mm',
   chars_per_line: 48,
   allow_custom_chars_per_line: false,
@@ -138,141 +324,20 @@ export const DEFAULT_EXTENDED_CONFIG: ExtendedLayoutConfig = {
   footer_message: 'Obrigado pela preferência!',
   line_spacing: 'normal',
   cut_paper: true,
-  extra_feed_lines: 3,
+  extra_feed_lines: 4,
   
-  // Extended fields
-  header: {
-    elements: [
-      {
-        id: 'h1',
-        tag: '{nome_empresa}',
-        label: 'Nome da Empresa',
-        visible: true,
-        formatting: { bold: true, underline: false, align: 'center' },
-        fontSize: 'large',
-        order: 1
-      },
-      {
-        id: 'h2',
-        tag: '{telefone}',
-        label: 'Telefone',
-        visible: true,
-        formatting: { bold: false, underline: false, align: 'center' },
-        fontSize: 'medium',
-        order: 2
-      },
-      {
-        id: 'h3',
-        tag: '{endereco}',
-        label: 'Endereço',
-        visible: true,
-        formatting: { bold: false, underline: false, align: 'center' },
-        fontSize: 'small',
-        order: 3
-      }
-    ],
-    separator: { show: true, type: 'equals', char: '=' }
-  },
-  
-  body: {
-    elements: [
-      {
-        id: 'b1',
-        tag: '{numero_pedido}',
-        label: 'Número do Pedido',
-        visible: true,
-        formatting: { bold: true, underline: false, align: 'left' },
-        fontSize: 'large',
-        order: 1
-      },
-      {
-        id: 'b2',
-        tag: '{data_hora}',
-        label: 'Data e Hora',
-        visible: true,
-        formatting: { bold: false, underline: false, align: 'left' },
-        fontSize: 'small',
-        order: 2
-      },
-      {
-        id: 'b3',
-        tag: '{origem_pedido}',
-        label: 'Origem do Pedido',
-        visible: true,
-        formatting: { bold: false, underline: false, align: 'left' },
-        fontSize: 'small',
-        order: 3
-      },
-      {
-        id: 'b4',
-        tag: '{nome_cliente}',
-        label: 'Nome do Cliente',
-        visible: true,
-        formatting: { bold: true, underline: false, align: 'left' },
-        fontSize: 'medium',
-        order: 4
-      },
-      {
-        id: 'b5',
-        tag: '{telefone_cliente}',
-        label: 'Telefone do Cliente',
-        visible: true,
-        formatting: { bold: false, underline: false, align: 'left' },
-        fontSize: 'small',
-        order: 5
-      },
-      {
-        id: 'b6',
-        tag: '{endereco_cliente}',
-        label: 'Endereço do Cliente',
-        visible: true,
-        formatting: { bold: false, underline: false, align: 'left' },
-        fontSize: 'small',
-        order: 6
-      }
-    ],
-    separator: { show: true, type: 'line', char: '-' }
-  },
-  
-  footer: {
-    elements: [
-      {
-        id: 'f1',
-        tag: '{observacoes_pedido}',
-        label: 'Observações do Pedido',
-        visible: true,
-        formatting: { bold: false, underline: false, align: 'left' },
-        fontSize: 'small',
-        order: 1
-      },
-      {
-        id: 'f2',
-        tag: '{mensagem_rodape}',
-        label: 'Mensagem de Rodapé',
-        visible: true,
-        formatting: { bold: false, underline: false, align: 'center' },
-        fontSize: 'medium',
-        order: 2
-      }
-    ],
-    separator: { show: true, type: 'line', char: '-' }
-  },
-  
+  // Configurações de formatação de itens
   item_quantity_format: '2x',
   item_price_position: 'next_line',
-  show_item_extras: true,
   item_extras_prefix: '+ ',
   item_observations_prefix: 'Obs: ',
+  show_item_extras: true,
   
+  // Configuração de totais
   show_subtotal: true,
   show_delivery_fee: true,
   
-  // Novos campos
-  show_datetime: true,
-  show_delivery_type: true,
-  show_main_items: true,
-  show_extras: true,
-  
+  // Configurações avançadas
   encoding: 'UTF-8',
   margin_left: 0,
   margin_right: 0,
@@ -282,22 +347,27 @@ export const DEFAULT_EXTENDED_CONFIG: ExtendedLayoutConfig = {
 export const TAG_METADATA: Record<PrintTag, { label: string; icon: string; category: 'header' | 'body' | 'footer' }> = {
   '{nome_empresa}': { label: 'Nome da Empresa', icon: '🏢', category: 'header' },
   '{logo}': { label: 'Logo', icon: '🖼️', category: 'header' },
-  '{telefone}': { label: 'Telefone', icon: '📱', category: 'header' },
+  '{telefone}': { label: 'Telefone', icon: '📞', category: 'header' },
   '{endereco}': { label: 'Endereço', icon: '📍', category: 'header' },
+  '{email_empresa}': { label: 'Email da Empresa', icon: '📧', category: 'header' },
   '{cnpj}': { label: 'CNPJ', icon: '🏛️', category: 'header' },
-  '{origem_pedido}': { label: 'Origem do Pedido', icon: '📲', category: 'body' },
-  '{data_hora}': { label: 'Data e Hora', icon: '🕐', category: 'body' },
+  '{numero_pedido}': { label: 'Número do Pedido', icon: '🔢', category: 'body' },
+  '{data_hora}': { label: 'Data e Hora', icon: '📅', category: 'body' },
+  '{origem_pedido}': { label: 'Origem do Pedido', icon: '📱', category: 'body' },
   '{tipo_entrega}': { label: 'Tipo de Entrega', icon: '🚚', category: 'body' },
   '{nome_cliente}': { label: 'Nome do Cliente', icon: '👤', category: 'body' },
   '{telefone_cliente}': { label: 'Telefone do Cliente', icon: '📞', category: 'body' },
   '{endereco_cliente}': { label: 'Endereço do Cliente', icon: '🏠', category: 'body' },
-  '{bairro}': { label: 'Bairro', icon: '🏘️', category: 'body' },
+  '{bairro}': { label: 'Bairro', icon: '🗺️', category: 'body' },
   '{cidade}': { label: 'Cidade', icon: '🏙️', category: 'body' },
   '{referencia}': { label: 'Ponto de Referência', icon: '📌', category: 'body' },
-  '{numero_pedido}': { label: 'Número do Pedido', icon: '#️⃣', category: 'body' },
-  '{itens}': { label: 'Itens do Pedido', icon: '🍽️', category: 'body' },
+  '{itens}': { label: 'Itens do Pedido', icon: '🛒', category: 'body' },
   '{observacoes_item}': { label: 'Observações do Item', icon: '📝', category: 'body' },
-  '{totais}': { label: 'Totais', icon: '💰', category: 'body' },
-  '{observacoes_pedido}': { label: 'Observações do Pedido', icon: '💬', category: 'footer' },
+  '{observacoes_pedido}': { label: 'Observações do Pedido', icon: '💬', category: 'body' },
+  '{subtotal}': { label: 'Subtotal', icon: '💵', category: 'body' },
+  '{taxa_entrega}': { label: 'Taxa de Entrega', icon: '🚚', category: 'body' },
+  '{total}': { label: 'Total', icon: '💰', category: 'body' },
+  '{forma_pagamento}': { label: 'Forma de Pagamento', icon: '💳', category: 'body' },
+  '{totais}': { label: 'Totais (Agrupado)', icon: '💰', category: 'body' },
   '{mensagem_rodape}': { label: 'Mensagem de Rodapé', icon: '✉️', category: 'footer' }
 };

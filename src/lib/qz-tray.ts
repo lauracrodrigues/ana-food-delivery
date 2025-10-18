@@ -347,6 +347,9 @@ export class QZTrayPrinter {
       case '{endereco}':
         content = order.company_address || '';
         break;
+      case '{email_empresa}':
+        content = order.company_email ? `Email: ${order.company_email}` : '';
+        break;
       case '{numero_pedido}':
         content = `Pedido #${order.order_number}`;
         break;
@@ -385,6 +388,19 @@ export class QZTrayPrinter {
         break;
       case '{referencia}':
         content = order.referencia ? `Ref: ${order.referencia}` : '';
+        break;
+      case '{subtotal}':
+        const subtotal = order.total - (order.delivery_fee || 0);
+        content = `Subtotal: R$ ${Number(subtotal).toFixed(2)}`;
+        break;
+      case '{taxa_entrega}':
+        content = order.delivery_fee > 0 ? `Taxa Entrega: R$ ${Number(order.delivery_fee).toFixed(2)}` : '';
+        break;
+      case '{total}':
+        content = `TOTAL: R$ ${Number(order.total).toFixed(2)}`;
+        break;
+      case '{forma_pagamento}':
+        content = `Pagamento: ${this.formatPaymentMethod(order.payment_method)}`;
         break;
       case '{totais}':
         // Handled separately

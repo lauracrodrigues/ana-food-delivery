@@ -32,6 +32,21 @@ export function InteractiveThermalPreview({
 }: InteractiveThermalPreviewProps) {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
 
+  // Helper para formatar endereço completo
+  const formatAddress = (addr: any): string => {
+    if (!addr) return 'Endereço não cadastrado';
+    if (typeof addr === 'string') return addr;
+    
+    const parts = [
+      addr.street && addr.number ? `${addr.street}, ${addr.number}` : addr.street,
+      addr.complement,
+      addr.neighborhood,
+      addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
+      addr.zip_code ? `CEP: ${addr.zip_code}` : null
+    ].filter(Boolean);
+    return parts.join('\n') || 'Endereço não cadastrado';
+  };
+
   // Mock order for preview
   const mockOrder = {
     order_number: '001',
@@ -44,7 +59,7 @@ export function InteractiveThermalPreview({
     items: [
       {
         quantity: 2,
-        name: 'Pizza Margherita',
+        name: 'Pizza Margherita G',
         price: 45.0,
         extras: ['Borda recheada', 'Catupiry extra'],
         observations: 'Sem cebola',
@@ -54,14 +69,21 @@ export function InteractiveThermalPreview({
         name: 'Refrigerante 2L',
         price: 8.0,
       },
+      {
+        quantity: 3,
+        name: 'Pastel de Carne',
+        price: 5.0,
+        extras: ['Com queijo'],
+      },
     ],
     delivery_fee: 5.0,
-    total: 98.0,
+    total: 113.0,
     payment_method: 'Dinheiro',
     observations: 'Entregar na portaria',
-    company_name: companyData?.name || 'EMPRESA',
+    company_name: companyData?.fantasy_name || companyData?.name || 'EMPRESA',
     company_phone: companyData?.phone || '(11) 1234-5678',
-    company_address: companyData?.address || 'Endereço da empresa',
+    company_address: formatAddress(companyData?.address),
+    company_email: companyData?.email || 'contato@empresa.com.br',
   };
 
   // Campos editáveis (textos estáticos vs variáveis)
@@ -89,6 +111,8 @@ export function InteractiveThermalPreview({
         return `Tel: ${mockOrder.company_phone}`;
       case '{endereco}':
         return mockOrder.company_address;
+      case '{email_empresa}':
+        return `Email: ${mockOrder.company_email}`;
       case '{cnpj}':
         return companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` : '';
       case '{numero_pedido}':
@@ -115,6 +139,14 @@ export function InteractiveThermalPreview({
         return '--- ITENS ---';
       case '{observacoes_pedido}':
         return mockOrder.observations ? `Obs: ${mockOrder.observations}` : '';
+      case '{subtotal}':
+        return `Subtotal: R$ ${(mockOrder.total - mockOrder.delivery_fee).toFixed(2)}`;
+      case '{taxa_entrega}':
+        return mockOrder.delivery_fee > 0 ? `Taxa Entrega: R$ ${mockOrder.delivery_fee.toFixed(2)}` : '';
+      case '{total}':
+        return `TOTAL: R$ ${mockOrder.total.toFixed(2)}`;
+      case '{forma_pagamento}':
+        return `Pagamento: ${mockOrder.payment_method}`;
       case '{totais}':
         return '--- TOTAIS ---';
       case '{mensagem_rodape}':
@@ -245,7 +277,7 @@ export function InteractiveThermalPreview({
       {/* Preview interativo */}
       <Card className="bg-muted/30">
         <CardContent className="p-6">
-          <div className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm overflow-hidden" style={{ width: '400px' }}>
+          <div className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm overflow-hidden" style={{ width: '480px' }}>
             <div className={`font-mono p-4 space-y-1 ${getTextModeClass()}`}>
               {visibleElements.map((element) => {
                 const content = getElementContent(element);

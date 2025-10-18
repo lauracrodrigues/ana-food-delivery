@@ -186,7 +186,7 @@ export function BodySection({ config, layoutConfig, onChange, onLayoutChange }: 
             <Label>Posição do Preço</Label>
             <RadioGroup
               value={layoutConfig.item_price_position}
-              onValueChange={(value) => onLayoutChange({ item_price_position: value as 'inline' | 'next_line' })}
+              onValueChange={(value) => onLayoutChange({ item_price_position: value as 'same_line' | 'next_line' })}
               className="mt-2"
             >
               <div className="flex items-center space-x-2">
@@ -194,8 +194,8 @@ export function BodySection({ config, layoutConfig, onChange, onLayoutChange }: 
                 <Label htmlFor="price-next">Linha seguinte</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="inline" id="price-inline" />
-                <Label htmlFor="price-inline">Mesma linha (direita)</Label>
+                <RadioGroupItem value="same_line" id="price-same" />
+                <Label htmlFor="price-same">Mesma linha (direita)</Label>
               </div>
             </RadioGroup>
           </div>

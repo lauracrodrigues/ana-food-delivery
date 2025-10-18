@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { FloatingToolbar } from "./FloatingToolbar";
 import type { UnifiedPrintElement } from "@/types/printer-layout-extended";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ export function EditablePreviewElement({
 }: EditablePreviewElementProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditingContent, setIsEditingContent] = useState(false);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const getFontSizeClass = (size: string) => {
     const sizes = {
@@ -51,11 +52,27 @@ export function EditablePreviewElement({
 
   const isMultiline = content.length > 40 || element.tag === '{mensagem_rodape}';
 
+  const handleMouseLeave = () => {
+    // Delay para permitir que o usuário mova o mouse para a toolbar
+    const timeout = setTimeout(() => {
+      setIsHovered(false);
+    }, 300);
+    hoverTimeoutRef.current = timeout;
+  };
+
+  const handleToolbarMouseEnter = () => {
+    // Cancela o timeout se o mouse entrar na toolbar
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    setIsHovered(true);
+  };
+
   return (
     <div
       className="relative group"
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseLeave={handleMouseLeave}
       onClick={onSelect}
     >
       {/* Elemento renderizado */}
@@ -96,12 +113,14 @@ export function EditablePreviewElement({
 
       {/* Toolbar flutuante no hover */}
       {isHovered && !isEditingContent && (
-        <FloatingToolbar
-          element={element}
-          onUpdate={onUpdate}
-          onEditContent={() => setIsEditingContent(true)}
-          isEditable={isEditable}
-        />
+        <div onMouseEnter={handleToolbarMouseEnter} onMouseLeave={handleMouseLeave}>
+          <FloatingToolbar
+            element={element}
+            onUpdate={onUpdate}
+            onEditContent={() => setIsEditingContent(true)}
+            isEditable={isEditable}
+          />
+        </div>
       )}
     </div>
   );
