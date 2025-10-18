@@ -70,7 +70,7 @@ export function EditablePreviewElement({
 
   return (
     <div
-      className="relative group"
+      className="relative group z-10"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={handleMouseLeave}
       onClick={onSelect}
@@ -113,7 +113,11 @@ export function EditablePreviewElement({
 
       {/* Toolbar flutuante no hover */}
       {isHovered && !isEditingContent && (
-        <div onMouseEnter={handleToolbarMouseEnter} onMouseLeave={handleMouseLeave}>
+        <div 
+          className="relative z-[10000]" 
+          onMouseEnter={handleToolbarMouseEnter} 
+          onMouseLeave={handleMouseLeave}
+        >
           <FloatingToolbar
             element={element}
             onUpdate={onUpdate}

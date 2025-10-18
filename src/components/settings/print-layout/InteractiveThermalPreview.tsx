@@ -210,74 +210,10 @@ export function InteractiveThermalPreview({
 
   return (
     <div className="space-y-4">
-      {/* Controles de impressão */}
-      <Card>
-        <CardContent className="p-4 space-y-4">
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Tipo de Corte</Label>
-            <RadioGroup value={cutType} onValueChange={onCutTypeChange}>
-              <div className="flex gap-4">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="partial" id="cut-partial" />
-                  <Label htmlFor="cut-partial" className="cursor-pointer">
-                    Parcial
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="full" id="cut-full" />
-                  <Label htmlFor="cut-full" className="cursor-pointer">
-                    Total
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="none" id="cut-none" />
-                  <Label htmlFor="cut-none" className="cursor-pointer">
-                    Sem corte
-                  </Label>
-                </div>
-              </div>
-            </RadioGroup>
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Largura do Texto</Label>
-            <RadioGroup value={textMode} onValueChange={onTextModeChange}>
-              <div className="flex gap-4">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="condensed" id="text-condensed" />
-                  <Label htmlFor="text-condensed" className="cursor-pointer">
-                    Condensado
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="normal" id="text-normal" />
-                  <Label htmlFor="text-normal" className="cursor-pointer">
-                    Normal
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="expanded" id="text-expanded" />
-                  <Label htmlFor="text-expanded" className="cursor-pointer">
-                    Expandido
-                  </Label>
-                </div>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {onTestPrint && (
-            <Button onClick={onTestPrint} className="w-full" variant="outline">
-              <Printer className="mr-2 h-4 w-4" />
-              Imprimir Teste
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Preview interativo */}
       <Card className="bg-muted/30">
         <CardContent className="p-6">
-          <div className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm overflow-hidden" style={{ width: '480px' }}>
+          <div className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm overflow-visible" style={{ width: '480px' }}>
             <div className={`font-mono p-4 space-y-1 ${getTextModeClass()}`}>
               {visibleElements.map((element) => {
                 const content = getElementContent(element);

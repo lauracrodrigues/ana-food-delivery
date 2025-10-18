@@ -144,12 +144,15 @@ export class QZTrayPrinter {
         throw new Error('Dados do pedido não disponíveis para impressão');
       }
       
-      console.log('📋 Estrutura do pedido recebido:', {
+      console.log('📋 printOrder - Estrutura do pedido recebido:', {
         hasOrder: !!order,
+        orderType: typeof order,
         orderNumber: order.order_number,
         orderNumberDisplay: order.order_number_display,
         customerName: order.customer_name,
-        itemsCount: order.items?.length
+        companyName: order.company_name,
+        itemsCount: order.items?.length,
+        allKeys: Object.keys(order)
       });
       
       await this.connect();
@@ -334,9 +337,6 @@ export class QZTrayPrinter {
         }
       }
       
-      // Add totals section (always shown)
-      receipt += this.formatTotals(order, extendedConfig, maxChars);
-      
     } else {
       // Fallback to old structure
       receipt += this.formatOrderReceiptOldStructure(order, config as LayoutConfig, maxChars, ESC, GS);
@@ -487,7 +487,7 @@ export class QZTrayPrinter {
       }
       
       if (config.show_item_observations && item.observations) {
-        receipt += this.formatLine(this.sanitizeForThermalPrint(`  ${config.item_observations_prefix}${item.observations}`), 'left', maxChars, false);
+        receipt += this.formatLine(this.sanitizeForThermalPrint(`  ${config.item_observations_prefix || 'Obs: '}${item.observations}`), 'left', maxChars, false);
       }
       
       if (config.item_price_position === 'next_line') {
@@ -509,30 +509,55 @@ export class QZTrayPrinter {
       return '';
     }
     
-    const GS = '\x1D';
     let receipt = '';
     
-    const char = '-';
-    receipt += this.formatLine(char.repeat(maxChars), 'left', maxChars, false);
+    // Buscar elementos de totais que estão visíveis
+    const totalElements = (config.elements || [])
+      .filter(el => el.visible && ['{subtotal}', '{taxa_entrega}', '{total}', '{forma_pagamento}'].includes(el.tag))
+      .sort((a, b) => a.order - b.order);
     
-    if (config.show_subtotal && order.delivery_fee && order.delivery_fee > 0) {
-      receipt += this.formatLine(`Subtotal: R$ ${(Number(order.total) - Number(order.delivery_fee)).toFixed(2)}`, 'left', maxChars, false);
-    }
-    
-    if (config.show_delivery_fee && order.delivery_fee && order.delivery_fee > 0) {
-      receipt += this.formatLine(`Taxa de Entrega: R$ ${Number(order.delivery_fee).toFixed(2)}`, 'left', maxChars, false);
-    }
-    
-    receipt += this.applyFormatting({ bold: true, underline: false, align: 'left' });
-    receipt += this.applyFontSize('large');
-    receipt += this.formatLine(`TOTAL: R$ ${Number(order.total).toFixed(2)}`, 'left', maxChars);
-    receipt += GS + '!' + '\x00'; // Reset size
-    receipt += this.resetFormatting();
-    receipt += '\n';
-    
-    if (config.show_payment_method && order.payment_method) {
-      receipt += this.formatLine(`Pagamento: ${order.payment_method}`, 'left', maxChars, false);
+    if (totalElements.length === 0) {
+      // Fallback para estrutura antiga
+      const GS = '\x1D';
+      const char = '-';
+      receipt += this.formatLine(char.repeat(maxChars), 'left', maxChars, false);
+      
+      if (config.show_subtotal && order.delivery_fee && order.delivery_fee > 0) {
+        receipt += this.formatLine(`Subtotal: R$ ${(Number(order.total) - Number(order.delivery_fee)).toFixed(2)}`, 'left', maxChars, false);
+      }
+      
+      if (config.show_delivery_fee && order.delivery_fee && order.delivery_fee > 0) {
+        receipt += this.formatLine(`Taxa de Entrega: R$ ${Number(order.delivery_fee).toFixed(2)}`, 'left', maxChars, false);
+      }
+      
+      receipt += this.applyFormatting({ bold: true, underline: false, align: 'left' });
+      receipt += this.applyFontSize('large');
+      receipt += this.formatLine(`TOTAL: R$ ${Number(order.total).toFixed(2)}`, 'left', maxChars);
+      receipt += GS + '!' + '\x00'; // Reset size
+      receipt += this.resetFormatting();
       receipt += '\n';
+      
+      if (config.show_payment_method && order.payment_method) {
+        receipt += this.formatLine(`Pagamento: ${this.formatPaymentMethod(order.payment_method)}`, 'left', maxChars, false);
+        receipt += '\n';
+      }
+    } else {
+      // Usar elementos configurados
+      for (const element of totalElements) {
+        const content = this.getElementContent(element, order, config);
+        if (!content) continue;
+        
+        receipt += this.applyFormatting(element.formatting);
+        receipt += this.applyFontSizeFromElement(element.fontSize);
+        receipt += this.formatLine(content, element.formatting.align, maxChars);
+        receipt += '\x1D' + '!' + '\x00'; // Reset size
+        receipt += this.resetFormatting();
+        
+        if (element.separator_below.show) {
+          const char = element.separator_below.char || '-';
+          receipt += this.formatLine(char.repeat(maxChars), 'left', maxChars);
+        }
+      }
     }
     
     return receipt;

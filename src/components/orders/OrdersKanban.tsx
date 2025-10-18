@@ -397,6 +397,12 @@ export function OrdersKanban() {
     console.log('Status atual:', order.status);
     console.log('Reimpressão:', isReprint);
     console.log('QZ Tray disponível?', typeof window !== 'undefined' && typeof (window as any).qz !== 'undefined');
+    console.log('Order completo recebido:', {
+      id: order.id,
+      order_number: order.order_number,
+      customer_name: order.customer_name,
+      items_count: order.items?.length
+    });
     
     setIsPrinting(true);
     
@@ -418,15 +424,23 @@ export function OrdersKanban() {
         return parts.join('\n');
       };
       
-      // Enriquecer order com dados da empresa
+      // CRÍTICO: Enriquecer order com TODOS os dados da empresa necessários
       const enrichedOrder = {
         ...order,
         company_name: companyData?.name || 'EMPRESA',
-        company_fantasy_name: companyData?.fantasy_name || companyData?.name,
+        company_fantasy_name: companyData?.fantasy_name || companyData?.name || 'EMPRESA',
         company_phone: companyData?.phone || '',
         company_address: formatAddress(companyData?.address),
         company_email: companyData?.email || '',
       };
+      
+      console.log('✅ Order enriquecido com dados da empresa:', {
+        hasCompanyName: !!enrichedOrder.company_name,
+        hasCompanyPhone: !!enrichedOrder.company_phone,
+        hasCompanyAddress: !!enrichedOrder.company_address,
+        hasCompanyEmail: !!enrichedOrder.company_email,
+        orderNumber: enrichedOrder.order_number
+      });
       
       // Determinar setor baseado no status do pedido
       const sector = order.status === 'pending' ? 'caixa' : 'cozinha_1';

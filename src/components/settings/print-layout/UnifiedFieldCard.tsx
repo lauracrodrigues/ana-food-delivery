@@ -46,46 +46,46 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
 
   return (
     <div ref={setNodeRef} style={style}>
-      <Card className="p-4 mb-2">
-        <div className="flex items-start gap-3">
+      <Card className="p-2 mb-2">
+        <div className="flex items-start gap-2">
           {/* Drag Handle */}
           <button
             className="cursor-grab active:cursor-grabbing mt-1 text-muted-foreground hover:text-foreground"
             {...attributes}
             {...listeners}
           >
-            <GripVertical className="h-5 w-5" />
+            <GripVertical className="h-4 w-4" />
           </button>
 
           {/* Conteúdo */}
-          <div className="flex-1 space-y-3">
+          <div className="flex-1 space-y-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-sm">{element.order}. {element.label}</span>
-                <code className="text-xs bg-muted px-2 py-1 rounded">{element.tag}</code>
+              <div className="flex items-center gap-1.5">
+                <span className="font-medium text-xs">{element.order}. {element.label}</span>
+                <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{element.tag}</code>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <Switch
                   checked={element.visible}
                   onCheckedChange={(checked) => onUpdate({ visible: checked })}
                   disabled={disableVisibilityToggle}
                 />
                 {element.visible ? (
-                  <Eye className="h-4 w-4 text-green-600" />
+                  <Eye className="h-3 w-3 text-green-600" />
                 ) : (
-                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  <EyeOff className="h-3 w-3 text-muted-foreground" />
                 )}
               </div>
             </div>
 
             {/* Controles de formatação */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1">
               {/* Tamanho da fonte */}
               <Select
                 value={element.fontSize}
                 onValueChange={(value) => onUpdate({ fontSize: value as FontSize })}
               >
-                <SelectTrigger className="h-8">
+                <SelectTrigger className="h-7 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -104,7 +104,7 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                   formatting: { ...element.formatting, align: value as 'left' | 'center' | 'right' }
                 })}
               >
-                <SelectTrigger className="h-8">
+                <SelectTrigger className="h-7 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -121,7 +121,7 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                 <Button
                   variant={element.formatting.bold ? "default" : "outline"}
                   size="sm"
-                  className="h-8 w-full font-bold"
+                  className="h-7 w-full font-bold text-xs p-0"
                   onClick={() => onUpdate({
                     formatting: { ...element.formatting, bold: !element.formatting.bold }
                   })}
@@ -131,7 +131,7 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                 <Button
                   variant={element.formatting.underline ? "default" : "outline"}
                   size="sm"
-                  className="h-8 w-full underline"
+                  className="h-7 w-full underline text-xs p-0"
                   onClick={() => onUpdate({
                     formatting: { ...element.formatting, underline: !element.formatting.underline }
                   })}
@@ -142,7 +142,7 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
             </div>
 
             {/* Separador abaixo */}
-            <div className="flex items-center gap-2 pt-2 border-t">
+            <div className="flex items-center gap-1.5 pt-1 border-t">
               <Switch
                 checked={element.separator_below.show}
                 onCheckedChange={(checked) => onUpdate({
@@ -150,8 +150,8 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                 })}
                 id={`separator-${element.id}`}
               />
-              <label htmlFor={`separator-${element.id}`} className="text-xs text-muted-foreground">
-                Separador abaixo
+              <label htmlFor={`separator-${element.id}`} className="text-[10px] text-muted-foreground">
+                Separador
               </label>
               {element.separator_below.show && (
                 <Select
@@ -160,7 +160,7 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                     separator_below: { ...element.separator_below, char: value }
                   })}
                 >
-                  <SelectTrigger className="h-7 w-20">
+                  <SelectTrigger className="h-6 w-16 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -178,10 +178,10 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
             <Button
               variant="ghost"
               size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7 p-0"
               onClick={onRemove}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-3 w-3" />
             </Button>
           )}
         </div>

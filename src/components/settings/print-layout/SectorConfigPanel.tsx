@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, RefreshCw } from 'lucide-react';
 import { UnifiedFieldsList } from './UnifiedFieldsList';
 import { InteractiveThermalPreview } from './InteractiveThermalPreview';
 import { SECTOR_TEMPLATES } from '@/lib/print-templates';
@@ -28,6 +28,7 @@ interface SectorConfigPanelProps {
   onConfigChange: (config: SectorConfig) => void;
   onTestPrint: () => void;
   onSave: () => void;
+  onRefreshPrinters: () => void;
   isTesting: boolean;
   isSaving: boolean;
 }
@@ -42,6 +43,7 @@ export function SectorConfigPanel({
   onConfigChange,
   onTestPrint,
   onSave,
+  onRefreshPrinters,
   isTesting,
   isSaving
 }: SectorConfigPanelProps) {
@@ -125,103 +127,175 @@ export function SectorConfigPanel({
         </div>
       </CardHeader>
 
-      <CardContent className="grid grid-cols-1 lg:grid-cols-[1fr,400px] gap-6">
-        {/* Coluna Esquerda: Configurações */}
-        <div className="space-y-6">
-        {/* Seleção de Template */}
-        <div className="space-y-2">
-          <Label htmlFor={`template-${sector}`}>Template Base</Label>
-          <Select
-            value={selectedTemplate}
-            onValueChange={handleTemplateChange}
-            disabled={!config.enabled}
-          >
-            <SelectTrigger id={`template-${sector}`}>
-              <SelectValue placeholder="Selecione um template" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="complete">📋 Completo (Caixa)</SelectItem>
-              <SelectItem value="simplified">👨‍🍳 Simplificado (Cozinha/Bar)</SelectItem>
-              <SelectItem value="custom">⚙️ Personalizado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <CardContent className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6">
+        {/* Coluna Esquerda: Configurações com scroll */}
+        <div className="space-y-4 max-h-[calc(100vh-14rem)] overflow-y-auto pr-2 scrollbar-thin">
+          {/* NOVA SEÇÃO: Opções de Impressão */}
+          <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
+            <h3 className="text-sm font-semibold">Opções de Impressão</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Template Base */}
+              <div className="space-y-1.5">
+                <Label htmlFor={`template-${sector}`} className="text-xs">Template Base</Label>
+                <Select
+                  value={selectedTemplate}
+                  onValueChange={handleTemplateChange}
+                  disabled={!config.enabled}
+                >
+                  <SelectTrigger id={`template-${sector}`} className="h-8 text-xs">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="complete">📋 Completo</SelectItem>
+                    <SelectItem value="simplified">👨‍🍳 Simplificado</SelectItem>
+                    <SelectItem value="custom">⚙️ Personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-        <Separator />
-
-        {/* Seleção de Impressora */}
-        <div className="space-y-2">
-          <Label htmlFor={`printer-${sector}`}>Impressora</Label>
-          <Select
-            value={config.printer_name}
-            onValueChange={(printer_name) => onConfigChange({ ...config, printer_name })}
-            disabled={!config.enabled}
-          >
-            <SelectTrigger id={`printer-${sector}`}>
-              <SelectValue placeholder="Selecione uma impressora" />
-            </SelectTrigger>
-            <SelectContent>
-              {availablePrinters.length === 0 ? (
-                <SelectItem value="no-printer-available" disabled>
-                  Nenhuma impressora disponível
-                </SelectItem>
-              ) : (
-                availablePrinters.map((printer) => (
-                  <SelectItem key={printer} value={printer}>
-                    {printer}
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Separator />
-
-        {/* Número de Vias */}
-        <div className="space-y-3">
-          <Label>Número de Vias</Label>
-          <RadioGroup
-            value={String(config.copies)}
-            onValueChange={(value) => onConfigChange({ ...config, copies: parseInt(value) })}
-            disabled={!config.enabled}
-          >
-            <div className="flex gap-4">
-              {[1, 2, 3].map((num) => (
-                <div key={num} className="flex items-center space-x-2">
-                  <RadioGroupItem value={String(num)} id={`${sector}-copies-${num}`} />
-                  <Label htmlFor={`${sector}-copies-${num}`} className="cursor-pointer">
-                    {num} {num === 1 ? 'via' : 'vias'}
-                  </Label>
+              {/* Impressora + Botão Buscar */}
+              <div className="space-y-1.5">
+                <Label htmlFor={`printer-${sector}`} className="text-xs">Impressora</Label>
+                <div className="flex gap-1.5">
+                  <Select
+                    value={config.printer_name}
+                    onValueChange={(printer_name) => onConfigChange({ ...config, printer_name })}
+                    disabled={!config.enabled}
+                  >
+                    <SelectTrigger id={`printer-${sector}`} className="flex-1 h-8 text-xs">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availablePrinters.length === 0 ? (
+                        <SelectItem value="no-printer" disabled>
+                          Nenhuma impressora
+                        </SelectItem>
+                      ) : (
+                        availablePrinters.map((printer) => (
+                          <SelectItem key={printer} value={printer}>
+                            {printer}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  
+                  <Button 
+                    onClick={onRefreshPrinters} 
+                    variant="outline" 
+                    size="icon"
+                    disabled={!config.enabled}
+                    title="Buscar impressoras"
+                    className="h-8 w-8"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-              ))}
+              </div>
+
+              {/* Tipo de Corte */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tipo de Corte</Label>
+                <RadioGroup 
+                  value={config.cut_type} 
+                  onValueChange={(value) => onConfigChange({ ...config, cut_type: value as CutType })}
+                  disabled={!config.enabled}
+                >
+                  <div className="flex gap-2">
+                    <div className="flex items-center space-x-1.5">
+                      <RadioGroupItem value="partial" id={`${sector}-cut-partial`} />
+                      <Label htmlFor={`${sector}-cut-partial`} className="cursor-pointer text-xs">
+                        Parcial
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-1.5">
+                      <RadioGroupItem value="full" id={`${sector}-cut-full`} />
+                      <Label htmlFor={`${sector}-cut-full`} className="cursor-pointer text-xs">
+                        Total
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-1.5">
+                      <RadioGroupItem value="none" id={`${sector}-cut-none`} />
+                      <Label htmlFor={`${sector}-cut-none`} className="cursor-pointer text-xs">
+                        Sem corte
+                      </Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Largura do Texto */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Largura do Texto</Label>
+                <RadioGroup 
+                  value={config.text_mode} 
+                  onValueChange={(value) => onConfigChange({ ...config, text_mode: value as TextMode })}
+                  disabled={!config.enabled}
+                >
+                  <div className="flex gap-2">
+                    <div className="flex items-center space-x-1.5">
+                      <RadioGroupItem value="condensed" id={`${sector}-text-condensed`} />
+                      <Label htmlFor={`${sector}-text-condensed`} className="cursor-pointer text-xs">
+                        Condensado
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-1.5">
+                      <RadioGroupItem value="normal" id={`${sector}-text-normal`} />
+                      <Label htmlFor={`${sector}-text-normal`} className="cursor-pointer text-xs">
+                        Normal
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-1.5">
+                      <RadioGroupItem value="expanded" id={`${sector}-text-expanded`} />
+                      <Label htmlFor={`${sector}-text-expanded`} className="cursor-pointer text-xs">
+                        Expandido
+                      </Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Número de Vias */}
+              <div className="space-y-1.5 md:col-span-2">
+                <Label className="text-xs">Número de Vias</Label>
+                <RadioGroup
+                  value={String(config.copies)}
+                  onValueChange={(value) => onConfigChange({ ...config, copies: parseInt(value) })}
+                  disabled={!config.enabled}
+                >
+                  <div className="flex gap-3">
+                    {[1, 2, 3].map((num) => (
+                      <div key={num} className="flex items-center space-x-1.5">
+                        <RadioGroupItem value={String(num)} id={`${sector}-copies-${num}`} />
+                        <Label htmlFor={`${sector}-copies-${num}`} className="cursor-pointer text-xs">
+                          {num} {num === 1 ? 'via' : 'vias'}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </RadioGroup>
+              </div>
             </div>
-          </RadioGroup>
+          </div>
+
+          <Separator />
+          
+          {/* Configuração dos Campos */}
+          <UnifiedFieldsList
+            config={config.layout}
+            onChange={updateLayout}
+          />
         </div>
 
-        <Separator />
-
-        {/* Configuração dos Campos */}
-        <UnifiedFieldsList
-          config={config.layout}
-          onChange={updateLayout}
-        />
-
-        <Separator />
-        </div>
-
-        {/* Coluna Direita: Preview */}
+        {/* Coluna Direita: Preview sticky */}
         <div className="hidden lg:block">
-          <div className="sticky top-4">
+          <div className="sticky top-4 max-h-[calc(100vh-8rem)]">
             <InteractiveThermalPreview 
               config={config.layout} 
               onChange={updateLayout}
               companyData={companyData}
               onTestPrint={onTestPrint}
-              cutType={config.cut_type}
-              textMode={config.text_mode}
-              onCutTypeChange={(value) => onConfigChange({ ...config, cut_type: value as CutType })}
-              onTextModeChange={(value) => onConfigChange({ ...config, text_mode: value as TextMode })}
             />
           </div>
         </div>

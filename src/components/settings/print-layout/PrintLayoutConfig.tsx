@@ -280,22 +280,6 @@ export function PrintLayoutConfig() {
 
   return (
     <div className="space-y-4">
-      {/* Header Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Configurações de Impressão</CardTitle>
-              <CardDescription>Configure impressoras, layout e número de vias por setor</CardDescription>
-            </div>
-            <Button onClick={() => fetchPrinters(true)} disabled={loadingPrinters} variant="outline" size="sm">
-              <RefreshCw className={`h-4 w-4 mr-2 ${loadingPrinters ? "animate-spin" : ""}`} />
-              {loadingPrinters ? "Buscando..." : "Buscar Impressoras"}
-            </Button>
-          </div>
-        </CardHeader>
-      </Card>
-
       {/* Sectors Accordion */}
       <Accordion type="single" collapsible defaultValue="caixa" className="space-y-2">
         {SECTORS.map((sector) => (
@@ -324,6 +308,7 @@ export function PrintLayoutConfig() {
                 onConfigChange={(config) => handleConfigChange(sector, config)}
                 onTestPrint={() => handleTestPrint(sector)}
                 onSave={() => handleSave(sector)}
+                onRefreshPrinters={() => fetchPrinters(true)}
                 isTesting={testingSector === sector}
                 isSaving={savingSector === sector}
               />
