@@ -50,11 +50,11 @@ export const SECTOR_TEMPLATES: Record<string, PrintTemplate> = {
         bold: true,
         align: 'center'
       }),
-      createUnifiedElement('{telefone}', 'Telefone', 1, {
+      createUnifiedElement('{telefone_empresa}', 'Telefone Empresa', 1, {
         fontSize: 'medium',
         align: 'center'
       }),
-      createUnifiedElement('{endereco}', 'Endereço', 2, {
+      createUnifiedElement('{endereco_empresa}', 'Endereço Empresa', 2, {
         fontSize: 'small',
         align: 'center',
         separatorEnabled: true,
@@ -104,54 +104,49 @@ export const SECTOR_TEMPLATES: Record<string, PrintTemplate> = {
         fontSize: 'small',
         align: 'left'
       }),
-      createUnifiedElement('{bairro}', 'Bairro', 11, {
-        visible: true,
-        fontSize: 'small',
-        align: 'left'
-      }),
-      createUnifiedElement('{referencia}', 'Ponto de Referência', 12, {
+      createUnifiedElement('{referencia}', 'Ponto de Referência', 11, {
         visible: true,
         fontSize: 'small',
         align: 'left',
         separatorEnabled: true,
         separatorChar: '='
       }),
-      createUnifiedElement('{itens}', 'Itens do Pedido', 13, {
+      createUnifiedElement('{itens}', 'Itens do Pedido', 12, {
         visible: true,
         fontSize: 'medium',
         align: 'left',
         separatorEnabled: true
       }),
-      createUnifiedElement('{observacoes_pedido}', 'Observações', 14, {
+      createUnifiedElement('{observacoes_pedido}', 'Observações', 13, {
         visible: true,
         fontSize: 'medium',
         align: 'left',
         separatorEnabled: true
       }),
-      createUnifiedElement('{subtotal}', 'Subtotal', 15, {
+      createUnifiedElement('{subtotal}', 'Subtotal', 14, {
         visible: true,
         fontSize: 'medium',
         align: 'left'
       }),
-      createUnifiedElement('{taxa_entrega}', 'Taxa de Entrega', 16, {
+      createUnifiedElement('{taxa_entrega}', 'Taxa de Entrega', 15, {
         visible: true,
         fontSize: 'medium',
         align: 'left'
       }),
-      createUnifiedElement('{total}', 'Total', 17, {
+      createUnifiedElement('{total}', 'Total', 16, {
         visible: true,
         fontSize: 'large',
         bold: true,
         align: 'left'
       }),
-      createUnifiedElement('{forma_pagamento}', 'Forma de Pagamento', 18, {
+      createUnifiedElement('{forma_pagamento}', 'Forma de Pagamento', 17, {
         visible: true,
         fontSize: 'medium',
         align: 'left',
         separatorEnabled: true,
         separatorChar: '='
       }),
-      createUnifiedElement('{mensagem_rodape}', 'Mensagem de Rodapé', 19, {
+      createUnifiedElement('{mensagem_rodape}', 'Mensagem de Rodapé', 18, {
         visible: true,
         fontSize: 'medium',
         align: 'center',

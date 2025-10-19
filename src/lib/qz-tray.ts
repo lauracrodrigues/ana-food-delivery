@@ -248,7 +248,21 @@ export class QZTrayPrinter {
     return '\n'.repeat(spaceCount * lines);
   }
 
-  // Sanitize text for thermal printer (remove emojis)
+  // Apply text mode (condensed/normal/expanded)
+  private applyTextMode(mode: 'condensed' | 'normal' | 'expanded'): string {
+    const ESC = '\x1B';
+    switch (mode) {
+      case 'condensed':
+        return ESC + '\x21' + '\x01'; // Modo condensado
+      case 'expanded':
+        return ESC + '\x21' + '\x20'; // Modo expandido
+      case 'normal':
+      default:
+        return ESC + '\x21' + '\x00'; // Modo normal
+    }
+  }
+
+  // Sanitize text for thermal printer (remove emojis, MANTÉM acentos)
   private sanitizeForThermalPrint(text: string): string {
     const EMOJI_TO_TEXT: Record<string, string> = {
       '🛵': 'ENTREGA',
@@ -267,9 +281,13 @@ export class QZTrayPrinter {
       sanitized = sanitized.replace(new RegExp(emoji, 'g'), replacement);
     }
     
-    // Remover qualquer emoji restante (Unicode range)
-    sanitized = sanitized.replace(/[\u{1F300}-\u{1F9FF}]/gu, '');
+    // Remover emojis restantes MAS MANTER ACENTOS
+    sanitized = sanitized
+      .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
+      .replace(/[\u{2600}-\u{26FF}]/gu, '')
+      .replace(/[\u{2700}-\u{27BF}]/gu, '');
     
+    // IMPORTANTE: NÃO normalizar NFD para preservar acentos
     return sanitized;
   }
 
@@ -296,6 +314,9 @@ export class QZTrayPrinter {
     
     // Comandos de inicialização
     receipt += ESC + '@'; // Reset printer
+    receipt += ESC + 't' + '\x13'; // Selecionar código de página 1252 (Latin-1) para suportar acentos
+    const extConfig = config as ExtendedLayoutConfig;
+    receipt += this.applyTextMode(extConfig.text_mode || 'normal'); // Aplicar largura do texto
     
     // Check if we have the new unified structure
     const extendedConfig = config as ExtendedLayoutConfig;
@@ -371,10 +392,10 @@ export class QZTrayPrinter {
         // Priorizar fantasy_name se disponível
         content = order.company_fantasy_name || order.company_name || 'EMPRESA';
         break;
-      case '{telefone}':
+      case '{telefone_empresa}':
         content = `Tel: ${order.company_phone || ''}`;
         break;
-      case '{endereco}':
+      case '{endereco_empresa}':
         content = order.company_address || '';
         break;
       case '{email_empresa}':
@@ -412,12 +433,6 @@ export class QZTrayPrinter {
       case '{cnpj}':
         content = order.company_cnpj ? `CNPJ: ${order.company_cnpj}` : '';
         break;
-      case '{bairro}':
-        content = order.company_bairro ? `Bairro: ${order.company_bairro}` : '';
-        break;
-      case '{cidade}':
-        content = order.company_cidade ? `Cidade: ${order.company_cidade}` : '';
-        break;
       case '{referencia}':
         content = order.referencia ? `Ref: ${order.referencia}` : '';
         break;
@@ -441,7 +456,12 @@ export class QZTrayPrinter {
         return '';
     }
     
-    return this.sanitizeForThermalPrint(content);
+    // Aplicar prefix e suffix
+    const prefix = element.prefix || '';
+    const suffix = element.suffix || '';
+    const fullContent = prefix + content + suffix;
+    
+    return this.sanitizeForThermalPrint(fullContent);
   }
 
   // Apply font size from element

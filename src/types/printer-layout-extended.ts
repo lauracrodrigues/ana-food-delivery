@@ -6,8 +6,8 @@ import type { LayoutConfig, FontSizeConfig, SectionFormatting, PaperWidth, LineS
 export type PrintTag =
   | '{nome_empresa}'
   | '{logo}'
-  | '{telefone}'
-  | '{endereco}'
+  | '{telefone_empresa}'    // RENOMEADO de {telefone}
+  | '{endereco_empresa}'     // RENOMEADO de {endereco}
   | '{email_empresa}'
   | '{origem_pedido}'
   | '{data_hora}'
@@ -21,8 +21,7 @@ export type PrintTag =
   | '{mensagem_rodape}'
   | '{tipo_entrega}'
   | '{cnpj}'
-  | '{bairro}'
-  | '{cidade}'
+  // REMOVIDO: '{bairro}' e '{cidade}' (agora fazem parte do endereço)
   | '{referencia}'
   | '{subtotal}'
   | '{taxa_entrega}'
@@ -54,6 +53,8 @@ export interface PrintElement {
 
 // Elemento unificado com separador
 export interface UnifiedPrintElement extends PrintElement {
+  prefix?: string;  // NOVO: Texto antes da variável
+  suffix?: string;  // NOVO: Texto depois da variável
   separator_below: {
     show: boolean;
     type: SeparatorType;
@@ -123,9 +124,9 @@ export const DEFAULT_EXTENDED_CONFIG: ExtendedLayoutConfig = {
         order: 0
       },
       {
-        id: 'telefone',
-        tag: '{telefone}',
-        label: 'Telefone',
+        id: 'telefone_empresa',
+        tag: '{telefone_empresa}',
+        label: 'Telefone Empresa',
         visible: true,
         fontSize: 'medium',
         formatting: {
@@ -136,9 +137,9 @@ export const DEFAULT_EXTENDED_CONFIG: ExtendedLayoutConfig = {
         order: 1
       },
       {
-        id: 'endereco',
-        tag: '{endereco}',
-        label: 'Endereço',
+        id: 'endereco_empresa',
+        tag: '{endereco_empresa}',
+        label: 'Endereço Empresa',
         visible: true,
         fontSize: 'small',
         formatting: {
@@ -345,21 +346,19 @@ export const DEFAULT_EXTENDED_CONFIG: ExtendedLayoutConfig = {
 
 // Tag metadata for UI
 export const TAG_METADATA: Record<PrintTag, { label: string; icon: string; category: 'header' | 'body' | 'footer' }> = {
-  '{nome_empresa}': { label: 'Nome da Empresa', icon: '🏢', category: 'header' },
-  '{logo}': { label: 'Logo', icon: '🖼️', category: 'header' },
-  '{telefone}': { label: 'Telefone', icon: '📞', category: 'header' },
-  '{endereco}': { label: 'Endereço', icon: '📍', category: 'header' },
-  '{email_empresa}': { label: 'Email da Empresa', icon: '📧', category: 'header' },
+  '{nome_empresa}': { label: 'Nome Empresa', icon: '🏢', category: 'header' },
+  '{logo}': { label: 'Logo Empresa', icon: '🖼️', category: 'header' },
+  '{telefone_empresa}': { label: 'Telefone Empresa', icon: '📞', category: 'header' },
+  '{endereco_empresa}': { label: 'Endereço Empresa', icon: '📍', category: 'header' },
+  '{email_empresa}': { label: 'Email Empresa', icon: '📧', category: 'header' },
   '{cnpj}': { label: 'CNPJ', icon: '🏛️', category: 'header' },
   '{numero_pedido}': { label: 'Número do Pedido', icon: '🔢', category: 'body' },
   '{data_hora}': { label: 'Data e Hora', icon: '📅', category: 'body' },
   '{origem_pedido}': { label: 'Origem do Pedido', icon: '📱', category: 'body' },
   '{tipo_entrega}': { label: 'Tipo de Entrega', icon: '🚚', category: 'body' },
-  '{nome_cliente}': { label: 'Nome do Cliente', icon: '👤', category: 'body' },
-  '{telefone_cliente}': { label: 'Telefone do Cliente', icon: '📞', category: 'body' },
-  '{endereco_cliente}': { label: 'Endereço do Cliente', icon: '🏠', category: 'body' },
-  '{bairro}': { label: 'Bairro', icon: '🗺️', category: 'body' },
-  '{cidade}': { label: 'Cidade', icon: '🏙️', category: 'body' },
+  '{nome_cliente}': { label: 'Nome Cliente', icon: '👤', category: 'body' },
+  '{telefone_cliente}': { label: 'Telefone Cliente', icon: '📞', category: 'body' },
+  '{endereco_cliente}': { label: 'Endereço Cliente', icon: '🏠', category: 'body' },
   '{referencia}': { label: 'Ponto de Referência', icon: '📌', category: 'body' },
   '{itens}': { label: 'Itens do Pedido', icon: '🛒', category: 'body' },
   '{observacoes_item}': { label: 'Observações do Item', icon: '📝', category: 'body' },

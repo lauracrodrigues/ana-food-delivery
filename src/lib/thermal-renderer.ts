@@ -132,12 +132,14 @@ export class ThermalRenderer {
 
   /**
    * Limpa caracteres especiais para impressão térmica
+   * MANTÉM acentos, apenas remove emojis
    */
   static sanitizeForThermal(text: string): string {
+    // Apenas remove emojis, MANTÉM acentos para suportar português
     return text
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
-      .replace(/[^\x00-\x7F]/g, '') // Remove caracteres não-ASCII
+      .replace(/[\u{1F300}-\u{1F9FF}]/gu, '') // Remove emojis
+      .replace(/[\u{2600}-\u{26FF}]/gu, '')   // Remove símbolos diversos
+      .replace(/[\u{2700}-\u{27BF}]/gu, '')   // Remove dingbats
       .trim();
   }
 }

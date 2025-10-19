@@ -144,10 +144,10 @@ export function ThermalPaperSimulator({
       case '{nome_empresa}':
         content = company.name;
         break;
-      case '{telefone}':
+      case '{telefone_empresa}':
         content = `Tel: ${company.phone}`;
         break;
-      case '{endereco}':
+      case '{endereco_empresa}':
         content = company.address || '';
         break;
       case '{numero_pedido}':
@@ -167,12 +167,6 @@ export function ThermalPaperSimulator({
         break;
       case '{cnpj}':
         content = 'CNPJ: 00.000.000/0001-00';
-        break;
-      case '{bairro}':
-        content = 'Bairro: Centro';
-        break;
-      case '{cidade}':
-        content = 'Cidade: São Paulo - SP';
         break;
       case '{referencia}':
         content = 'Ref: Próximo ao mercado';

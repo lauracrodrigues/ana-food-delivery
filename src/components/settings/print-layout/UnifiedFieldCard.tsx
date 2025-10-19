@@ -1,10 +1,13 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { GripVertical, Eye, EyeOff, Trash2, Type } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import type { UnifiedPrintElement, FontSize } from '@/types/printer-layout-extended';
 
 interface UnifiedFieldCardProps {
@@ -32,67 +35,66 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
   };
 
   const fontSizeLabels: Record<FontSize, string> = {
-    small: 'Pequeno',
-    medium: 'Médio',
-    large: 'Grande',
-    xlarge: 'Muito Grande'
+    small: 'P',
+    medium: 'M',
+    large: 'G',
+    xlarge: 'GG'
   };
 
   const alignLabels = {
-    left: 'Esquerda',
-    center: 'Centro',
-    right: 'Direita'
+    left: '←',
+    center: '↔',
+    right: '→'
   };
 
   return (
     <div ref={setNodeRef} style={style}>
-      <Card className="p-2 mb-2">
-        <div className="flex items-start gap-2">
+      <Card className="p-1.5 mb-1.5">
+        <div className="flex items-start gap-1.5">
           {/* Drag Handle */}
           <button
-            className="cursor-grab active:cursor-grabbing mt-1 text-muted-foreground hover:text-foreground"
+            className="cursor-grab active:cursor-grabbing mt-0.5 text-muted-foreground hover:text-foreground"
             {...attributes}
             {...listeners}
           >
-            <GripVertical className="h-4 w-4" />
+            <GripVertical className="h-3.5 w-3.5" />
           </button>
 
           {/* Conteúdo */}
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 space-y-1">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <span className="font-medium text-xs">{element.order}. {element.label}</span>
-                <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{element.tag}</code>
+              <div className="flex items-center gap-1">
+                <span className="font-medium text-[10px]">{element.order}. {element.label}</span>
+                <code className="text-[9px] bg-muted px-1 py-0.5 rounded">{element.tag}</code>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1">
                 <Switch
+                  className="scale-75"
                   checked={element.visible}
                   onCheckedChange={(checked) => onUpdate({ visible: checked })}
                   disabled={disableVisibilityToggle}
                 />
                 {element.visible ? (
-                  <Eye className="h-3 w-3 text-green-600" />
+                  <Eye className="h-2.5 w-2.5 text-green-600" />
                 ) : (
-                  <EyeOff className="h-3 w-3 text-muted-foreground" />
+                  <EyeOff className="h-2.5 w-2.5 text-muted-foreground" />
                 )}
               </div>
             </div>
 
             {/* Controles de formatação */}
-            <div className="grid grid-cols-3 gap-1">
-              {/* Tamanho da fonte */}
+            <div className="grid grid-cols-4 gap-1">
+              {/* Tamanho */}
               <Select
                 value={element.fontSize}
                 onValueChange={(value) => onUpdate({ fontSize: value as FontSize })}
               >
-                <SelectTrigger className="h-7 text-xs">
+                <SelectTrigger className="h-6 text-[10px] py-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(fontSizeLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
+                    <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -104,24 +106,22 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                   formatting: { ...element.formatting, align: value as 'left' | 'center' | 'right' }
                 })}
               >
-                <SelectTrigger className="h-7 text-xs">
+                <SelectTrigger className="h-6 text-[10px] py-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(alignLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
+                    <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
 
-              {/* Botões de estilo */}
-              <div className="flex gap-1">
+              {/* Bold/Underline */}
+              <div className="flex gap-0.5">
                 <Button
                   variant={element.formatting.bold ? "default" : "outline"}
                   size="sm"
-                  className="h-7 w-full font-bold text-xs p-0"
+                  className="h-6 w-full font-bold text-[10px] p-0"
                   onClick={() => onUpdate({
                     formatting: { ...element.formatting, bold: !element.formatting.bold }
                   })}
@@ -131,7 +131,7 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                 <Button
                   variant={element.formatting.underline ? "default" : "outline"}
                   size="sm"
-                  className="h-7 w-full underline text-xs p-0"
+                  className="h-6 w-full underline text-[10px] p-0"
                   onClick={() => onUpdate({
                     formatting: { ...element.formatting, underline: !element.formatting.underline }
                   })}
@@ -139,20 +139,50 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                   U
                 </Button>
               </div>
+
+              {/* Prefix/Suffix */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={element.prefix || element.suffix ? "default" : "outline"}
+                    size="sm"
+                    className="h-6 text-[10px] p-0"
+                  >
+                    <Type className="h-3 w-3" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3" side="right">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Texto Antes</Label>
+                    <Input
+                      value={element.prefix || ''}
+                      onChange={(e) => onUpdate({ prefix: e.target.value })}
+                      placeholder="Ex: Tel: "
+                      className="h-7 text-xs"
+                    />
+                    <Label className="text-xs">Texto Depois</Label>
+                    <Input
+                      value={element.suffix || ''}
+                      onChange={(e) => onUpdate({ suffix: e.target.value })}
+                      placeholder="Ex: (WhatsApp)"
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
-            {/* Separador abaixo */}
-            <div className="flex items-center gap-1.5 pt-1 border-t">
+            {/* Separador */}
+            <div className="flex items-center gap-1 pt-0.5 border-t">
               <Switch
+                className="scale-75"
                 checked={element.separator_below.show}
                 onCheckedChange={(checked) => onUpdate({
                   separator_below: { ...element.separator_below, show: checked }
                 })}
-                id={`separator-${element.id}`}
+                id={`sep-${element.id}`}
               />
-              <label htmlFor={`separator-${element.id}`} className="text-[10px] text-muted-foreground">
-                Separador
-              </label>
+              <label htmlFor={`sep-${element.id}`} className="text-[9px] text-muted-foreground">Sep</label>
               {element.separator_below.show && (
                 <Select
                   value={element.separator_below.char}
@@ -160,7 +190,7 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                     separator_below: { ...element.separator_below, char: value }
                   })}
                 >
-                  <SelectTrigger className="h-6 w-16 text-xs">
+                  <SelectTrigger className="h-5 w-12 text-[9px] py-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -178,10 +208,10 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
             <Button
               variant="ghost"
               size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7 p-0"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-6 w-6 p-0"
               onClick={onRemove}
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="h-2.5 w-2.5" />
             </Button>
           )}
         </div>

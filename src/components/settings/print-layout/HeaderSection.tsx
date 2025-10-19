@@ -17,8 +17,8 @@ interface HeaderSectionProps {
 const AVAILABLE_TAGS: PrintTag[] = [
   '{nome_empresa}',
   '{logo}',
-  '{telefone}',
-  '{endereco}'
+  '{telefone_empresa}',
+  '{endereco_empresa}'
 ];
 
 export function HeaderSection({ config, onChange }: HeaderSectionProps) {
