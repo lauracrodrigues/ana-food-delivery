@@ -221,10 +221,10 @@ export function InteractiveThermalPreview({
   return (
     <div className="space-y-4">
       {/* Preview interativo */}
-      <Card className="bg-muted/30 overflow-visible">
+      <Card className="bg-muted/30">
         <CardContent className="p-6">
-          <div className="max-h-[calc(100vh-20rem)] overflow-y-auto scrollbar-thin">
-            <div className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm overflow-visible" style={{ width: '420px' }}>
+          <div className="max-h-[calc(100vh-20rem)] overflow-y-auto overflow-x-visible scrollbar-thin">
+            <div className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm" style={{ width: '420px', position: 'relative', overflow: 'visible' }}>
               <div className={`font-mono p-3 space-y-0.5 origin-left ${getTextModeClass()}`}>
               {visibleElements.map((element) => {
                 const content = getElementContent(element);

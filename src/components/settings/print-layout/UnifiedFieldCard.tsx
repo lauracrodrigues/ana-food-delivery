@@ -25,7 +25,7 @@ export interface UnifiedFieldCardRef {
 }
 
 export const UnifiedFieldCard = forwardRef<UnifiedFieldCardRef, UnifiedFieldCardProps>(
-  ({ element, onUpdate, onRemove, disableRemove = false, disableVisibilityToggle = false, isHighlighted = false }, ref) => {
+  function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = false, disableVisibilityToggle = false, isHighlighted = false }, ref) {
     const cardRef = useRef<HTMLDivElement>(null);
     
     const {
@@ -185,7 +185,7 @@ export const UnifiedFieldCard = forwardRef<UnifiedFieldCardRef, UnifiedFieldCard
                   </Popover>
                 </div>
 
-                {/* Separador - Movido para onde estava o switch */}
+                {/* Separador */}
                 <div className="flex items-center gap-1 pt-0.5 border-t">
                   <span className="text-[8px] text-muted-foreground">Separador:</span>
                   <Select
@@ -229,5 +229,3 @@ export const UnifiedFieldCard = forwardRef<UnifiedFieldCardRef, UnifiedFieldCard
     );
   }
 );
-
-UnifiedFieldCard.displayName = 'UnifiedFieldCard';

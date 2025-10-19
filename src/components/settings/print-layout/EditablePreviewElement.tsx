@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import { createPortal } from "react-dom";
 import { FloatingToolbar } from "./FloatingToolbar";
 import type { UnifiedPrintElement } from "@/types/printer-layout-extended";
 import { Input } from "@/components/ui/input";
@@ -26,8 +25,6 @@ export function EditablePreviewElement({
 }: EditablePreviewElementProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditingContent, setIsEditingContent] = useState(false);
-  const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
-  const elementRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const getFontSizeClass = (size: string) => {
@@ -57,13 +54,6 @@ export function EditablePreviewElement({
 
   const handleMouseEnter = () => {
     setIsHovered(true);
-    if (elementRef.current) {
-      const rect = elementRef.current.getBoundingClientRect();
-      setToolbarPosition({
-        top: rect.top + window.scrollY,
-        left: rect.left + window.scrollX - 8,
-      });
-    }
   };
 
   const handleMouseLeave = () => {
@@ -81,64 +71,55 @@ export function EditablePreviewElement({
   };
 
   return (
-    <>
-      <div
-        ref={elementRef}
-        className="relative group"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        onClick={onSelect}
-      >
-        {/* Elemento renderizado */}
-        {isEditingContent && isEditable ? (
-          isMultiline ? (
-            <Textarea
-              value={content}
-              onChange={(e) => onContentChange?.(e.target.value)}
-              onBlur={handleContentBlur}
-              className="min-h-[60px] font-mono text-xs"
-              autoFocus
-            />
-          ) : (
-            <Input
-              value={content}
-              onChange={(e) => onContentChange?.(e.target.value)}
-              onBlur={handleContentBlur}
-              className="font-mono text-xs"
-              autoFocus
-            />
-          )
+    <div
+      className="relative group"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={onSelect}
+    >
+      {/* Elemento renderizado */}
+      {isEditingContent && isEditable ? (
+        isMultiline ? (
+          <Textarea
+            value={content}
+            onChange={(e) => onContentChange?.(e.target.value)}
+            onBlur={handleContentBlur}
+            className="min-h-[60px] font-mono text-xs"
+            autoFocus
+          />
         ) : (
-          <div
-            className={`
-              ${getFontSizeClass(element.fontSize)}
-              ${getAlignClass(element.formatting.align)}
-              ${element.formatting.bold ? 'font-bold' : ''}
-              ${element.formatting.underline ? 'underline' : ''}
-              ${isSelected ? 'ring-2 ring-primary bg-primary/5' : ''}
-              ${isHovered ? 'bg-muted/50' : ''}
-              cursor-pointer transition-all duration-150 px-2 py-1 rounded font-mono
-              whitespace-pre-wrap break-words
-            `}
-          >
-            {element.prefix && <span className="text-muted-foreground">{element.prefix}</span>}
-            {content || <span className="text-muted-foreground italic">Clique para editar</span>}
-            {element.suffix && <span className="text-muted-foreground">{element.suffix}</span>}
-          </div>
-        )}
-      </div>
+          <Input
+            value={content}
+            onChange={(e) => onContentChange?.(e.target.value)}
+            onBlur={handleContentBlur}
+            className="font-mono text-xs"
+            autoFocus
+          />
+        )
+      ) : (
+        <div
+          className={`
+            ${getFontSizeClass(element.fontSize)}
+            ${getAlignClass(element.formatting.align)}
+            ${element.formatting.bold ? 'font-bold' : ''}
+            ${element.formatting.underline ? 'underline' : ''}
+            ${isSelected ? 'ring-2 ring-primary bg-primary/5' : ''}
+            ${isHovered ? 'bg-muted/50' : ''}
+            cursor-pointer transition-all duration-150 px-2 py-1 rounded font-mono
+            whitespace-pre-wrap break-words
+          `}
+        >
+          {element.prefix && <span className="text-muted-foreground">{element.prefix}</span>}
+          {content || <span className="text-muted-foreground italic">Clique para editar</span>}
+          {element.suffix && <span className="text-muted-foreground">{element.suffix}</span>}
+        </div>
+      )}
 
-      {/* Toolbar flutuante usando portal */}
-      {isHovered && !isEditingContent && createPortal(
+      {/* Toolbar flutuante no hover */}
+      {isHovered && !isEditingContent && (
         <div 
-          style={{
-            position: 'fixed',
-            top: `${toolbarPosition.top}px`,
-            left: `${toolbarPosition.left}px`,
-            transform: 'translateX(-100%)',
-            zIndex: 9999,
-          }}
-          onMouseEnter={handleToolbarMouseEnter}
+          className="absolute left-0 top-0 -translate-x-full -translate-y-1/4 z-[100]" 
+          onMouseEnter={handleToolbarMouseEnter} 
           onMouseLeave={handleMouseLeave}
         >
           <FloatingToolbar
@@ -147,9 +128,8 @@ export function EditablePreviewElement({
             onEditContent={() => setIsEditingContent(true)}
             isEditable={isEditable}
           />
-        </div>,
-        document.body
+        </div>
       )}
-    </>
+    </div>
   );
 }
