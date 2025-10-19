@@ -100,6 +100,11 @@ export interface ExtendedLayoutConfig extends LayoutConfig {
   encoding?: string;
   margin_left?: number;
   margin_right?: number;
+  text_mode?: 'condensed' | 'normal' | 'expanded';
+  
+  // NOVO: Controle de espaçamento
+  line_spacing_multiplier?: number; // 0.5 a 3.0, padrão 1.0
+  item_spacing?: number; // Espaço extra entre itens (0-5 linhas)
 }
 
 // Configuração padrão expandida

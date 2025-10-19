@@ -244,6 +244,7 @@ export function InteractiveThermalPreview({
                   />
                 );
               })}
+              </div>
             </div>
           </div>
 
