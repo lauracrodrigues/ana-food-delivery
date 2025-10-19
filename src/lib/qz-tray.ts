@@ -4,6 +4,7 @@ import type { ExtendedLayoutConfig, UnifiedPrintElement } from '@/types/printer-
 import { FONT_SIZE_COMMANDS, LINE_SPACING_VALUES, TEXT_FORMATTING_COMMANDS, PAPER_WIDTHS, DEFAULT_LAYOUT_CONFIG } from '@/types/printer-layout';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatCurrency, formatCurrencyValue } from './currency-formatter';
 
 declare global {
   interface Window {
@@ -438,20 +439,17 @@ export class QZTrayPrinter {
         break;
       case '{subtotal}':
         const subtotal = order.total - (order.delivery_fee || 0);
-        content = `Subtotal: R$ ${Number(subtotal).toFixed(2)}`;
+        content = `Subtotal: ${formatCurrency(subtotal)}`;
         break;
       case '{taxa_entrega}':
-        content = order.delivery_fee > 0 ? `Taxa Entrega: R$ ${Number(order.delivery_fee).toFixed(2)}` : '';
+        content = order.delivery_fee > 0 ? `Taxa Entrega: ${formatCurrency(order.delivery_fee)}` : '';
         break;
       case '{total}':
-        content = `TOTAL: R$ ${Number(order.total).toFixed(2)}`;
+        content = `TOTAL: ${formatCurrency(order.total)}`;
         break;
       case '{forma_pagamento}':
         content = `Pagamento: ${this.formatPaymentMethod(order.payment_method)}`;
         break;
-      case '{totais}':
-        // Handled separately
-        return '';
       default:
         return '';
     }
@@ -511,9 +509,9 @@ export class QZTrayPrinter {
       }
       
       if (config.item_price_position === 'next_line') {
-        receipt += this.formatLine(`  R$ ${Number(item.price).toFixed(2)}`, 'left', maxChars, false);
+        receipt += this.formatLine(`  ${formatCurrency(item.price * item.quantity)}`, 'left', maxChars, false);
       } else {
-        receipt += this.formatLine(`R$ ${Number(item.price).toFixed(2)}`, 'right', maxChars, false);
+        receipt += this.formatLine(`${formatCurrency(item.price * item.quantity)}`, 'right', maxChars, false);
       }
       
       receipt += '\n';
@@ -543,16 +541,16 @@ export class QZTrayPrinter {
       receipt += this.formatLine(char.repeat(maxChars), 'left', maxChars, false);
       
       if (config.show_subtotal && order.delivery_fee && order.delivery_fee > 0) {
-        receipt += this.formatLine(`Subtotal: R$ ${(Number(order.total) - Number(order.delivery_fee)).toFixed(2)}`, 'left', maxChars, false);
+        receipt += this.formatLine(`Subtotal: ${formatCurrency(Number(order.total) - Number(order.delivery_fee))}`, 'left', maxChars, false);
       }
       
       if (config.show_delivery_fee && order.delivery_fee && order.delivery_fee > 0) {
-        receipt += this.formatLine(`Taxa de Entrega: R$ ${Number(order.delivery_fee).toFixed(2)}`, 'left', maxChars, false);
+        receipt += this.formatLine(`Taxa de Entrega: ${formatCurrency(order.delivery_fee)}`, 'left', maxChars, false);
       }
       
       receipt += this.applyFormatting({ bold: true, underline: false, align: 'left' });
       receipt += this.applyFontSize('large');
-      receipt += this.formatLine(`TOTAL: R$ ${Number(order.total).toFixed(2)}`, 'left', maxChars);
+      receipt += this.formatLine(`TOTAL: ${formatCurrency(order.total)}`, 'left', maxChars);
       receipt += GS + '!' + '\x00'; // Reset size
       receipt += this.resetFormatting();
       receipt += '\n';

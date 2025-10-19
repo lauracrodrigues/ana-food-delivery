@@ -171,9 +171,6 @@ export function ThermalPaperSimulator({
       case '{referencia}':
         content = 'Ref: Próximo ao mercado';
         break;
-      case '{totais}':
-        return null; // Handled separately
-        break;
       case '{telefone_cliente}':
         content = `Tel: ${mockOrder.customer_phone}`;
         break;

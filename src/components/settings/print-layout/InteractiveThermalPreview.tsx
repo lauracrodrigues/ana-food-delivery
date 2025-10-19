@@ -8,6 +8,7 @@ import { EditablePreviewElement } from "./EditablePreviewElement";
 import type { ExtendedLayoutConfig } from "@/types/printer-layout-extended";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatCurrency, formatCurrencyValue } from "@/lib/currency-formatter";
 
 interface InteractiveThermalPreviewProps {
   config: ExtendedLayoutConfig;
@@ -18,6 +19,7 @@ interface InteractiveThermalPreviewProps {
   textMode?: string;
   onCutTypeChange?: (type: string) => void;
   onTextModeChange?: (mode: string) => void;
+  onFieldFocus?: (elementId: string) => void;
 }
 
 export function InteractiveThermalPreview({
@@ -29,6 +31,7 @@ export function InteractiveThermalPreview({
   textMode = 'normal',
   onCutTypeChange,
   onTextModeChange,
+  onFieldFocus,
 }: InteractiveThermalPreviewProps) {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
 
@@ -107,9 +110,9 @@ export function InteractiveThermalPreview({
     switch (element.tag) {
       case '{nome_empresa}':
         return mockOrder.company_name;
-      case '{telefone}':
-        return `Tel: ${mockOrder.company_phone}`;
-      case '{endereco}':
+      case '{telefone_empresa}':
+        return mockOrder.company_phone;
+      case '{endereco_empresa}':
         return mockOrder.company_address;
       case '{email_empresa}':
         return `Email: ${mockOrder.company_email}`;
@@ -124,31 +127,26 @@ export function InteractiveThermalPreview({
       case '{tipo_entrega}':
         return mockOrder.type === 'delivery' ? '🛵 ENTREGA' : '🏪 RETIRADA';
       case '{nome_cliente}':
-        return `Cliente: ${mockOrder.customer_name}`;
+        return mockOrder.customer_name;
       case '{telefone_cliente}':
-        return `Tel: ${mockOrder.customer_phone}`;
+        return mockOrder.customer_phone;
       case '{endereco_cliente}':
-        return mockOrder.type === 'delivery' ? `End: ${mockOrder.address}` : '';
-      case '{bairro}':
-        return companyData?.bairro ? `Bairro: ${companyData.bairro}` : '';
-      case '{cidade}':
-        return companyData?.cidade ? `Cidade: ${companyData.cidade}` : '';
+        return mockOrder.type === 'delivery' ? mockOrder.address : '';
       case '{referencia}':
         return companyData?.referencia ? `Ref: ${companyData.referencia}` : '';
       case '{itens}':
         return '--- ITENS ---';
       case '{observacoes_pedido}':
-        return mockOrder.observations ? `Obs: ${mockOrder.observations}` : '';
+        return mockOrder.observations || '';
       case '{subtotal}':
-        return `Subtotal: R$ ${(mockOrder.total - mockOrder.delivery_fee).toFixed(2)}`;
+        const subtotal = mockOrder.total - mockOrder.delivery_fee;
+        return `Subtotal: ${formatCurrency(subtotal)}`;
       case '{taxa_entrega}':
-        return mockOrder.delivery_fee > 0 ? `Taxa Entrega: R$ ${mockOrder.delivery_fee.toFixed(2)}` : '';
+        return mockOrder.delivery_fee > 0 ? `Taxa Entrega: ${formatCurrency(mockOrder.delivery_fee)}` : '';
       case '{total}':
-        return `TOTAL: R$ ${mockOrder.total.toFixed(2)}`;
+        return `TOTAL: ${formatCurrency(mockOrder.total)}`;
       case '{forma_pagamento}':
-        return `Pagamento: ${mockOrder.payment_method}`;
-      case '{totais}':
-        return '--- TOTAIS ---';
+        return mockOrder.payment_method;
       case '{mensagem_rodape}':
         return config.footer_message || 'Obrigado pela preferência!';
       default:
@@ -159,19 +157,24 @@ export function InteractiveThermalPreview({
   const renderItemsSection = () => {
     return (
       <div className="space-y-1">
-        <div className="font-bold text-xs">ITENS:</div>
+        <div className="font-bold text-xs border-b border-foreground/20 pb-0.5">ITENS:</div>
         {mockOrder.items.map((item, idx) => (
-          <div key={idx} className="text-[10px] space-y-0.5">
-            <div>{`${item.quantity}x ${item.name}`}</div>
+          <div key={idx} className="text-[10px]">
+            {/* Item name and price on same line with proper spacing */}
+            <div className="flex justify-between items-start">
+              <span className="flex-1">{`${item.quantity}x ${item.name}`}</span>
+              <span className="font-mono tabular-nums ml-2">{formatCurrency(item.price * item.quantity)}</span>
+            </div>
+            {/* Extras */}
             {item.extras?.map((extra, i) => (
-              <div key={i} className="pl-2 text-muted-foreground">
+              <div key={i} className="pl-3 text-muted-foreground">
                 + {extra}
               </div>
             ))}
+            {/* Observations */}
             {item.observations && (
-              <div className="pl-2 text-muted-foreground italic">Obs: {item.observations}</div>
+              <div className="pl-3 text-muted-foreground italic">Obs: {item.observations}</div>
             )}
-            <div className="text-right">R$ {item.price.toFixed(2)}</div>
           </div>
         ))}
       </div>
@@ -179,17 +182,24 @@ export function InteractiveThermalPreview({
   };
 
   const renderTotalsSection = () => {
+    const subtotal = mockOrder.total - mockOrder.delivery_fee;
     return (
-      <div className="space-y-0.5 text-xs">
-        <div className="border-t border-foreground/20 pt-1">
-          {mockOrder.delivery_fee > 0 && (
-            <>
-              <div>Subtotal: R$ {(mockOrder.total - mockOrder.delivery_fee).toFixed(2)}</div>
-              <div>Taxa de Entrega: R$ {mockOrder.delivery_fee.toFixed(2)}</div>
-            </>
-          )}
-          <div className="font-bold text-sm">TOTAL: R$ {mockOrder.total.toFixed(2)}</div>
-          <div>Pagamento: {mockOrder.payment_method}</div>
+      <div className="space-y-0.5 text-xs border-t border-foreground/20 pt-1">
+        {mockOrder.delivery_fee > 0 && (
+          <>
+            <div className="flex justify-between">
+              <span>Subtotal:</span>
+              <span className="font-mono tabular-nums">{formatCurrency(subtotal)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Taxa de Entrega:</span>
+              <span className="font-mono tabular-nums">{formatCurrency(mockOrder.delivery_fee)}</span>
+            </div>
+          </>
+        )}
+        <div className="flex justify-between font-bold text-sm border-t border-foreground/20 pt-0.5 mt-0.5">
+          <span>TOTAL:</span>
+          <span className="font-mono tabular-nums">{formatCurrency(mockOrder.total)}</span>
         </div>
       </div>
     );
@@ -225,10 +235,6 @@ export function InteractiveThermalPreview({
                   return <div key={element.id}>{renderItemsSection()}</div>;
                 }
 
-                if (element.tag === '{totais}') {
-                  return <div key={element.id}>{renderTotalsSection()}</div>;
-                }
-
                 if (!content) return null;
 
                 return (
@@ -239,7 +245,10 @@ export function InteractiveThermalPreview({
                     onUpdate={(updates) => handleUpdateElement(element.id, updates)}
                     onContentChange={(newContent) => handleContentChange(element.id, newContent)}
                     isSelected={selectedElementId === element.id}
-                    onSelect={() => setSelectedElementId(element.id)}
+                    onSelect={() => {
+                      setSelectedElementId(element.id);
+                      onFieldFocus?.(element.id);
+                    }}
                     isEditable={isEditable}
                   />
                 );

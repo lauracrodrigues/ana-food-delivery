@@ -49,6 +49,7 @@ export function SectorConfigPanel({
 }: SectorConfigPanelProps) {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('custom');
+  const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(null);
   
   // Use ref to avoid onSave dependency causing infinite loop
   const onSaveRef = useRef(onSave);
@@ -134,7 +135,7 @@ export function SectorConfigPanel({
           <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
             <h3 className="text-sm font-semibold">Opções de Impressão</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
               {/* Template Base */}
               <div className="space-y-1.5">
                 <Label htmlFor={`template-${sector}`} className="text-xs">Template Base</Label>
@@ -306,6 +307,7 @@ export function SectorConfigPanel({
           <UnifiedFieldsList
             config={config.layout}
             onChange={updateLayout}
+            highlightedFieldId={highlightedFieldId}
           />
         </div>
 
@@ -317,6 +319,10 @@ export function SectorConfigPanel({
               onChange={updateLayout}
               companyData={companyData}
               onTestPrint={onTestPrint}
+              onFieldFocus={(elementId) => {
+                setHighlightedFieldId(elementId);
+                setTimeout(() => setHighlightedFieldId(null), 2000);
+              }}
             />
           </div>
         </div>

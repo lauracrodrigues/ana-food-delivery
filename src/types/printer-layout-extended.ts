@@ -26,8 +26,7 @@ export type PrintTag =
   | '{subtotal}'
   | '{taxa_entrega}'
   | '{total}'
-  | '{forma_pagamento}'
-  | '{totais}';
+  | '{forma_pagamento}';
 
 export type TextAlign = 'left' | 'center' | 'right';
 
@@ -254,19 +253,6 @@ export const DEFAULT_EXTENDED_CONFIG: ExtendedLayoutConfig = {
         },
         order: 6
       },
-      {
-        id: 'totais',
-        tag: '{totais}',
-        label: 'Totais',
-        visible: true,
-        fontSize: 'medium',
-        formatting: {
-          bold: true,
-          underline: false,
-          align: 'left'
-        },
-        order: 7
-      }
     ],
     separator: {
       show: true,
@@ -372,6 +358,5 @@ export const TAG_METADATA: Record<PrintTag, { label: string; icon: string; categ
   '{taxa_entrega}': { label: 'Taxa de Entrega', icon: '🚚', category: 'body' },
   '{total}': { label: 'Total', icon: '💰', category: 'body' },
   '{forma_pagamento}': { label: 'Forma de Pagamento', icon: '💳', category: 'body' },
-  '{totais}': { label: 'Totais (Agrupado)', icon: '💰', category: 'body' },
   '{mensagem_rodape}': { label: 'Mensagem de Rodapé', icon: '✉️', category: 'footer' }
 };

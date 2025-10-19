@@ -1,6 +1,7 @@
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Eye, EyeOff, Trash2, Type } from 'lucide-react';
+import { GripVertical, Trash2, Type } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -16,206 +17,217 @@ interface UnifiedFieldCardProps {
   onRemove: () => void;
   disableRemove?: boolean;
   disableVisibilityToggle?: boolean;
+  isHighlighted?: boolean;
 }
 
-export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = false, disableVisibilityToggle = false }: UnifiedFieldCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: element.id });
+export interface UnifiedFieldCardRef {
+  scrollIntoView: () => void;
+}
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
+export const UnifiedFieldCard = forwardRef<UnifiedFieldCardRef, UnifiedFieldCardProps>(
+  ({ element, onUpdate, onRemove, disableRemove = false, disableVisibilityToggle = false, isHighlighted = false }, ref) => {
+    const cardRef = useRef<HTMLDivElement>(null);
+    
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging
+    } = useSortable({ id: element.id });
 
-  const fontSizeLabels: Record<FontSize, string> = {
-    small: 'P',
-    medium: 'M',
-    large: 'G',
-    xlarge: 'GG'
-  };
+    useImperativeHandle(ref, () => ({
+      scrollIntoView: () => {
+        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }));
 
-  const alignLabels = {
-    left: '←',
-    center: '↔',
-    right: '→'
-  };
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
 
-  return (
-    <div ref={setNodeRef} style={style}>
-      <Card className="p-1 mb-1">
-        <div className="flex items-start gap-1">
-          {/* Drag Handle */}
-          <button
-            className="cursor-grab active:cursor-grabbing mt-0.5 text-muted-foreground hover:text-foreground"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-3.5 w-3.5" />
-          </button>
+    const fontSizeLabels: Record<FontSize, string> = {
+      small: 'P',
+      medium: 'M',
+      large: 'G',
+      xlarge: 'GG'
+    };
 
-          {/* Conteúdo */}
-          <div className="flex-1 space-y-0.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-0.5">
-                <span className="font-medium text-[9px]">{element.order}. {element.label}</span>
-                <code className="text-[8px] bg-muted px-0.5 py-0.5 rounded">{element.tag}</code>
-              </div>
-              <div className="flex items-center gap-0.5">
-                <Switch
-                  className="scale-[0.6]"
-                  checked={element.visible}
-                  onCheckedChange={(checked) => onUpdate({ visible: checked })}
-                  disabled={disableVisibilityToggle}
-                />
-                {element.visible ? (
-                  <Eye className="h-2 w-2 text-green-600" />
-                ) : (
-                  <EyeOff className="h-2 w-2 text-muted-foreground" />
-                )}
-              </div>
-            </div>
+    const alignLabels = {
+      left: '←',
+      center: '↔',
+      right: '→'
+    };
 
-            {/* Controles de formatação */}
-            <div className="grid grid-cols-4 gap-0.5">
-              {/* Tamanho */}
-              <Select
-                value={element.fontSize}
-                onValueChange={(value) => onUpdate({ fontSize: value as FontSize })}
+    return (
+      <div ref={setNodeRef} style={style}>
+        <div ref={cardRef}>
+          <Card className={`p-1 mb-1 transition-all ${isHighlighted ? 'ring-2 ring-primary bg-primary/5 animate-pulse' : ''}`}>
+            <div className="flex items-start gap-1">
+              {/* Drag Handle */}
+              <button
+                className="cursor-grab active:cursor-grabbing mt-0.5 text-muted-foreground hover:text-foreground"
+                {...attributes}
+                {...listeners}
               >
-                <SelectTrigger className="h-5 text-[9px] py-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(fontSizeLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <GripVertical className="h-3.5 w-3.5" />
+              </button>
 
-              {/* Alinhamento */}
-              <Select
-                value={element.formatting.align}
-                onValueChange={(value) => onUpdate({ 
-                  formatting: { ...element.formatting, align: value as 'left' | 'center' | 'right' }
-                })}
-              >
-                <SelectTrigger className="h-5 text-[9px] py-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(alignLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Bold/Underline */}
-              <div className="flex gap-0.5">
-                <Button
-                  variant={element.formatting.bold ? "default" : "outline"}
-                  size="sm"
-                  className="h-5 w-full font-bold text-[9px] p-0"
-                  onClick={() => onUpdate({
-                    formatting: { ...element.formatting, bold: !element.formatting.bold }
-                  })}
-                >
-                  B
-                </Button>
-                <Button
-                  variant={element.formatting.underline ? "default" : "outline"}
-                  size="sm"
-                  className="h-5 w-full underline text-[9px] p-0"
-                  onClick={() => onUpdate({
-                    formatting: { ...element.formatting, underline: !element.formatting.underline }
-                  })}
-                >
-                  U
-                </Button>
-              </div>
-
-              {/* Prefix/Suffix */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={element.prefix || element.suffix ? "default" : "outline"}
-                    size="sm"
-                    className="h-5 text-[9px] p-0"
-                  >
-                    <Type className="h-2.5 w-2.5" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-3" side="right">
-                  <div className="space-y-2">
-                    <Label className="text-xs">Texto Antes</Label>
-                    <Input
-                      value={element.prefix || ''}
-                      onChange={(e) => onUpdate({ prefix: e.target.value })}
-                      placeholder="Ex: Tel: "
-                      className="h-7 text-xs"
-                    />
-                    <Label className="text-xs">Texto Depois</Label>
-                    <Input
-                      value={element.suffix || ''}
-                      onChange={(e) => onUpdate({ suffix: e.target.value })}
-                      placeholder="Ex: (WhatsApp)"
-                      className="h-7 text-xs"
+              {/* Conteúdo */}
+              <div className="flex-1 space-y-0.5">
+                {/* Header: Nome + Tag + Switch */}
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-0.5 flex-1">
+                    <span className="font-medium text-[9px]">{element.order}. {element.label}</span>
+                    <code className="text-[8px] bg-muted px-0.5 py-0.5 rounded">{element.tag}</code>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[8px] text-muted-foreground">{element.visible ? 'Ativo' : 'Inativo'}</span>
+                    <Switch
+                      className="scale-[0.6]"
+                      checked={element.visible}
+                      onCheckedChange={(checked) => onUpdate({ visible: checked })}
+                      disabled={disableVisibilityToggle}
                     />
                   </div>
-                </PopoverContent>
-              </Popover>
-            </div>
+                </div>
 
-            {/* Separador */}
-            <div className="flex items-center gap-0.5 pt-0.5 border-t">
-              <Switch
-                className="scale-[0.6]"
-                checked={element.separator_below.show}
-                onCheckedChange={(checked) => onUpdate({
-                  separator_below: { ...element.separator_below, show: checked }
-                })}
-                id={`sep-${element.id}`}
-              />
-              <label htmlFor={`sep-${element.id}`} className="text-[8px] text-muted-foreground">Sep</label>
-              {element.separator_below.show && (
-                <Select
-                  value={element.separator_below.char}
-                  onValueChange={(value) => onUpdate({
-                    separator_below: { ...element.separator_below, char: value }
-                  })}
+                {/* Controles de formatação */}
+                <div className="grid grid-cols-4 gap-0.5">
+                  {/* Tamanho */}
+                  <Select
+                    value={element.fontSize}
+                    onValueChange={(value) => onUpdate({ fontSize: value as FontSize })}
+                  >
+                    <SelectTrigger className="h-5 text-[9px] py-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(fontSizeLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Alinhamento */}
+                  <Select
+                    value={element.formatting.align}
+                    onValueChange={(value) => onUpdate({ 
+                      formatting: { ...element.formatting, align: value as 'left' | 'center' | 'right' }
+                    })}
+                  >
+                    <SelectTrigger className="h-5 text-[9px] py-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(alignLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Bold/Underline */}
+                  <div className="flex gap-0.5">
+                    <Button
+                      variant={element.formatting.bold ? "default" : "outline"}
+                      size="sm"
+                      className="h-5 w-full font-bold text-[9px] p-0"
+                      onClick={() => onUpdate({
+                        formatting: { ...element.formatting, bold: !element.formatting.bold }
+                      })}
+                    >
+                      B
+                    </Button>
+                    <Button
+                      variant={element.formatting.underline ? "default" : "outline"}
+                      size="sm"
+                      className="h-5 w-full underline text-[9px] p-0"
+                      onClick={() => onUpdate({
+                        formatting: { ...element.formatting, underline: !element.formatting.underline }
+                      })}
+                    >
+                      U
+                    </Button>
+                  </div>
+
+                  {/* Prefix/Suffix */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={element.prefix || element.suffix ? "default" : "outline"}
+                        size="sm"
+                        className="h-5 text-[9px] p-0"
+                      >
+                        <Type className="h-2.5 w-2.5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-3" side="right">
+                      <div className="space-y-2">
+                        <Label className="text-xs">Texto Antes</Label>
+                        <Input
+                          value={element.prefix || ''}
+                          onChange={(e) => onUpdate({ prefix: e.target.value })}
+                          placeholder="Ex: Tel: "
+                          className="h-7 text-xs"
+                        />
+                        <Label className="text-xs">Texto Depois</Label>
+                        <Input
+                          value={element.suffix || ''}
+                          onChange={(e) => onUpdate({ suffix: e.target.value })}
+                          placeholder="Ex: (WhatsApp)"
+                          className="h-7 text-xs"
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Separador - Movido para onde estava o switch */}
+                <div className="flex items-center gap-1 pt-0.5 border-t">
+                  <span className="text-[8px] text-muted-foreground">Separador:</span>
+                  <Select
+                    value={element.separator_below.show ? element.separator_below.char : 'none'}
+                    onValueChange={(value) => {
+                      if (value === 'none') {
+                        onUpdate({ separator_below: { ...element.separator_below, show: false } });
+                      } else {
+                        onUpdate({ separator_below: { show: true, type: 'line', char: value } });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-4 w-16 text-[8px] py-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem</SelectItem>
+                      <SelectItem value="-">-</SelectItem>
+                      <SelectItem value="=">=</SelectItem>
+                      <SelectItem value=".">.</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Botão remover */}
+              {!disableRemove && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 h-5 w-5 p-0"
+                  onClick={onRemove}
                 >
-                  <SelectTrigger className="h-4 w-10 text-[8px] py-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="-">-</SelectItem>
-                    <SelectItem value="=">=</SelectItem>
-                    <SelectItem value=".">.</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <Trash2 className="h-2 w-2" />
+                </Button>
               )}
             </div>
-          </div>
-
-          {/* Botão remover */}
-          {!disableRemove && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-5 w-5 p-0"
-              onClick={onRemove}
-            >
-              <Trash2 className="h-2 w-2" />
-            </Button>
-          )}
+          </Card>
         </div>
-      </Card>
-    </div>
-  );
-}
+      </div>
+    );
+  }
+);
+
+UnifiedFieldCard.displayName = 'UnifiedFieldCard';

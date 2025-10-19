@@ -1,6 +1,7 @@
+import { useRef, useEffect, useState } from 'react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { UnifiedFieldCard } from './UnifiedFieldCard';
+import { UnifiedFieldCard, UnifiedFieldCardRef } from './UnifiedFieldCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ExtendedLayoutConfig, UnifiedPrintElement, PrintTag } from '@/types/printer-layout-extended';
 import { TAG_METADATA } from '@/types/printer-layout-extended';
@@ -8,15 +9,30 @@ import { TAG_METADATA } from '@/types/printer-layout-extended';
 interface UnifiedFieldsListProps {
   config: ExtendedLayoutConfig;
   onChange: (config: ExtendedLayoutConfig) => void;
+  highlightedFieldId?: string | null;
 }
 
-export function UnifiedFieldsList({ config, onChange }: UnifiedFieldsListProps) {
+export function UnifiedFieldsList({ config, onChange, highlightedFieldId }: UnifiedFieldsListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  const cardRefs = useRef<Record<string, UnifiedFieldCardRef | null>>({});
+  const [isScrolling, setIsScrolling] = useState(false);
+
+  // Scroll to highlighted field
+  useEffect(() => {
+    if (highlightedFieldId && cardRefs.current[highlightedFieldId] && !isScrolling) {
+      setIsScrolling(true);
+      setTimeout(() => {
+        cardRefs.current[highlightedFieldId]?.scrollIntoView();
+        setTimeout(() => setIsScrolling(false), 1000);
+      }, 100);
+    }
+  }, [highlightedFieldId, isScrolling]);
 
   // Converter estrutura antiga para nova se necessário
   const getElements = (): UnifiedPrintElement[] => {
@@ -161,6 +177,7 @@ export function UnifiedFieldsList({ config, onChange }: UnifiedFieldsListProps) 
               .map(element => (
                 <UnifiedFieldCard
                   key={element.id}
+                  ref={(ref) => { cardRefs.current[element.id] = ref; }}
                   element={element}
                   onUpdate={(updates) => {
                     // Garantir que o campo {itens} sempre fique visível
@@ -178,6 +195,7 @@ export function UnifiedFieldsList({ config, onChange }: UnifiedFieldsListProps) 
                   }}
                   disableRemove={element.tag === '{itens}'}
                   disableVisibilityToggle={element.tag === '{itens}'}
+                  isHighlighted={highlightedFieldId === element.id}
                 />
               ))}
           </div>
