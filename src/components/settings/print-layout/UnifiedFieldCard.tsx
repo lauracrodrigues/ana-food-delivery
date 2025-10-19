@@ -49,8 +49,8 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
 
   return (
     <div ref={setNodeRef} style={style}>
-      <Card className="p-1.5 mb-1.5">
-        <div className="flex items-start gap-1.5">
+      <Card className="p-1 mb-1">
+        <div className="flex items-start gap-1">
           {/* Drag Handle */}
           <button
             className="cursor-grab active:cursor-grabbing mt-0.5 text-muted-foreground hover:text-foreground"
@@ -61,35 +61,35 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
           </button>
 
           {/* Conteúdo */}
-          <div className="flex-1 space-y-1">
+          <div className="flex-1 space-y-0.5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <span className="font-medium text-[10px]">{element.order}. {element.label}</span>
-                <code className="text-[9px] bg-muted px-1 py-0.5 rounded">{element.tag}</code>
+              <div className="flex items-center gap-0.5">
+                <span className="font-medium text-[9px]">{element.order}. {element.label}</span>
+                <code className="text-[8px] bg-muted px-0.5 py-0.5 rounded">{element.tag}</code>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5">
                 <Switch
-                  className="scale-75"
+                  className="scale-[0.6]"
                   checked={element.visible}
                   onCheckedChange={(checked) => onUpdate({ visible: checked })}
                   disabled={disableVisibilityToggle}
                 />
                 {element.visible ? (
-                  <Eye className="h-2.5 w-2.5 text-green-600" />
+                  <Eye className="h-2 w-2 text-green-600" />
                 ) : (
-                  <EyeOff className="h-2.5 w-2.5 text-muted-foreground" />
+                  <EyeOff className="h-2 w-2 text-muted-foreground" />
                 )}
               </div>
             </div>
 
             {/* Controles de formatação */}
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-4 gap-0.5">
               {/* Tamanho */}
               <Select
                 value={element.fontSize}
                 onValueChange={(value) => onUpdate({ fontSize: value as FontSize })}
               >
-                <SelectTrigger className="h-6 text-[10px] py-0">
+                <SelectTrigger className="h-5 text-[9px] py-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -106,7 +106,7 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                   formatting: { ...element.formatting, align: value as 'left' | 'center' | 'right' }
                 })}
               >
-                <SelectTrigger className="h-6 text-[10px] py-0">
+                <SelectTrigger className="h-5 text-[9px] py-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -121,7 +121,7 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                 <Button
                   variant={element.formatting.bold ? "default" : "outline"}
                   size="sm"
-                  className="h-6 w-full font-bold text-[10px] p-0"
+                  className="h-5 w-full font-bold text-[9px] p-0"
                   onClick={() => onUpdate({
                     formatting: { ...element.formatting, bold: !element.formatting.bold }
                   })}
@@ -131,7 +131,7 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                 <Button
                   variant={element.formatting.underline ? "default" : "outline"}
                   size="sm"
-                  className="h-6 w-full underline text-[10px] p-0"
+                  className="h-5 w-full underline text-[9px] p-0"
                   onClick={() => onUpdate({
                     formatting: { ...element.formatting, underline: !element.formatting.underline }
                   })}
@@ -146,9 +146,9 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                   <Button
                     variant={element.prefix || element.suffix ? "default" : "outline"}
                     size="sm"
-                    className="h-6 text-[10px] p-0"
+                    className="h-5 text-[9px] p-0"
                   >
-                    <Type className="h-3 w-3" />
+                    <Type className="h-2.5 w-2.5" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-3" side="right">
@@ -173,16 +173,16 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
             </div>
 
             {/* Separador */}
-            <div className="flex items-center gap-1 pt-0.5 border-t">
+            <div className="flex items-center gap-0.5 pt-0.5 border-t">
               <Switch
-                className="scale-75"
+                className="scale-[0.6]"
                 checked={element.separator_below.show}
                 onCheckedChange={(checked) => onUpdate({
                   separator_below: { ...element.separator_below, show: checked }
                 })}
                 id={`sep-${element.id}`}
               />
-              <label htmlFor={`sep-${element.id}`} className="text-[9px] text-muted-foreground">Sep</label>
+              <label htmlFor={`sep-${element.id}`} className="text-[8px] text-muted-foreground">Sep</label>
               {element.separator_below.show && (
                 <Select
                   value={element.separator_below.char}
@@ -190,7 +190,7 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
                     separator_below: { ...element.separator_below, char: value }
                   })}
                 >
-                  <SelectTrigger className="h-5 w-12 text-[9px] py-0">
+                  <SelectTrigger className="h-4 w-10 text-[8px] py-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -208,10 +208,10 @@ export function UnifiedFieldCard({ element, onUpdate, onRemove, disableRemove = 
             <Button
               variant="ghost"
               size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-6 w-6 p-0"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-5 w-5 p-0"
               onClick={onRemove}
             >
-              <Trash2 className="h-2.5 w-2.5" />
+              <Trash2 className="h-2 w-2" />
             </Button>
           )}
         </div>

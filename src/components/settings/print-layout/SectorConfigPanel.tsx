@@ -256,8 +256,29 @@ export function SectorConfigPanel({
                 </RadioGroup>
               </div>
 
+              {/* Espaçamento entre Linhas */}
+              <div className="space-y-1.5">
+                <Label htmlFor={`spacing-${sector}`} className="text-xs">Espaçamento</Label>
+                <Select
+                  value={String(config.layout.line_spacing_multiplier || 1.0)}
+                  onValueChange={(value) => updateLayout({ line_spacing_multiplier: parseFloat(value) })}
+                  disabled={!config.enabled}
+                >
+                  <SelectTrigger id={`spacing-${sector}`} className="h-8 text-xs">
+                    <SelectValue placeholder="Normal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.5">Muito Compacto</SelectItem>
+                    <SelectItem value="0.75">Compacto</SelectItem>
+                    <SelectItem value="1.0">Normal</SelectItem>
+                    <SelectItem value="1.5">Espaçado</SelectItem>
+                    <SelectItem value="2.0">Muito Espaçado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Número de Vias */}
-              <div className="space-y-1.5 md:col-span-2">
+              <div className="space-y-1.5">
                 <Label className="text-xs">Número de Vias</Label>
                 <RadioGroup
                   value={String(config.copies)}

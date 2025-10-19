@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { AlignLeft, AlignCenter, AlignRight, Pencil } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { AlignLeft, AlignCenter, AlignRight, Pencil, Type } from "lucide-react";
 import type { UnifiedPrintElement, FontSize } from "@/types/printer-layout-extended";
 
 interface FloatingToolbarProps {
@@ -12,6 +16,8 @@ interface FloatingToolbarProps {
 }
 
 export function FloatingToolbar({ element, onUpdate, onEditContent, isEditable }: FloatingToolbarProps) {
+  const [prefixSuffixOpen, setPrefixSuffixOpen] = useState(false);
+  
   return (
     <div className="absolute -left-2 top-0 z-[9999] -translate-x-full animate-in fade-in slide-in-from-left-2 duration-200 pointer-events-auto">
       <div className="bg-popover border rounded-lg shadow-2xl backdrop-blur-sm p-2 flex gap-1 items-center">
@@ -73,6 +79,43 @@ export function FloatingToolbar({ element, onUpdate, onEditContent, isEditable }
         >
           U
         </Button>
+        
+        <Separator orientation="vertical" className="h-6" />
+        
+        {/* Prefix/Suffix */}
+        <Popover open={prefixSuffixOpen} onOpenChange={setPrefixSuffixOpen}>
+          <PopoverTrigger asChild>
+            <Button 
+              size="sm" 
+              variant={element.prefix || element.suffix ? "default" : "ghost"}
+              className="h-8 w-8 p-0" 
+            >
+              <Type className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3" side="right">
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Texto Antes</Label>
+                <Input
+                  value={element.prefix || ''}
+                  onChange={(e) => onUpdate({ prefix: e.target.value })}
+                  placeholder="Ex: Tel: "
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Texto Depois</Label>
+                <Input
+                  value={element.suffix || ''}
+                  onChange={(e) => onUpdate({ suffix: e.target.value })}
+                  placeholder="Ex: (WhatsApp)"
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
         
         {/* Editar texto (apenas para campos editáveis) */}
         {isEditable && (

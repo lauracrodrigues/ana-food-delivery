@@ -197,9 +197,9 @@ export function InteractiveThermalPreview({
 
   const getTextModeClass = () => {
     const modes = {
-      condensed: 'tracking-tighter',
-      normal: 'tracking-normal',
-      expanded: 'tracking-wide',
+      condensed: 'scale-x-75 tracking-tighter',
+      normal: 'scale-x-100 tracking-normal',
+      expanded: 'scale-x-125 tracking-wide',
     };
     return modes[textMode as keyof typeof modes] || modes.normal;
   };
@@ -211,11 +211,11 @@ export function InteractiveThermalPreview({
   return (
     <div className="space-y-4">
       {/* Preview interativo */}
-      <Card className="bg-muted/30">
+      <Card className="bg-muted/30 overflow-visible">
         <CardContent className="p-6">
-          <div className="max-h-[calc(100vh-16rem)] overflow-y-auto scrollbar-thin">
+          <div className="max-h-[calc(100vh-20rem)] overflow-y-auto scrollbar-thin">
             <div className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm overflow-visible" style={{ width: '420px' }}>
-              <div className={`font-mono p-3 space-y-0.5 ${getTextModeClass()}`}>
+              <div className={`font-mono p-3 space-y-0.5 origin-left ${getTextModeClass()}`}>
               {visibleElements.map((element) => {
                 const content = getElementContent(element);
                 const isEditable = editableFields.includes(element.tag);
@@ -248,8 +248,21 @@ export function InteractiveThermalPreview({
             </div>
           </div>
 
+          {/* Botão Imprimir Teste */}
+          <div className="mt-4 flex justify-center">
+            <Button 
+              onClick={onTestPrint} 
+              variant="outline" 
+              size="sm"
+              className="gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir Teste
+            </Button>
+          </div>
+
           {/* Info */}
-          <div className="mt-4 text-xs text-muted-foreground text-center space-y-1">
+          <div className="mt-3 text-xs text-muted-foreground text-center space-y-1">
             <p>Clique em qualquer elemento para editá-lo</p>
             <p>Passe o mouse para ver opções de formatação</p>
           </div>

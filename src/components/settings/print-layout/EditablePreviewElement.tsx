@@ -107,7 +107,9 @@ export function EditablePreviewElement({
             whitespace-pre-wrap break-words
           `}
         >
+          {element.prefix && <span className="text-muted-foreground">{element.prefix}</span>}
           {content || <span className="text-muted-foreground italic">Clique para editar</span>}
+          {element.suffix && <span className="text-muted-foreground">{element.suffix}</span>}
         </div>
       )}
 
