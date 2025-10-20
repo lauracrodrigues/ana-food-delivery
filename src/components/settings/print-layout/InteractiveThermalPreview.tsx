@@ -35,19 +35,25 @@ export function InteractiveThermalPreview({
 }: InteractiveThermalPreviewProps) {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
 
-  // Helper para formatar endereço completo
+  // Helper para formatar endereço completo - SEMPRE retorna string
   const formatAddress = (addr: any): string => {
     if (!addr) return 'Endereço não cadastrado';
     if (typeof addr === 'string') return addr;
     
-    const parts = [
-      addr.street && addr.number ? `${addr.street}, ${addr.number}` : addr.street,
-      addr.complement,
-      addr.neighborhood,
-      addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
-      addr.zip_code ? `CEP: ${addr.zip_code}` : null
-    ].filter(Boolean);
-    return parts.join('\n') || 'Endereço não cadastrado';
+    // Se é um objeto, serializar corretamente
+    if (typeof addr === 'object') {
+      const parts = [
+        addr.street && addr.number ? `${addr.street}, ${addr.number}` : addr.street,
+        addr.complement,
+        addr.neighborhood,
+        addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
+        addr.zip_code ? `CEP: ${addr.zip_code}` : null
+      ].filter(Boolean);
+      return parts.join('\n') || 'Endereço não cadastrado';
+    }
+    
+    // Fallback seguro
+    return String(addr);
   };
 
   // Mock order for preview
@@ -111,9 +117,10 @@ export function InteractiveThermalPreview({
       case '{nome_empresa}':
         return mockOrder.company_name;
       case '{telefone_empresa}':
-        return mockOrder.company_phone;
+        return `Tel: ${mockOrder.company_phone}`;
       case '{endereco_empresa}':
-        return mockOrder.company_address;
+        // Garantir que sempre retorna string (já formatado na linha 88)
+        return String(mockOrder.company_address || 'Endereço não cadastrado');
       case '{email_empresa}':
         return `Email: ${mockOrder.company_email}`;
       case '{cnpj}':
@@ -127,11 +134,11 @@ export function InteractiveThermalPreview({
       case '{tipo_entrega}':
         return mockOrder.type === 'delivery' ? '🛵 ENTREGA' : '🏪 RETIRADA';
       case '{nome_cliente}':
-        return mockOrder.customer_name;
+        return `Cliente: ${mockOrder.customer_name}`;
       case '{telefone_cliente}':
-        return mockOrder.customer_phone;
+        return `Tel: ${mockOrder.customer_phone}`;
       case '{endereco_cliente}':
-        return mockOrder.type === 'delivery' ? mockOrder.address : '';
+        return mockOrder.type === 'delivery' ? `End: ${mockOrder.address}` : '';
       case '{referencia}':
         return companyData?.referencia ? `Ref: ${companyData.referencia}` : '';
       case '{itens}':
@@ -146,7 +153,7 @@ export function InteractiveThermalPreview({
       case '{total}':
         return `TOTAL: ${formatCurrency(mockOrder.total)}`;
       case '{forma_pagamento}':
-        return mockOrder.payment_method;
+        return `Pagamento: ${mockOrder.payment_method}`;
       case '{mensagem_rodape}':
         return config.footer_message || 'Obrigado pela preferência!';
       default:
@@ -224,7 +231,16 @@ export function InteractiveThermalPreview({
       <Card className="bg-muted/30">
         <CardContent className="p-6">
           <div className="max-h-[calc(100vh-20rem)] overflow-y-auto overflow-x-visible scrollbar-thin">
-            <div className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm" style={{ width: '420px', position: 'relative', overflow: 'visible' }}>
+            <div 
+              className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm" 
+              style={{ 
+                width: '420px', 
+                position: 'relative', 
+                overflow: 'visible',
+                paddingLeft: `${(config.margin_left || 0) * 2}px`,
+                paddingRight: `${(config.margin_right || 0) * 2}px`
+              }}
+            >
               <div className={`font-mono p-3 space-y-0.5 origin-left ${getTextModeClass()}`}>
               {visibleElements.map((element) => {
                 const content = getElementContent(element);

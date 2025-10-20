@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
@@ -135,7 +136,7 @@ export function SectorConfigPanel({
           <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
             <h3 className="text-sm font-semibold">Opções de Impressão</h3>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-9 gap-2">
               {/* Template Base */}
               <div className="space-y-1.5">
                 <Label htmlFor={`template-${sector}`} className="text-xs">Template Base</Label>
@@ -155,10 +156,10 @@ export function SectorConfigPanel({
                 </Select>
               </div>
 
-              {/* Impressora + Botão Buscar */}
-              <div className="space-y-1.5">
+              {/* Impressora */}
+              <div className="space-y-1.5 xl:col-span-2">
                 <Label htmlFor={`printer-${sector}`} className="text-xs">Impressora</Label>
-                <div className="flex gap-1.5">
+                <div className="flex gap-1">
                   <Select
                     value={config.printer_name}
                     onValueChange={(printer_name) => onConfigChange({ ...config, printer_name })}
@@ -195,66 +196,42 @@ export function SectorConfigPanel({
                 </div>
               </div>
 
-              {/* Tipo de Corte */}
+              {/* Tipo de Corte - Convertido para Select */}
               <div className="space-y-1.5">
-                <Label className="text-xs">Tipo de Corte</Label>
-                <RadioGroup 
-                  value={config.cut_type} 
+                <Label htmlFor={`cut-${sector}`} className="text-xs">Tipo de Corte</Label>
+                <Select
+                  value={config.cut_type}
                   onValueChange={(value) => onConfigChange({ ...config, cut_type: value as CutType })}
                   disabled={!config.enabled}
                 >
-                  <div className="flex gap-2">
-                    <div className="flex items-center space-x-1.5">
-                      <RadioGroupItem value="partial" id={`${sector}-cut-partial`} />
-                      <Label htmlFor={`${sector}-cut-partial`} className="cursor-pointer text-xs">
-                        Parcial
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-1.5">
-                      <RadioGroupItem value="full" id={`${sector}-cut-full`} />
-                      <Label htmlFor={`${sector}-cut-full`} className="cursor-pointer text-xs">
-                        Total
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-1.5">
-                      <RadioGroupItem value="none" id={`${sector}-cut-none`} />
-                      <Label htmlFor={`${sector}-cut-none`} className="cursor-pointer text-xs">
-                        Sem corte
-                      </Label>
-                    </div>
-                  </div>
-                </RadioGroup>
+                  <SelectTrigger id={`cut-${sector}`} className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="partial">Parcial</SelectItem>
+                    <SelectItem value="full">Total</SelectItem>
+                    <SelectItem value="none">Sem corte</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Largura do Texto */}
+              {/* Largura do Texto - Convertido para Select */}
               <div className="space-y-1.5">
-                <Label className="text-xs">Largura do Texto</Label>
-                <RadioGroup 
-                  value={config.text_mode} 
+                <Label htmlFor={`text-mode-${sector}`} className="text-xs">Largura Texto</Label>
+                <Select
+                  value={config.text_mode}
                   onValueChange={(value) => onConfigChange({ ...config, text_mode: value as TextMode })}
                   disabled={!config.enabled}
                 >
-                  <div className="flex gap-2">
-                    <div className="flex items-center space-x-1.5">
-                      <RadioGroupItem value="condensed" id={`${sector}-text-condensed`} />
-                      <Label htmlFor={`${sector}-text-condensed`} className="cursor-pointer text-xs">
-                        Condensado
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-1.5">
-                      <RadioGroupItem value="normal" id={`${sector}-text-normal`} />
-                      <Label htmlFor={`${sector}-text-normal`} className="cursor-pointer text-xs">
-                        Normal
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-1.5">
-                      <RadioGroupItem value="expanded" id={`${sector}-text-expanded`} />
-                      <Label htmlFor={`${sector}-text-expanded`} className="cursor-pointer text-xs">
-                        Expandido
-                      </Label>
-                    </div>
-                  </div>
-                </RadioGroup>
+                  <SelectTrigger id={`text-mode-${sector}`} className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="condensed">Condensado</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="expanded">Expandido</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Espaçamento entre Linhas */}
@@ -278,25 +255,53 @@ export function SectorConfigPanel({
                 </Select>
               </div>
 
-              {/* Número de Vias */}
+              {/* Número de Vias - Convertido para Select */}
               <div className="space-y-1.5">
-                <Label className="text-xs">Número de Vias</Label>
-                <RadioGroup
+                <Label htmlFor={`copies-${sector}`} className="text-xs">Nº Vias</Label>
+                <Select
                   value={String(config.copies)}
                   onValueChange={(value) => onConfigChange({ ...config, copies: parseInt(value) })}
                   disabled={!config.enabled}
                 >
-                  <div className="flex gap-3">
-                    {[1, 2, 3].map((num) => (
-                      <div key={num} className="flex items-center space-x-1.5">
-                        <RadioGroupItem value={String(num)} id={`${sector}-copies-${num}`} />
-                        <Label htmlFor={`${sector}-copies-${num}`} className="cursor-pointer text-xs">
-                          {num} {num === 1 ? 'via' : 'vias'}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </RadioGroup>
+                  <SelectTrigger id={`copies-${sector}`} className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 via</SelectItem>
+                    <SelectItem value="2">2 vias</SelectItem>
+                    <SelectItem value="3">3 vias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Margem Esquerda - NOVO */}
+              <div className="space-y-1.5">
+                <Label htmlFor={`margin-left-${sector}`} className="text-xs">Margem Esq.</Label>
+                <Input
+                  id={`margin-left-${sector}`}
+                  type="number"
+                  min="0"
+                  max="20"
+                  value={config.layout.margin_left || 0}
+                  onChange={(e) => updateLayout({ margin_left: parseInt(e.target.value) || 0 })}
+                  disabled={!config.enabled}
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              {/* Margem Direita - NOVO */}
+              <div className="space-y-1.5">
+                <Label htmlFor={`margin-right-${sector}`} className="text-xs">Margem Dir.</Label>
+                <Input
+                  id={`margin-right-${sector}`}
+                  type="number"
+                  min="0"
+                  max="20"
+                  value={config.layout.margin_right || 0}
+                  onChange={(e) => updateLayout({ margin_right: parseInt(e.target.value) || 0 })}
+                  disabled={!config.enabled}
+                  className="h-8 text-xs"
+                />
               </div>
             </div>
           </div>

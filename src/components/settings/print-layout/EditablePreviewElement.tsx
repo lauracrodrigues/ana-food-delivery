@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { FloatingToolbar } from "./FloatingToolbar";
 import type { UnifiedPrintElement } from "@/types/printer-layout-extended";
 import { Input } from "@/components/ui/input";
@@ -25,7 +26,9 @@ export function EditablePreviewElement({
 }: EditablePreviewElementProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditingContent, setIsEditingContent] = useState(false);
+  const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const elementRef = useRef<HTMLDivElement>(null);
 
   const getFontSizeClass = (size: string) => {
     const sizes = {
@@ -54,6 +57,14 @@ export function EditablePreviewElement({
 
   const handleMouseEnter = () => {
     setIsHovered(true);
+    // Calcular posição da toolbar
+    if (elementRef.current) {
+      const rect = elementRef.current.getBoundingClientRect();
+      setToolbarPosition({
+        top: rect.top + window.scrollY,
+        left: rect.left + window.scrollX - 180 // Toolbar à esquerda
+      });
+    }
   };
 
   const handleMouseLeave = () => {
@@ -72,6 +83,7 @@ export function EditablePreviewElement({
 
   return (
     <div
+      ref={elementRef}
       className="relative group"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -115,10 +127,15 @@ export function EditablePreviewElement({
         </div>
       )}
 
-      {/* Toolbar flutuante no hover */}
-      {isHovered && !isEditingContent && (
+      {/* Toolbar flutuante no hover - usando Portal */}
+      {isHovered && !isEditingContent && createPortal(
         <div 
-          className="absolute left-0 top-0 -translate-x-full -translate-y-1/4 z-[100]" 
+          style={{
+            position: 'fixed',
+            top: `${toolbarPosition.top}px`,
+            left: `${toolbarPosition.left}px`,
+            zIndex: 9999
+          }}
           onMouseEnter={handleToolbarMouseEnter} 
           onMouseLeave={handleMouseLeave}
         >
@@ -128,7 +145,8 @@ export function EditablePreviewElement({
             onEditContent={() => setIsEditingContent(true)}
             isEditable={isEditable}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

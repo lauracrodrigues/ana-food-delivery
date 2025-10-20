@@ -97,8 +97,8 @@ export interface ExtendedLayoutConfig extends LayoutConfig {
   
   // Configurações avançadas
   encoding?: string;
-  margin_left?: number;
-  margin_right?: number;
+  margin_left?: number; // 0 a 20
+  margin_right?: number; // 0 a 20
   text_mode?: 'condensed' | 'normal' | 'expanded';
   
   // NOVO: Controle de espaçamento

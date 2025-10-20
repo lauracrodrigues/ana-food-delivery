@@ -78,25 +78,34 @@ export const UnifiedFieldCard = forwardRef<UnifiedFieldCardRef, UnifiedFieldCard
 
               {/* Conteúdo */}
               <div className="flex-1 space-y-0.5">
-                {/* Header: Nome + Tag + Switch */}
+                {/* Header: Switch + Nome + Tag + Botão Remover */}
                 <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center gap-0.5 flex-1">
-                    <span className="font-medium text-[9px]">{element.order}. {element.label}</span>
-                    <code className="text-[8px] bg-muted px-0.5 py-0.5 rounded">{element.tag}</code>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    <span className="text-[8px] text-muted-foreground">{element.visible ? 'Ativo' : 'Inativo'}</span>
+                  <div className="flex items-center gap-1 flex-1">
+                    {/* Switch à esquerda */}
                     <Switch
                       className="scale-[0.6]"
                       checked={element.visible}
                       onCheckedChange={(checked) => onUpdate({ visible: checked })}
                       disabled={disableVisibilityToggle}
                     />
+                    <span className="font-medium text-[9px]">{element.order}. {element.label}</span>
+                    <code className="text-[8px] bg-muted px-0.5 py-0.5 rounded">{element.tag}</code>
                   </div>
+                  {/* Botão remover no canto direito */}
+                  {!disableRemove && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 h-5 w-5 p-0"
+                      onClick={onRemove}
+                    >
+                      <Trash2 className="h-2.5 w-2.5" />
+                    </Button>
+                  )}
                 </div>
 
-                {/* Controles de formatação */}
-                <div className="grid grid-cols-4 gap-0.5">
+                {/* Controles de formatação + Separador */}
+                <div className="grid grid-cols-5 gap-0.5">
                   {/* Tamanho */}
                   <Select
                     value={element.fontSize}
@@ -183,11 +192,8 @@ export const UnifiedFieldCard = forwardRef<UnifiedFieldCardRef, UnifiedFieldCard
                       </div>
                     </PopoverContent>
                   </Popover>
-                </div>
 
-                {/* Separador */}
-                <div className="flex items-center gap-1 pt-0.5 border-t">
-                  <span className="text-[8px] text-muted-foreground">Separador:</span>
+                  {/* Separador integrado */}
                   <Select
                     value={element.separator_below.show ? element.separator_below.char : 'none'}
                     onValueChange={(value) => {
@@ -198,30 +204,18 @@ export const UnifiedFieldCard = forwardRef<UnifiedFieldCardRef, UnifiedFieldCard
                       }
                     }}
                   >
-                    <SelectTrigger className="h-4 w-16 text-[8px] py-0">
-                      <SelectValue />
+                    <SelectTrigger className="h-5 text-[9px] py-0">
+                      <SelectValue placeholder="Sep" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Sem</SelectItem>
-                      <SelectItem value="-">-</SelectItem>
-                      <SelectItem value="=">=</SelectItem>
-                      <SelectItem value=".">.</SelectItem>
+                      <SelectItem value="none" className="text-xs">Sem</SelectItem>
+                      <SelectItem value="-" className="text-xs">-</SelectItem>
+                      <SelectItem value="=" className="text-xs">=</SelectItem>
+                      <SelectItem value="." className="text-xs">.</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-
-              {/* Botão remover */}
-              {!disableRemove && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10 h-5 w-5 p-0"
-                  onClick={onRemove}
-                >
-                  <Trash2 className="h-2 w-2" />
-                </Button>
-              )}
             </div>
           </Card>
         </div>

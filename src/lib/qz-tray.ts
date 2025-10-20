@@ -354,8 +354,11 @@ export class QZTrayPrinter {
         // Add separator if configured
         if (element.separator_below.show) {
           const char = element.separator_below.char || '-';
-          const effectiveWidth = maxChars - (extendedConfig.margin_left || 0) - (extendedConfig.margin_right || 0);
-          receipt += this.formatLine(char.repeat(effectiveWidth), 'left', maxChars);
+          const marginLeft = extendedConfig.margin_left || 0;
+          const marginRight = extendedConfig.margin_right || 0;
+          const effectiveWidth = Math.max(1, maxChars - marginLeft - marginRight);
+          const leftPadding = ' '.repeat(marginLeft);
+          receipt += leftPadding + char.repeat(effectiveWidth) + '\n';
         }
       }
       
@@ -394,7 +397,7 @@ export class QZTrayPrinter {
         content = order.company_fantasy_name || order.company_name || 'EMPRESA';
         break;
       case '{telefone_empresa}':
-        content = `Tel: ${order.company_phone || ''}`;
+        content = order.company_phone || '';
         break;
       case '{endereco_empresa}':
         content = order.company_address || '';
@@ -414,13 +417,13 @@ export class QZTrayPrinter {
         content = `Origem: ${order.source === 'whatsapp' ? 'WhatsApp' : 'Cardapio Digital'}`;
         break;
       case '{nome_cliente}':
-        content = `Cliente: ${order.customer_name}`;
+        content = order.customer_name;
         break;
       case '{telefone_cliente}':
-        content = `Tel: ${order.customer_phone}`;
+        content = order.customer_phone;
         break;
       case '{endereco_cliente}':
-        content = order.type === 'delivery' && order.address ? `End: ${order.address}` : '';
+        content = order.type === 'delivery' && order.address ? order.address : '';
         break;
       case '{observacoes_pedido}':
         content = order.observations ? `Obs: ${order.observations}` : '';
@@ -448,7 +451,7 @@ export class QZTrayPrinter {
         content = `TOTAL: ${formatCurrency(order.total)}`;
         break;
       case '{forma_pagamento}':
-        content = `Pagamento: ${this.formatPaymentMethod(order.payment_method)}`;
+        content = this.formatPaymentMethod(order.payment_method);
         break;
       default:
         return '';
