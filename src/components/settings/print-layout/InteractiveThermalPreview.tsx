@@ -42,18 +42,32 @@ export function InteractiveThermalPreview({
     
     // Se é um objeto, serializar corretamente
     if (typeof addr === 'object') {
-      const parts = [
-        addr.street && addr.number ? `${addr.street}, ${addr.number}` : addr.street,
-        addr.complement,
-        addr.neighborhood,
-        addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
-        addr.zip_code ? `CEP: ${addr.zip_code}` : null
-      ].filter(Boolean);
-      return parts.join('\n') || 'Endereço não cadastrado';
+      try {
+        // Tentar parsear se for string JSON
+        const parsedAddr = typeof addr === 'string' ? JSON.parse(addr) : addr;
+        const parts = [
+          parsedAddr.street && parsedAddr.number ? `${parsedAddr.street}, ${parsedAddr.number}` : parsedAddr.street,
+          parsedAddr.complement,
+          parsedAddr.neighborhood,
+          parsedAddr.city && parsedAddr.state ? `${parsedAddr.city} - ${parsedAddr.state}` : parsedAddr.city,
+          parsedAddr.zip_code ? `CEP: ${parsedAddr.zip_code}` : null
+        ].filter(Boolean);
+        return parts.join('\n') || 'Endereço não cadastrado';
+      } catch (e) {
+        // Se falhar, tentar usar como objeto diretamente
+        const parts = [
+          addr.street && addr.number ? `${addr.street}, ${addr.number}` : addr.street,
+          addr.complement,
+          addr.neighborhood,
+          addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
+          addr.zip_code ? `CEP: ${addr.zip_code}` : null
+        ].filter(Boolean);
+        return parts.join('\n') || 'Endereço não cadastrado';
+      }
     }
     
     // Fallback seguro
-    return String(addr);
+    return 'Endereço não cadastrado';
   };
 
   // Mock order for preview
@@ -119,8 +133,7 @@ export function InteractiveThermalPreview({
       case '{telefone_empresa}':
         return `Tel: ${mockOrder.company_phone}`;
       case '{endereco_empresa}':
-        // Garantir que sempre retorna string (já formatado na linha 88)
-        return String(mockOrder.company_address || 'Endereço não cadastrado');
+        return formatAddress(companyData?.address) || 'Endereço não cadastrado';
       case '{email_empresa}':
         return `Email: ${mockOrder.company_email}`;
       case '{cnpj}':
@@ -214,9 +227,9 @@ export function InteractiveThermalPreview({
 
   const getTextModeClass = () => {
     const modes = {
-      condensed: 'scale-x-75 tracking-tighter',
-      normal: 'scale-x-100 tracking-normal',
-      expanded: 'scale-x-125 tracking-wide',
+      condensed: 'scale-x-[0.70] origin-left',
+      normal: 'scale-x-100',
+      expanded: 'scale-x-[1.30] origin-left',
     };
     return modes[textMode as keyof typeof modes] || modes.normal;
   };

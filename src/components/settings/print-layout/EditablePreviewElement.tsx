@@ -1,15 +1,10 @@
-import { useState, useRef } from "react";
-import { createPortal } from "react-dom";
-import { FloatingToolbar } from "./FloatingToolbar";
-import type { UnifiedPrintElement } from "@/types/printer-layout-extended";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useState, useRef, useEffect } from "react";
 
 interface EditablePreviewElementProps {
-  element: UnifiedPrintElement;
+  element: any;
   content: string;
-  onUpdate: (updates: Partial<UnifiedPrintElement>) => void;
-  onContentChange?: (newContent: string) => void;
+  onUpdate: (updates: any) => void;
+  onContentChange: (newContent: string) => void;
   isSelected: boolean;
   onSelect: () => void;
   isEditable: boolean;
@@ -24,130 +19,109 @@ export function EditablePreviewElement({
   onSelect,
   isEditable,
 }: EditablePreviewElementProps) {
-  const [isHovered, setIsHovered] = useState(false);
-  const [isEditingContent, setIsEditingContent] = useState(false);
-  const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(content);
   const elementRef = useRef<HTMLDivElement>(null);
 
-  const getFontSizeClass = (size: string) => {
-    const sizes = {
-      small: 'text-[10px]',
-      medium: 'text-xs',
-      large: 'text-sm',
-      xlarge: 'text-base',
-    };
-    return sizes[size as keyof typeof sizes] || sizes.medium;
-  };
+  useEffect(() => {
+    setEditValue(content);
+  }, [content]);
 
-  const getAlignClass = (align: string) => {
-    const aligns = {
-      left: 'text-left',
-      center: 'text-center',
-      right: 'text-right',
-    };
-    return aligns[align as keyof typeof aligns] || aligns.left;
-  };
-
-  const handleContentBlur = () => {
-    setIsEditingContent(false);
-  };
-
-  const isMultiline = content.length > 40 || element.tag === '{mensagem_rodape}';
-
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-    // Calcular posição da toolbar
-    if (elementRef.current) {
-      const rect = elementRef.current.getBoundingClientRect();
-      setToolbarPosition({
-        top: rect.top + window.scrollY,
-        left: rect.left + window.scrollX - 180 // Toolbar à esquerda
-      });
+  const handleDoubleClick = () => {
+    if (isEditable) {
+      setIsEditing(true);
     }
   };
 
-  const handleMouseLeave = () => {
-    const timeout = setTimeout(() => {
-      setIsHovered(false);
-    }, 300);
-    hoverTimeoutRef.current = timeout;
+  const handleBlur = () => {
+    setIsEditing(false);
+    if (editValue !== content) {
+      onContentChange(editValue);
+    }
   };
 
-  const handleToolbarMouseEnter = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleBlur();
     }
-    setIsHovered(true);
+    if (e.key === "Escape") {
+      setEditValue(content);
+      setIsEditing(false);
+    }
+  };
+
+  const getFontSizeClass = () => {
+    const sizeMap = {
+      small: "text-[10px]",
+      medium: "text-xs",
+      large: "text-sm",
+      xlarge: "text-base",
+    };
+    return sizeMap[element.font_size as keyof typeof sizeMap] || "text-xs";
+  };
+
+  const getAlignClass = () => {
+    const alignMap = {
+      left: "text-left",
+      center: "text-center",
+      right: "text-right",
+    };
+    return alignMap[element.align as keyof typeof alignMap] || "text-left";
+  };
+
+  const formatClasses = `
+    ${getFontSizeClass()}
+    ${getAlignClass()}
+    ${element.bold ? "font-bold" : ""}
+    ${element.underline ? "underline" : ""}
+    ${element.double_height ? "scale-y-150 origin-top" : ""}
+    ${element.double_width ? "scale-x-150 origin-left" : ""}
+  `.trim();
+
+  // Renderizar separador se configurado
+  const renderSeparator = () => {
+    if (!element.separator || element.separator === "none") return null;
+    
+    const separatorChar = element.separator === "equals" ? "=" : "-";
+    const separatorLine = separatorChar.repeat(48);
+    
+    return (
+      <div className="text-[10px] text-foreground/20 leading-tight my-0.5">
+        {separatorLine}
+      </div>
+    );
   };
 
   return (
-    <div
-      ref={elementRef}
-      className="relative group"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onClick={onSelect}
-    >
-      {/* Elemento renderizado */}
-      {isEditingContent && isEditable ? (
-        isMultiline ? (
-          <Textarea
-            value={content}
-            onChange={(e) => onContentChange?.(e.target.value)}
-            onBlur={handleContentBlur}
-            className="min-h-[60px] font-mono text-xs"
+    <>
+      <div
+        ref={elementRef}
+        onClick={onSelect}
+        onDoubleClick={handleDoubleClick}
+        className={`
+          relative cursor-pointer transition-all leading-tight
+          ${isSelected ? "bg-primary/10 ring-2 ring-primary/50 rounded px-1" : "hover:bg-muted/30 rounded px-1"}
+        `}
+      >
+        {isEditing ? (
+          <textarea
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
             autoFocus
+            className={`w-full bg-background border border-primary rounded px-1 ${formatClasses}`}
+            rows={Math.max(2, editValue.split("\n").length)}
           />
         ) : (
-          <Input
-            value={content}
-            onChange={(e) => onContentChange?.(e.target.value)}
-            onBlur={handleContentBlur}
-            className="font-mono text-xs"
-            autoFocus
-          />
-        )
-      ) : (
-        <div
-          className={`
-            ${getFontSizeClass(element.fontSize)}
-            ${getAlignClass(element.formatting.align)}
-            ${element.formatting.bold ? 'font-bold' : ''}
-            ${element.formatting.underline ? 'underline' : ''}
-            ${isSelected ? 'ring-2 ring-primary bg-primary/5' : ''}
-            ${isHovered ? 'bg-muted/50' : ''}
-            cursor-pointer transition-all duration-150 px-2 py-1 rounded font-mono
-            whitespace-pre-wrap break-words
-          `}
-        >
-          {element.prefix && <span className="text-muted-foreground">{element.prefix}</span>}
-          {content || <span className="text-muted-foreground italic">Clique para editar</span>}
-          {element.suffix && <span className="text-muted-foreground">{element.suffix}</span>}
-        </div>
-      )}
-
-      {/* Toolbar flutuante no hover - usando Portal */}
-      {isHovered && !isEditingContent && createPortal(
-        <div 
-          style={{
-            position: 'fixed',
-            top: `${toolbarPosition.top}px`,
-            left: `${toolbarPosition.left}px`,
-            zIndex: 9999
-          }}
-          onMouseEnter={handleToolbarMouseEnter} 
-          onMouseLeave={handleMouseLeave}
-        >
-          <FloatingToolbar
-            element={element}
-            onUpdate={onUpdate}
-            onEditContent={() => setIsEditingContent(true)}
-            isEditable={isEditable}
-          />
-        </div>,
-        document.body
-      )}
-    </div>
+          <div className={formatClasses} style={{ whiteSpace: "pre-wrap" }}>
+            {content}
+          </div>
+        )}
+      </div>
+      
+      {renderSeparator()}
+    </>
   );
 }

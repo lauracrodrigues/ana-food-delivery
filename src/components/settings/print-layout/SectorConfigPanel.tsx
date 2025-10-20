@@ -5,12 +5,12 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Check, Loader2, RefreshCw } from 'lucide-react';
+import { Check, Loader2, RefreshCw, Edit } from 'lucide-react';
 import { UnifiedFieldsList } from './UnifiedFieldsList';
 import { InteractiveThermalPreview } from './InteractiveThermalPreview';
+import { FooterMessageDialog } from './FooterMessageDialog';
 import { SECTOR_TEMPLATES } from '@/lib/print-templates';
 import type { SectorConfig, PrintSector, CutType, TextMode } from '@/types/printer-settings';
 import type { ExtendedLayoutConfig } from '@/types/printer-layout-extended';
@@ -51,6 +51,7 @@ export function SectorConfigPanel({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('custom');
   const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(null);
+  const [footerDialogOpen, setFooterDialogOpen] = useState(false);
   
   // Use ref to avoid onSave dependency causing infinite loop
   const onSaveRef = useRef(onSave);
@@ -136,16 +137,17 @@ export function SectorConfigPanel({
           <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
             <h3 className="text-sm font-semibold">Opções de Impressão</h3>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-9 gap-2">
+            {/* Linha 1: Campos principais */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Template Base */}
               <div className="space-y-1.5">
-                <Label htmlFor={`template-${sector}`} className="text-xs">Template Base</Label>
+                <Label htmlFor={`template-${sector}`} className="text-xs font-medium">Template Base</Label>
                 <Select
                   value={selectedTemplate}
                   onValueChange={handleTemplateChange}
                   disabled={!config.enabled}
                 >
-                  <SelectTrigger id={`template-${sector}`} className="h-8 text-xs">
+                  <SelectTrigger id={`template-${sector}`} className="h-9">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -156,22 +158,22 @@ export function SectorConfigPanel({
                 </Select>
               </div>
 
-              {/* Impressora */}
-              <div className="space-y-1.5 xl:col-span-2">
-                <Label htmlFor={`printer-${sector}`} className="text-xs">Impressora</Label>
-                <div className="flex gap-1">
+              {/* Impressora + Buscar */}
+              <div className="space-y-1.5 lg:col-span-2">
+                <Label htmlFor={`printer-${sector}`} className="text-xs font-medium">Impressora</Label>
+                <div className="flex gap-2">
                   <Select
                     value={config.printer_name}
                     onValueChange={(printer_name) => onConfigChange({ ...config, printer_name })}
                     disabled={!config.enabled}
                   >
-                    <SelectTrigger id={`printer-${sector}`} className="flex-1 h-8 text-xs">
-                      <SelectValue placeholder="Selecione" />
+                    <SelectTrigger id={`printer-${sector}`} className="flex-1 h-9">
+                      <SelectValue placeholder="Selecione a impressora" />
                     </SelectTrigger>
                     <SelectContent>
                       {availablePrinters.length === 0 ? (
                         <SelectItem value="no-printer" disabled>
-                          Nenhuma impressora
+                          Nenhuma impressora encontrada
                         </SelectItem>
                       ) : (
                         availablePrinters.map((printer) => (
@@ -189,60 +191,22 @@ export function SectorConfigPanel({
                     size="icon"
                     disabled={!config.enabled}
                     title="Buscar impressoras"
-                    className="h-8 w-8"
+                    className="h-9 w-9 shrink-0"
                   >
-                    <RefreshCw className="h-3.5 w-3.5" />
+                    <RefreshCw className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
 
-              {/* Tipo de Corte - Convertido para Select */}
-              <div className="space-y-1.5">
-                <Label htmlFor={`cut-${sector}`} className="text-xs">Tipo de Corte</Label>
-                <Select
-                  value={config.cut_type}
-                  onValueChange={(value) => onConfigChange({ ...config, cut_type: value as CutType })}
-                  disabled={!config.enabled}
-                >
-                  <SelectTrigger id={`cut-${sector}`} className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="partial">Parcial</SelectItem>
-                    <SelectItem value="full">Total</SelectItem>
-                    <SelectItem value="none">Sem corte</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Largura do Texto - Convertido para Select */}
-              <div className="space-y-1.5">
-                <Label htmlFor={`text-mode-${sector}`} className="text-xs">Largura Texto</Label>
-                <Select
-                  value={config.text_mode}
-                  onValueChange={(value) => onConfigChange({ ...config, text_mode: value as TextMode })}
-                  disabled={!config.enabled}
-                >
-                  <SelectTrigger id={`text-mode-${sector}`} className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="condensed">Condensado</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="expanded">Expandido</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
               {/* Espaçamento entre Linhas */}
               <div className="space-y-1.5">
-                <Label htmlFor={`spacing-${sector}`} className="text-xs">Espaçamento</Label>
+                <Label htmlFor={`spacing-${sector}`} className="text-xs font-medium">Espaçamento</Label>
                 <Select
                   value={String(config.layout.line_spacing_multiplier || 1.0)}
                   onValueChange={(value) => updateLayout({ line_spacing_multiplier: parseFloat(value) })}
                   disabled={!config.enabled}
                 >
-                  <SelectTrigger id={`spacing-${sector}`} className="h-8 text-xs">
+                  <SelectTrigger id={`spacing-${sector}`} className="h-9">
                     <SelectValue placeholder="Normal" />
                   </SelectTrigger>
                   <SelectContent>
@@ -254,16 +218,57 @@ export function SectorConfigPanel({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
-              {/* Número de Vias - Convertido para Select */}
+            {/* Linha 2: Opções adicionais */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {/* Tipo de Corte */}
               <div className="space-y-1.5">
-                <Label htmlFor={`copies-${sector}`} className="text-xs">Nº Vias</Label>
+                <Label htmlFor={`cut-${sector}`} className="text-xs font-medium">Tipo de Corte</Label>
+                <Select
+                  value={config.cut_type}
+                  onValueChange={(value) => onConfigChange({ ...config, cut_type: value as CutType })}
+                  disabled={!config.enabled}
+                >
+                  <SelectTrigger id={`cut-${sector}`} className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="partial">Parcial</SelectItem>
+                    <SelectItem value="full">Total</SelectItem>
+                    <SelectItem value="none">Sem corte</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Largura do Texto */}
+              <div className="space-y-1.5">
+                <Label htmlFor={`text-mode-${sector}`} className="text-xs font-medium">Largura Texto</Label>
+                <Select
+                  value={config.text_mode}
+                  onValueChange={(value) => onConfigChange({ ...config, text_mode: value as TextMode })}
+                  disabled={!config.enabled}
+                >
+                  <SelectTrigger id={`text-mode-${sector}`} className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="condensed">Condensado</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="expanded">Expandido</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Número de Vias */}
+              <div className="space-y-1.5">
+                <Label htmlFor={`copies-${sector}`} className="text-xs font-medium">Nº de Vias</Label>
                 <Select
                   value={String(config.copies)}
                   onValueChange={(value) => onConfigChange({ ...config, copies: parseInt(value) })}
                   disabled={!config.enabled}
                 >
-                  <SelectTrigger id={`copies-${sector}`} className="h-8 text-xs">
+                  <SelectTrigger id={`copies-${sector}`} className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -274,9 +279,9 @@ export function SectorConfigPanel({
                 </Select>
               </div>
 
-              {/* Margem Esquerda - NOVO */}
+              {/* Margem Esquerda */}
               <div className="space-y-1.5">
-                <Label htmlFor={`margin-left-${sector}`} className="text-xs">Margem Esq.</Label>
+                <Label htmlFor={`margin-left-${sector}`} className="text-xs font-medium">Margem Esq.</Label>
                 <Input
                   id={`margin-left-${sector}`}
                   type="number"
@@ -285,13 +290,13 @@ export function SectorConfigPanel({
                   value={config.layout.margin_left || 0}
                   onChange={(e) => updateLayout({ margin_left: parseInt(e.target.value) || 0 })}
                   disabled={!config.enabled}
-                  className="h-8 text-xs"
+                  className="h-9"
                 />
               </div>
 
-              {/* Margem Direita - NOVO */}
+              {/* Margem Direita */}
               <div className="space-y-1.5">
-                <Label htmlFor={`margin-right-${sector}`} className="text-xs">Margem Dir.</Label>
+                <Label htmlFor={`margin-right-${sector}`} className="text-xs font-medium">Margem Dir.</Label>
                 <Input
                   id={`margin-right-${sector}`}
                   type="number"
@@ -300,11 +305,43 @@ export function SectorConfigPanel({
                   value={config.layout.margin_right || 0}
                   onChange={(e) => updateLayout({ margin_right: parseInt(e.target.value) || 0 })}
                   disabled={!config.enabled}
-                  className="h-8 text-xs"
+                  className="h-9"
                 />
               </div>
             </div>
+
+            {/* Linha 3: Mensagem de Rodapé */}
+            <div className="space-y-1.5">
+              <Label htmlFor={`footer-${sector}`} className="text-xs font-medium">Mensagem de Rodapé</Label>
+              <div className="flex gap-2">
+                <Input
+                  id={`footer-${sector}`}
+                  value={config.layout.footer_message || ''}
+                  onChange={(e) => updateLayout({ footer_message: e.target.value })}
+                  placeholder="Ex: Obrigado pela preferência!"
+                  disabled={!config.enabled}
+                  className="flex-1 h-9"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setFooterDialogOpen(true)}
+                  disabled={!config.enabled}
+                  title="Abrir editor de mensagem"
+                  className="h-9 w-9 shrink-0"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
+
+          <FooterMessageDialog
+            open={footerDialogOpen}
+            onOpenChange={setFooterDialogOpen}
+            value={config.layout.footer_message || ''}
+            onChange={(value) => updateLayout({ footer_message: value })}
+          />
 
           <Separator />
           
