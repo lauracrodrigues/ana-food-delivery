@@ -224,7 +224,7 @@ export function PrintLayoutConfig() {
       }
 
       const testOrder = {
-        order_number: "#001",
+        order_number: "001",
         customer_name: "Cliente Teste",
         customer_phone: "(99) 99999-9999",
         address: "Rua Exemplo, 123 - Centro, São Paulo",
