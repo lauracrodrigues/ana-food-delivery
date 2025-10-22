@@ -67,7 +67,9 @@ export function EditablePreviewElement({
       center: "text-center",
       right: "text-right",
     };
-    return alignMap[element.align as keyof typeof alignMap] || "text-left";
+    // Buscar alinhamento em element.formatting.align (nova estrutura)
+    const align = element.formatting?.align || element.align || 'left';
+    return alignMap[align as keyof typeof alignMap] || "text-left";
   };
 
   const formatClasses = `

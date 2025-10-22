@@ -35,6 +35,41 @@ export function ThermalPaperSimulator({
   onTextModeChange,
   printerConnected = false
 }: ThermalPaperSimulatorProps) {
+  // Helper para formatar endereço completo - SEMPRE retorna string
+  const formatAddress = (addr: any): string => {
+    if (!addr) return 'Endereço não cadastrado';
+    if (typeof addr === 'string') return addr;
+    
+    // Se é um objeto, serializar corretamente
+    if (typeof addr === 'object') {
+      try {
+        // Tentar parsear se for string JSON
+        const parsedAddr = typeof addr === 'string' ? JSON.parse(addr) : addr;
+        const parts = [
+          parsedAddr.street && parsedAddr.number ? `${parsedAddr.street}, ${parsedAddr.number}` : parsedAddr.street,
+          parsedAddr.complement,
+          parsedAddr.neighborhood,
+          parsedAddr.city && parsedAddr.state ? `${parsedAddr.city} - ${parsedAddr.state}` : parsedAddr.city,
+          parsedAddr.zip_code ? `CEP: ${parsedAddr.zip_code}` : null
+        ].filter(Boolean);
+        return parts.join('\n') || 'Endereço não cadastrado';
+      } catch (e) {
+        // Se falhar, tentar usar como objeto diretamente
+        const parts = [
+          addr.street && addr.number ? `${addr.street}, ${addr.number}` : addr.street,
+          addr.complement,
+          addr.neighborhood,
+          addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
+          addr.zip_code ? `CEP: ${addr.zip_code}` : null
+        ].filter(Boolean);
+        return parts.join('\n') || 'Endereço não cadastrado';
+      }
+    }
+    
+    // Fallback seguro
+    return 'Endereço não cadastrado';
+  };
+
   // Mock data
   const mockOrder = {
     order_number: "123",
@@ -148,7 +183,7 @@ export function ThermalPaperSimulator({
         content = `Tel: ${company.phone}`;
         break;
       case '{endereco_empresa}':
-        content = company.address || '';
+        content = formatAddress(company.address);
         break;
       case '{numero_pedido}':
         content = `Pedido #${mockOrder.order_number}`;

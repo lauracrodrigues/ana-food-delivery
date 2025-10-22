@@ -315,7 +315,7 @@ export class QZTrayPrinter {
     
     // Comandos de inicialização
     receipt += ESC + '@'; // Reset printer
-    receipt += ESC + 't' + '\x13'; // Selecionar código de página 1252 (Latin-1) para suportar acentos
+    receipt += ESC + 't' + '\x10'; // Selecionar code page PC850 (Multilingual) para suportar acentos em português
     const extConfig = config as ExtendedLayoutConfig;
     receipt += this.applyTextMode(extConfig.text_mode || 'normal'); // Aplicar largura do texto
     
