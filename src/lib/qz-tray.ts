@@ -611,9 +611,9 @@ export class QZTrayPrinter {
       console.warn('⚠️ Nenhum item para imprimir - Adicionando items de exemplo');
       // ADICIONAR ITEMS DE EXEMPLO se não houver
       order.items = [
-        { quantity: 2, name: 'Pizza Margherita G', price: 45.0, extras: ['Borda recheada'], observations: 'Sem cebola' },
-        { quantity: 1, name: 'Refrigerante 2L', price: 8.0 },
-        { quantity: 3, name: 'Pastel de Carne', price: 5.0 }
+        { quantity: 2, name: 'Pizza Margherita G', price: 45.0, extras: [{ name: 'Borda recheada' }, { name: 'Catupiry extra' }], observations: 'Sem cebola' },
+        { quantity: 1, name: 'Refrigerante 2L', price: 8.0, extras: [], observations: '' },
+        { quantity: 3, name: 'Pastel de Carne', price: 5.0, extras: [{ name: 'Com queijo' }], observations: '' }
       ];
       console.log('✅ Items de exemplo adicionados:', order.items);
     }

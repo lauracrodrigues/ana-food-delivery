@@ -81,19 +81,22 @@ export function InteractiveThermalPreview({
         quantity: 2,
         name: 'Pizza Margherita G',
         price: 45.0,
-        extras: ['Borda recheada', 'Catupiry extra'],
+        extras: [{ name: 'Borda recheada' }, { name: 'Catupiry extra' }],
         observations: 'Sem cebola',
       },
       {
         quantity: 1,
         name: 'Refrigerante 2L',
         price: 8.0,
+        extras: [],
+        observations: '',
       },
       {
         quantity: 3,
         name: 'Pastel de Carne',
         price: 5.0,
-        extras: ['Com queijo'],
+        extras: [{ name: 'Com queijo' }],
+        observations: '',
       },
     ],
     delivery_fee: 5.0,
@@ -191,9 +194,9 @@ export function InteractiveThermalPreview({
               <span className="font-mono tabular-nums ml-2">{formatCurrency(item.price * item.quantity)}</span>
             </div>
             {/* Extras */}
-            {item.extras?.map((extra, i) => (
+            {item.extras && item.extras.length > 0 && item.extras.map((extra: any, i: number) => (
               <div key={i} className="pl-3 text-muted-foreground">
-                + {extra}
+                + {typeof extra === 'string' ? extra : extra.name}
               </div>
             ))}
             {/* Observations */}
