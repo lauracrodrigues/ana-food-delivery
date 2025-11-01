@@ -292,6 +292,31 @@ export class QZTrayPrinter {
     return sanitized;
   }
 
+  // Helper para formatar endereço em linha única
+  private formatAddressInline(addr: any): string {
+    if (!addr) return '';
+    if (typeof addr === 'string') return addr;
+    
+    if (typeof addr === 'object') {
+      const parts = [
+        addr.street && addr.number ? `${addr.street}, ${addr.number}` : addr.street,
+        addr.complement,
+        addr.neighborhood,
+        addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
+        addr.zip_code ? `CEP: ${addr.zip_code}` : null
+      ].filter(Boolean);
+      return parts.join(', ');
+    }
+    
+    return '';
+  }
+
+  // Formatar linha com justificação (esquerda e direita)
+  private formatJustifiedLine(leftText: string, rightText: string, maxChars: number): string {
+    const spaces = Math.max(1, maxChars - leftText.length - rightText.length);
+    return leftText + ' '.repeat(spaces) + rightText + '\n';
+  }
+
   // Format order data for thermal printer (ESC/POS)
   private formatOrderReceipt(order: any, isReprint: boolean = false, layoutConfig?: LayoutConfig | ExtendedLayoutConfig): string {
     console.log('🔍 formatOrderReceipt - Validando order:', {
@@ -317,6 +342,12 @@ export class QZTrayPrinter {
     receipt += ESC + '@'; // Reset printer
     receipt += ESC + 't' + '\x10'; // Selecionar code page PC850 (Multilingual) para suportar acentos em português
     const extConfig = config as ExtendedLayoutConfig;
+    
+    // Aplicar espaçamento de linha
+    const lineSpacing = extConfig.line_spacing_multiplier || 1.0;
+    const lineHeight = Math.round(24 * lineSpacing); // 24 pontos = normal
+    receipt += ESC + '3' + String.fromCharCode(lineHeight); // Set line spacing
+    
     receipt += this.applyTextMode(extConfig.text_mode || 'normal'); // Aplicar largura do texto
     
     // Check if we have the new unified structure
@@ -341,6 +372,11 @@ export class QZTrayPrinter {
         
         // Special handling for {itens} tag
         if (element.tag === '{itens}') {
+          console.log('📦 Imprimindo itens:', {
+            visible: element.visible,
+            hasItems: !!order.items,
+            itemsCount: order.items?.length
+          });
           receipt += this.formatItems(order, extendedConfig, maxChars);
         } else {
           // Apply formatting and font size
@@ -354,11 +390,8 @@ export class QZTrayPrinter {
         // Add separator if configured
         if (element.separator_below.show) {
           const char = element.separator_below.char || '-';
-          const marginLeft = extendedConfig.margin_left || 0;
-          const marginRight = extendedConfig.margin_right || 0;
-          const effectiveWidth = Math.max(1, maxChars - marginLeft - marginRight);
-          const leftPadding = ' '.repeat(marginLeft);
-          receipt += leftPadding + char.repeat(effectiveWidth) + '\n';
+          // Delimitador deve usar largura COMPLETA (ignorar margens)
+          receipt += char.repeat(maxChars) + '\n';
         }
       }
       
@@ -400,7 +433,7 @@ export class QZTrayPrinter {
         content = order.company_phone || '';
         break;
       case '{endereco_empresa}':
-        content = order.company_address || '';
+        content = this.formatAddressInline(order.company_address);
         break;
       case '{email_empresa}':
         content = order.company_email ? `Email: ${order.company_email}` : '';
@@ -423,7 +456,9 @@ export class QZTrayPrinter {
         content = order.customer_phone;
         break;
       case '{endereco_cliente}':
-        content = order.type === 'delivery' && order.address ? order.address : '';
+        content = order.type === 'delivery' && order.address 
+          ? this.formatAddressInline(order.address) 
+          : '';
         break;
       case '{observacoes_pedido}':
         content = order.observations ? `Obs: ${order.observations}` : '';
@@ -483,9 +518,9 @@ export class QZTrayPrinter {
       return '';
     }
     
-    if (!order.items || !Array.isArray(order.items)) {
-      console.error('❌ ERRO: order.items não é um array válido');
-      return '';
+    if (!order.items || !Array.isArray(order.items) || order.items.length === 0) {
+      console.warn('⚠️ Nenhum item para imprimir');
+      return ''; // Retornar vazio se não houver itens
     }
     
     const GS = '\x1D';
@@ -499,7 +534,14 @@ export class QZTrayPrinter {
         ? `${item.quantity}x ${item.name}`
         : `Qtd: ${item.quantity} - ${item.name}`;
       
-      receipt += this.formatLine(this.sanitizeForThermalPrint(itemText), 'left', maxChars, false);
+      const itemPrice = formatCurrency(item.price * item.quantity);
+      
+      // Justificar: nome à esquerda, preço à direita
+      receipt += this.formatJustifiedLine(
+        this.sanitizeForThermalPrint(itemText),
+        itemPrice,
+        maxChars
+      );
       
       if (config.show_item_extras && item.extras && item.extras.length > 0) {
         item.extras.forEach((extra: any) => {
@@ -509,12 +551,6 @@ export class QZTrayPrinter {
       
       if (config.show_item_observations && item.observations) {
         receipt += this.formatLine(this.sanitizeForThermalPrint(`  ${config.item_observations_prefix || 'Obs: '}${item.observations}`), 'left', maxChars, false);
-      }
-      
-      if (config.item_price_position === 'next_line') {
-        receipt += this.formatLine(`  ${formatCurrency(item.price * item.quantity)}`, 'left', maxChars, false);
-      } else {
-        receipt += this.formatLine(`${formatCurrency(item.price * item.quantity)}`, 'right', maxChars, false);
       }
       
       receipt += '\n';
@@ -568,15 +604,37 @@ export class QZTrayPrinter {
         const content = this.getElementContent(element, order, config);
         if (!content) continue;
         
-        receipt += this.applyFormatting(element.formatting);
-        receipt += this.applyFontSizeFromElement(element.fontSize);
-        receipt += this.formatLine(content, element.formatting.align, maxChars);
-        receipt += '\x1D' + '!' + '\x00'; // Reset size
-        receipt += this.resetFormatting();
+        // Se é valor (subtotal, taxa, total), justificar
+        if (['{subtotal}', '{taxa_entrega}', '{total}'].includes(element.tag)) {
+          // Extrair label e valor
+          const parts = content.split(':');
+          if (parts.length === 2) {
+            const label = parts[0].trim() + ':';
+            const value = parts[1].trim();
+            receipt += this.applyFormatting(element.formatting);
+            receipt += this.applyFontSizeFromElement(element.fontSize);
+            receipt += this.formatJustifiedLine(label, value, maxChars);
+            receipt += '\x1D' + '!' + '\x00'; // Reset size
+            receipt += this.resetFormatting();
+          } else {
+            receipt += this.applyFormatting(element.formatting);
+            receipt += this.applyFontSizeFromElement(element.fontSize);
+            receipt += this.formatLine(content, element.formatting.align, maxChars);
+            receipt += '\x1D' + '!' + '\x00';
+            receipt += this.resetFormatting();
+          }
+        } else {
+          // Outros elementos normais
+          receipt += this.applyFormatting(element.formatting);
+          receipt += this.applyFontSizeFromElement(element.fontSize);
+          receipt += this.formatLine(content, element.formatting.align, maxChars);
+          receipt += '\x1D' + '!' + '\x00';
+          receipt += this.resetFormatting();
+        }
         
         if (element.separator_below.show) {
           const char = element.separator_below.char || '-';
-          receipt += this.formatLine(char.repeat(maxChars), 'left', maxChars);
+          receipt += char.repeat(maxChars) + '\n';
         }
       }
     }

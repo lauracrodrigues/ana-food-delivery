@@ -134,7 +134,12 @@ export function InteractiveThermalPreview({
       case '{telefone_empresa}':
         return `Tel: ${mockOrder.company_phone}`;
       case '{endereco_empresa}':
-        return formatAddress(companyData?.address) || 'Endereço não cadastrado';
+        const addr = companyData?.address;
+        if (!addr) return 'Endereço não cadastrado';
+        // Se já é string, retornar direto
+        if (typeof addr === 'string') return addr;
+        // Se é objeto, formatar
+        return formatAddress(addr);
       case '{email_empresa}':
         return `Email: ${mockOrder.company_email}`;
       case '{cnpj}':
