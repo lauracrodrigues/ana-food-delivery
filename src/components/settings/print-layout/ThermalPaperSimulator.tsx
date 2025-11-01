@@ -35,7 +35,7 @@ export function ThermalPaperSimulator({
   onTextModeChange,
   printerConnected = false
 }: ThermalPaperSimulatorProps) {
-  // Helper para formatar endereço completo - SEMPRE retorna string
+  // Helper para formatar endereço completo - SEMPRE retorna string EM UMA LINHA
   const formatAddress = (addr: any): string => {
     if (!addr) return 'Endereço não cadastrado';
     if (typeof addr === 'string') return addr;
@@ -52,7 +52,7 @@ export function ThermalPaperSimulator({
           parsedAddr.city && parsedAddr.state ? `${parsedAddr.city} - ${parsedAddr.state}` : parsedAddr.city,
           parsedAddr.zip_code ? `CEP: ${parsedAddr.zip_code}` : null
         ].filter(Boolean);
-        return parts.join('\n') || 'Endereço não cadastrado';
+        return parts.join(', ') || 'Endereço não cadastrado'; // VÍRGULA para linha única
       } catch (e) {
         // Se falhar, tentar usar como objeto diretamente
         const parts = [
@@ -62,7 +62,7 @@ export function ThermalPaperSimulator({
           addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
           addr.zip_code ? `CEP: ${addr.zip_code}` : null
         ].filter(Boolean);
-        return parts.join('\n') || 'Endereço não cadastrado';
+        return parts.join(', ') || 'Endereço não cadastrado'; // VÍRGULA para linha única
       }
     }
     

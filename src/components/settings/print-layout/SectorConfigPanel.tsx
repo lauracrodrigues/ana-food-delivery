@@ -5,9 +5,8 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Check, Loader2, RefreshCw, Edit } from 'lucide-react';
+import { RefreshCw, Edit } from 'lucide-react';
 import { UnifiedFieldsList } from './UnifiedFieldsList';
 import { InteractiveThermalPreview } from './InteractiveThermalPreview';
 import { FooterMessageDialog } from './FooterMessageDialog';
@@ -48,7 +47,6 @@ export function SectorConfigPanel({
   isTesting,
   isSaving
 }: SectorConfigPanelProps) {
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('custom');
   const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(null);
   const [footerDialogOpen, setFooterDialogOpen] = useState(false);
@@ -86,16 +84,8 @@ export function SectorConfigPanel({
   useEffect(() => {
     if (!config.enabled) return;
     
-    setSaveStatus('idle');
-    const timer = setTimeout(async () => {
-      setSaveStatus('saving');
-      try {
-        await onSaveRef.current();
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000);
-      } catch {
-        setSaveStatus('idle');
-      }
+    const timer = setTimeout(() => {
+      onSaveRef.current();
     }, 1500);
     
     return () => clearTimeout(timer);
@@ -109,24 +99,10 @@ export function SectorConfigPanel({
             <span>{sectorIcon}</span>
             {sectorLabel}
           </CardTitle>
-          <div className="flex items-center gap-3">
-            {saveStatus === 'saving' && (
-              <Badge variant="outline" className="animate-pulse">
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                Salvando...
-              </Badge>
-            )}
-            {saveStatus === 'saved' && (
-              <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400">
-                <Check className="h-3 w-3 mr-1" />
-                Salvo
-              </Badge>
-            )}
-            <Switch
-              checked={config.enabled}
-              onCheckedChange={(enabled) => onConfigChange({ ...config, enabled })}
-            />
-          </div>
+          <Switch
+            checked={config.enabled}
+            onCheckedChange={(enabled) => onConfigChange({ ...config, enabled })}
+          />
         </div>
       </CardHeader>
 

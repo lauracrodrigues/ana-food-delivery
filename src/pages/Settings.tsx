@@ -12,7 +12,6 @@ import { Progress } from "@/components/ui/progress";
 import { masks } from "@/lib/masks";
 import { 
   Store, 
-  Printer, 
   Truck, 
   Clock, 
   Volume2,
@@ -458,45 +457,10 @@ export function Settings() {
             </Card>
           </TabsContent>
 
-          {/* Print Settings - replaces old Printer and Layout tabs */}
+          {/* Print Settings */}
           <TabsContent value="print" className="space-y-6">
             {profile?.company_id ? (
-              <>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Printer className="h-5 w-5" />
-                      Impressão Automática
-                    </CardTitle>
-                    <CardDescription>
-                      Configure quando imprimir pedidos automaticamente
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label htmlFor="auto-print">Impressão Automática ao Aceitar</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Imprimir automaticamente quando aceitar um pedido
-                        </p>
-                      </div>
-                      <Switch
-                        id="auto-print"
-                        checked={(storeSettings?.printer_settings as any)?.auto_print ?? true}
-                        onCheckedChange={(checked) => {
-                          const currentPrinterSettings = storeSettings?.printer_settings || {};
-                          handleSettingsUpdate("printer_settings", {
-                            ...(typeof currentPrinterSettings === 'object' ? currentPrinterSettings : {}),
-                            auto_print: checked
-                          });
-                        }}
-                        disabled={loadingSettings}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-                <PrintLayoutConfig />
-              </>
+              <PrintLayoutConfig />
             ) : (
               <Card>
                 <CardContent className="py-10">

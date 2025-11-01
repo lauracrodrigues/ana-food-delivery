@@ -35,7 +35,7 @@ export function InteractiveThermalPreview({
 }: InteractiveThermalPreviewProps) {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
 
-  // Helper para formatar endereço completo - SEMPRE retorna string
+  // Helper para formatar endereço completo - SEMPRE retorna string EM UMA LINHA
   const formatAddress = (addr: any): string => {
     if (!addr) return 'Endereço não cadastrado';
     if (typeof addr === 'string') return addr;
@@ -52,7 +52,7 @@ export function InteractiveThermalPreview({
           parsedAddr.city && parsedAddr.state ? `${parsedAddr.city} - ${parsedAddr.state}` : parsedAddr.city,
           parsedAddr.zip_code ? `CEP: ${parsedAddr.zip_code}` : null
         ].filter(Boolean);
-        return parts.join('\n') || 'Endereço não cadastrado';
+        return parts.join(', ') || 'Endereço não cadastrado'; // VÍRGULA para linha única
       } catch (e) {
         // Se falhar, tentar usar como objeto diretamente
         const parts = [
@@ -62,7 +62,7 @@ export function InteractiveThermalPreview({
           addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
           addr.zip_code ? `CEP: ${addr.zip_code}` : null
         ].filter(Boolean);
-        return parts.join('\n') || 'Endereço não cadastrado';
+        return parts.join(', ') || 'Endereço não cadastrado'; // VÍRGULA para linha única
       }
     }
     
@@ -103,9 +103,10 @@ export function InteractiveThermalPreview({
     total: 113.0,
     payment_method: 'Dinheiro',
     observations: 'Entregar na portaria',
-    company_name: companyData?.fantasy_name || companyData?.name || 'EMPRESA',
+    // Usar dados REAIS da empresa quando disponíveis
+    company_name: companyData?.fantasy_name || companyData?.name || 'EMPRESA EXEMPLO',
     company_phone: companyData?.phone || '(11) 1234-5678',
-    company_address: formatAddress(companyData?.address),
+    company_address: companyData?.address ? formatAddress(companyData.address) : 'Endereço de exemplo',
     company_email: companyData?.email || 'contato@empresa.com.br',
   };
 
@@ -234,6 +235,12 @@ export function InteractiveThermalPreview({
     return modes[textMode as keyof typeof modes] || modes.normal;
   };
 
+  // Função para aplicar espaçamento dinâmico
+  const getLineSpacingStyle = () => {
+    const multiplier = config.line_spacing_multiplier || 1.0;
+    return { lineHeight: `${multiplier * 1.5}em` };
+  };
+
   const visibleElements = (config?.elements || [])
     .filter((el) => el.visible)
     .sort((a, b) => a.order - b.order);
@@ -254,7 +261,10 @@ export function InteractiveThermalPreview({
                 paddingRight: `${(config.margin_right || 0) * 2}px`
               }}
             >
-              <div className={`font-mono p-3 space-y-0.5 origin-left ${getTextModeClass()}`}>
+              <div 
+                className={`font-mono p-3 origin-left ${getTextModeClass()}`}
+                style={getLineSpacingStyle()}
+              >
               {visibleElements.map((element) => {
                 const content = getElementContent(element);
                 const isEditable = editableFields.includes(element.tag);

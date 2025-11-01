@@ -228,10 +228,6 @@ export function UnifiedFieldsList({ config, onChange, highlightedFieldId }: Unif
         </div>
       )}
 
-      <div className="bg-muted/50 border border-dashed rounded-lg p-4 text-sm text-muted-foreground">
-        <p className="font-medium mb-1">ℹ️ Nota:</p>
-        <p>O campo "Itens do Pedido" é obrigatório e não pode ser removido ou desabilitado.</p>
-      </div>
     </div>
   );
 }
