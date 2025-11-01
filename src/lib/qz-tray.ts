@@ -415,14 +415,7 @@ export class QZTrayPrinter {
           continue;
         }
         
-        // Get element content
-        const content = this.getElementContent(element, order, extendedConfig);
-        if (!content) {
-          console.log(`⏭️ Pulando elemento ${element.tag} - sem conteúdo`);
-          continue;
-        }
-        
-        // Special handling for {itens} tag
+        // Special handling for {itens} tag - PROCESSAR ANTES da verificação de conteúdo
         if (element.tag === '{itens}') {
           console.log('📦 Processando elemento {itens}:', {
             visible: element.visible,
@@ -437,23 +430,37 @@ export class QZTrayPrinter {
             preview: itemsReceipt.substring(0, 100)
           });
           receipt += itemsReceipt;
-        } else {
-          // Apply formatting and font size
-          receipt += this.applyFormatting(element.formatting);
-          receipt += this.applyFontSizeFromElement(element.fontSize);
           
-          // Se é endereço, usar formatMultiLine para quebrar linhas longas
-          if (['{endereco_empresa}', '{endereco_cliente}'].includes(element.tag)) {
-            receipt += this.formatMultiLine(content, element.formatting.align, maxChars);
-          } else {
-            receipt += this.formatLine(content, element.formatting.align, maxChars);
+          // Add separator if configured
+          if (element.separator_below.show) {
+            const char = element.separator_below.char || '-';
+            receipt += char.repeat(maxChars) + '\n';
           }
-          
-          receipt += GS + '!' + '\x00'; // Reset size
-          receipt += this.resetFormatting();
-          // Re-aplicar line spacing após reset
-          receipt += ESC + '3' + String.fromCharCode(lineHeight);
+          continue; // Pular para próximo elemento
         }
+        
+        // Get element content para outros elementos
+        const content = this.getElementContent(element, order, extendedConfig);
+        if (!content) {
+          console.log(`⏭️ Pulando elemento ${element.tag} - sem conteúdo`);
+          continue;
+        }
+        
+        // Apply formatting and font size
+        receipt += this.applyFormatting(element.formatting);
+        receipt += this.applyFontSizeFromElement(element.fontSize);
+        
+        // Se é endereço, usar formatMultiLine para quebrar linhas longas
+        if (['{endereco_empresa}', '{endereco_cliente}'].includes(element.tag)) {
+          receipt += this.formatMultiLine(content, element.formatting.align, maxChars);
+        } else {
+          receipt += this.formatLine(content, element.formatting.align, maxChars);
+        }
+        
+        receipt += GS + '!' + '\x00'; // Reset size
+        receipt += this.resetFormatting();
+        // Re-aplicar line spacing após reset
+        receipt += ESC + '3' + String.fromCharCode(lineHeight);
         
         // Add separator if configured
         if (element.separator_below.show) {
