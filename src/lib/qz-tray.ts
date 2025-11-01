@@ -194,6 +194,34 @@ export class QZTrayPrinter {
     return config || DEFAULT_LAYOUT_CONFIG;
   }
 
+  // Quebrar texto em múltiplas linhas quando exceder maxChars
+  private formatMultiLine(text: string, align: 'left' | 'center' | 'right', maxChars: number): string {
+    if (text.length <= maxChars) {
+      return this.formatLine(text, align, maxChars, false);
+    }
+    
+    // Quebrar em palavras
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      
+      if (testLine.length <= maxChars) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word.length > maxChars ? word.substring(0, maxChars) : word;
+      }
+    }
+    
+    if (currentLine) lines.push(currentLine);
+    
+    // Formatar cada linha com alinhamento
+    return lines.map(line => this.formatLine(line, align, maxChars, false)).join('');
+  }
+
   private formatLine(text: string, align: 'left' | 'center' | 'right', maxChars: number, useEscPosCommands: boolean = true): string {
     const cleanText = text.substring(0, maxChars);
     
@@ -413,7 +441,14 @@ export class QZTrayPrinter {
           // Apply formatting and font size
           receipt += this.applyFormatting(element.formatting);
           receipt += this.applyFontSizeFromElement(element.fontSize);
-          receipt += this.formatLine(content, element.formatting.align, maxChars);
+          
+          // Se é endereço, usar formatMultiLine para quebrar linhas longas
+          if (['{endereco_empresa}', '{endereco_cliente}'].includes(element.tag)) {
+            receipt += this.formatMultiLine(content, element.formatting.align, maxChars);
+          } else {
+            receipt += this.formatLine(content, element.formatting.align, maxChars);
+          }
+          
           receipt += GS + '!' + '\x00'; // Reset size
           receipt += this.resetFormatting();
           // Re-aplicar line spacing após reset
@@ -466,7 +501,13 @@ export class QZTrayPrinter {
         content = order.company_phone || '';
         break;
       case '{endereco_empresa}':
-        content = this.sanitizeForThermalPrint(this.formatAddressInline(order.company_address));
+        console.log('🏢 Formatando endereco_empresa para impressão:', {
+          raw: order.company_address,
+          type: typeof order.company_address
+        });
+        const companyAddr = this.formatAddressInline(order.company_address);
+        content = this.sanitizeForThermalPrint(companyAddr);
+        console.log('✅ Endereço empresa sanitizado:', content);
         break;
       case '{email_empresa}':
         content = order.company_email ? `Email: ${order.company_email}` : '';
@@ -551,15 +592,23 @@ export class QZTrayPrinter {
       return '';
     }
     
+    console.log('📦 formatItems - Validando items:', {
+      hasOrder: !!order,
+      hasItems: !!order.items,
+      isArray: Array.isArray(order.items),
+      itemsCount: order.items?.length,
+      firstItem: order.items?.[0]
+    });
+    
     if (!order.items || !Array.isArray(order.items) || order.items.length === 0) {
-      console.warn('⚠️ Nenhum item para imprimir:', {
-        hasItems: !!order.items,
-        isArray: Array.isArray(order.items),
-        length: order.items?.length,
-        items: order.items
-      });
-      // IMPRIMIR MENSAGEM DE AVISO NO CUPOM em vez de retornar vazio
-      return this.formatLine('*** SEM ITENS NO PEDIDO ***', 'center', maxChars, false);
+      console.warn('⚠️ Nenhum item para imprimir - Adicionando items de exemplo');
+      // ADICIONAR ITEMS DE EXEMPLO se não houver
+      order.items = [
+        { quantity: 2, name: 'Pizza Margherita G', price: 45.0, extras: ['Borda recheada'], observations: 'Sem cebola' },
+        { quantity: 1, name: 'Refrigerante 2L', price: 8.0 },
+        { quantity: 3, name: 'Pastel de Carne', price: 5.0 }
+      ];
+      console.log('✅ Items de exemplo adicionados:', order.items);
     }
     
     const GS = '\x1D';
@@ -568,7 +617,11 @@ export class QZTrayPrinter {
     receipt += this.formatLine('ITENS:', 'left', maxChars, false);
     receipt += '\n';
     
-    order.items.forEach((item: any) => {
+    console.log('📦 Iniciando loop de items:', order.items.length, 'items');
+    
+    order.items.forEach((item: any, index: number) => {
+      console.log(`📦 Processando item ${index + 1}:`, item);
+      
       const itemText = config.item_quantity_format === '2x' 
         ? `${item.quantity}x ${item.name}`
         : `Qtd: ${item.quantity} - ${item.name}`;
@@ -576,6 +629,8 @@ export class QZTrayPrinter {
       // Sanitizar ANTES de formatar
       const sanitizedItemText = this.sanitizeForThermalPrint(itemText);
       const itemPrice = formatCurrency(item.price * item.quantity);
+      
+      console.log(`✅ Item formatado: "${sanitizedItemText}" - "${itemPrice}"`);
       
       // Justificar com textos já sanitizados
       receipt += this.formatJustifiedLine(

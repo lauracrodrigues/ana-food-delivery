@@ -35,38 +35,35 @@ export function InteractiveThermalPreview({
 }: InteractiveThermalPreviewProps) {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
 
-  // Helper para formatar endereço completo - SEMPRE retorna string EM UMA LINHA
+  // Helper para formatar endereço completo - SEMPRE retorna string
   const formatAddress = (addr: any): string => {
-    if (!addr) return 'Endereço não cadastrado';
-    if (typeof addr === 'string') return addr;
+    console.log('🏠 formatAddress recebeu:', { addr, type: typeof addr });
     
-    // Se é um objeto, serializar corretamente
-    if (typeof addr === 'object') {
-      try {
-        // Tentar parsear se for string JSON
-        const parsedAddr = typeof addr === 'string' ? JSON.parse(addr) : addr;
-        const parts = [
-          parsedAddr.street && parsedAddr.number ? `${parsedAddr.street}, ${parsedAddr.number}` : parsedAddr.street,
-          parsedAddr.complement,
-          parsedAddr.neighborhood,
-          parsedAddr.city && parsedAddr.state ? `${parsedAddr.city} - ${parsedAddr.state}` : parsedAddr.city,
-          parsedAddr.zip_code ? `CEP: ${parsedAddr.zip_code}` : null
-        ].filter(Boolean);
-        return parts.join(', ') || 'Endereço não cadastrado'; // VÍRGULA para linha única
-      } catch (e) {
-        // Se falhar, tentar usar como objeto diretamente
-        const parts = [
-          addr.street && addr.number ? `${addr.street}, ${addr.number}` : addr.street,
-          addr.complement,
-          addr.neighborhood,
-          addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
-          addr.zip_code ? `CEP: ${addr.zip_code}` : null
-        ].filter(Boolean);
-        return parts.join(', ') || 'Endereço não cadastrado'; // VÍRGULA para linha única
-      }
+    if (!addr) return 'Endereço não cadastrado';
+    
+    // Se já é string, retornar direto
+    if (typeof addr === 'string') {
+      console.log('✅ Endereço já é string:', addr);
+      return addr;
     }
     
-    // Fallback seguro
+    // Se é objeto, extrair propriedades
+    if (typeof addr === 'object' && addr !== null) {
+      console.log('📦 Processando objeto de endereço:', addr);
+      const parts = [
+        addr.street && addr.number ? `${addr.street}, ${addr.number}` : addr.street,
+        addr.complement,
+        addr.neighborhood,
+        addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
+        addr.zip_code ? `CEP: ${addr.zip_code}` : null
+      ].filter(Boolean);
+      
+      const formatted = parts.join(', ');
+      console.log('✅ Endereço formatado:', formatted);
+      return formatted || 'Endereço não cadastrado';
+    }
+    
+    console.warn('⚠️ Tipo de endereço não reconhecido:', typeof addr);
     return 'Endereço não cadastrado';
   };
 
@@ -134,12 +131,14 @@ export function InteractiveThermalPreview({
       case '{telefone_empresa}':
         return `Tel: ${mockOrder.company_phone}`;
       case '{endereco_empresa}':
-        const addr = companyData?.address;
-        if (!addr) return 'Endereço não cadastrado';
-        // Se já é string, retornar direto
-        if (typeof addr === 'string') return addr;
-        // Se é objeto, formatar
-        return formatAddress(addr);
+        console.log('🏢 Processando endereco_empresa:', { 
+          hasCompanyData: !!companyData,
+          address: companyData?.address,
+          type: typeof companyData?.address 
+        });
+        const formattedAddress = formatAddress(companyData?.address);
+        console.log('✅ Endereço empresa formatado:', formattedAddress);
+        return formattedAddress;
       case '{email_empresa}':
         return `Email: ${mockOrder.company_email}`;
       case '{cnpj}':
