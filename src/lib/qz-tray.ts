@@ -295,7 +295,10 @@ export class QZTrayPrinter {
   // Helper para formatar endereço em linha única
   private formatAddressInline(addr: any): string {
     if (!addr) return '';
-    if (typeof addr === 'string') return addr;
+    if (typeof addr === 'string') {
+      // Se já é string, remover quebras de linha e normalizar espaços
+      return addr.replace(/[\n\r]+/g, ', ').replace(/\s+/g, ' ').trim();
+    }
     
     if (typeof addr === 'object') {
       const parts = [
@@ -305,7 +308,8 @@ export class QZTrayPrinter {
         addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
         addr.zip_code ? `CEP: ${addr.zip_code}` : null
       ].filter(Boolean);
-      return parts.join(', ');
+      // Juntar com vírgula E remover quebras
+      return parts.join(', ').replace(/[\n\r]+/g, ', ').trim();
     }
     
     return '';
@@ -313,8 +317,14 @@ export class QZTrayPrinter {
 
   // Formatar linha com justificação (esquerda e direita)
   private formatJustifiedLine(leftText: string, rightText: string, maxChars: number): string {
-    const spaces = Math.max(1, maxChars - leftText.length - rightText.length);
-    return leftText + ' '.repeat(spaces) + rightText + '\n';
+    // Truncar textos se excederem largura
+    const maxLeftLength = Math.max(1, maxChars - rightText.length - 1);
+    const truncatedLeft = leftText.length > maxLeftLength 
+      ? leftText.substring(0, maxLeftLength - 3) + '...' 
+      : leftText;
+    
+    const spaces = Math.max(1, maxChars - truncatedLeft.length - rightText.length);
+    return truncatedLeft + ' '.repeat(spaces) + rightText + '\n';
   }
 
   // Format order data for thermal printer (ESC/POS)
@@ -345,7 +355,21 @@ export class QZTrayPrinter {
     
     // Aplicar espaçamento de linha
     const lineSpacing = extConfig.line_spacing_multiplier || 1.0;
-    const lineHeight = Math.round(24 * lineSpacing); // 24 pontos = normal
+    
+    // Limitar valores entre 0.5 e 2.0 para evitar valores extremos
+    const clampedSpacing = Math.max(0.5, Math.min(2.0, lineSpacing));
+    
+    // Calcular line height: 24 pontos = normal (1.0x)
+    // 12 pontos = mínimo (0.5x), 48 pontos = máximo (2.0x)
+    const lineHeight = Math.round(24 * clampedSpacing);
+    
+    console.log('📏 Aplicando line spacing:', {
+      original: lineSpacing,
+      clamped: clampedSpacing,
+      lineHeight: lineHeight,
+      command: `ESC 3 ${lineHeight}`
+    });
+    
     receipt += ESC + '3' + String.fromCharCode(lineHeight); // Set line spacing
     
     receipt += this.applyTextMode(extConfig.text_mode || 'normal'); // Aplicar largura do texto
@@ -372,12 +396,19 @@ export class QZTrayPrinter {
         
         // Special handling for {itens} tag
         if (element.tag === '{itens}') {
-          console.log('📦 Imprimindo itens:', {
+          console.log('📦 Processando elemento {itens}:', {
             visible: element.visible,
+            hasOrder: !!order,
             hasItems: !!order.items,
-            itemsCount: order.items?.length
+            itemsCount: order.items?.length,
+            items: order.items
           });
-          receipt += this.formatItems(order, extendedConfig, maxChars);
+          const itemsReceipt = this.formatItems(order, extendedConfig, maxChars);
+          console.log('📦 Resultado formatItems:', {
+            length: itemsReceipt.length,
+            preview: itemsReceipt.substring(0, 100)
+          });
+          receipt += itemsReceipt;
         } else {
           // Apply formatting and font size
           receipt += this.applyFormatting(element.formatting);
@@ -385,6 +416,8 @@ export class QZTrayPrinter {
           receipt += this.formatLine(content, element.formatting.align, maxChars);
           receipt += GS + '!' + '\x00'; // Reset size
           receipt += this.resetFormatting();
+          // Re-aplicar line spacing após reset
+          receipt += ESC + '3' + String.fromCharCode(lineHeight);
         }
         
         // Add separator if configured
@@ -433,7 +466,7 @@ export class QZTrayPrinter {
         content = order.company_phone || '';
         break;
       case '{endereco_empresa}':
-        content = this.formatAddressInline(order.company_address);
+        content = this.sanitizeForThermalPrint(this.formatAddressInline(order.company_address));
         break;
       case '{email_empresa}':
         content = order.company_email ? `Email: ${order.company_email}` : '';
@@ -457,7 +490,7 @@ export class QZTrayPrinter {
         break;
       case '{endereco_cliente}':
         content = order.type === 'delivery' && order.address 
-          ? this.formatAddressInline(order.address) 
+          ? this.sanitizeForThermalPrint(this.formatAddressInline(order.address))
           : '';
         break;
       case '{observacoes_pedido}':
@@ -519,8 +552,14 @@ export class QZTrayPrinter {
     }
     
     if (!order.items || !Array.isArray(order.items) || order.items.length === 0) {
-      console.warn('⚠️ Nenhum item para imprimir');
-      return ''; // Retornar vazio se não houver itens
+      console.warn('⚠️ Nenhum item para imprimir:', {
+        hasItems: !!order.items,
+        isArray: Array.isArray(order.items),
+        length: order.items?.length,
+        items: order.items
+      });
+      // IMPRIMIR MENSAGEM DE AVISO NO CUPOM em vez de retornar vazio
+      return this.formatLine('*** SEM ITENS NO PEDIDO ***', 'center', maxChars, false);
     }
     
     const GS = '\x1D';
@@ -534,11 +573,13 @@ export class QZTrayPrinter {
         ? `${item.quantity}x ${item.name}`
         : `Qtd: ${item.quantity} - ${item.name}`;
       
+      // Sanitizar ANTES de formatar
+      const sanitizedItemText = this.sanitizeForThermalPrint(itemText);
       const itemPrice = formatCurrency(item.price * item.quantity);
       
-      // Justificar: nome à esquerda, preço à direita
+      // Justificar com textos já sanitizados
       receipt += this.formatJustifiedLine(
-        this.sanitizeForThermalPrint(itemText),
+        sanitizedItemText,
         itemPrice,
         maxChars
       );
@@ -565,6 +606,12 @@ export class QZTrayPrinter {
       console.error('❌ ERRO: Order undefined em formatTotals');
       return '';
     }
+    
+    // Declarar variáveis necessárias localmente
+    const ESC = '\x1B';
+    const lineSpacing = config.line_spacing_multiplier || 1.0;
+    const clampedSpacing = Math.max(0.5, Math.min(2.0, lineSpacing));
+    const lineHeight = Math.round(24 * clampedSpacing);
     
     let receipt = '';
     
@@ -606,22 +653,31 @@ export class QZTrayPrinter {
         
         // Se é valor (subtotal, taxa, total), justificar
         if (['{subtotal}', '{taxa_entrega}', '{total}'].includes(element.tag)) {
-          // Extrair label e valor
           const parts = content.split(':');
           if (parts.length === 2) {
             const label = parts[0].trim() + ':';
             const value = parts[1].trim();
+            
+            // PRIMEIRO justificar (sem formatação)
+            const justifiedLine = this.formatJustifiedLine(label, value, maxChars);
+            
+            // DEPOIS aplicar formatação no resultado
             receipt += this.applyFormatting(element.formatting);
             receipt += this.applyFontSizeFromElement(element.fontSize);
-            receipt += this.formatJustifiedLine(label, value, maxChars);
+            receipt += justifiedLine; // Já tem \n no final
             receipt += '\x1D' + '!' + '\x00'; // Reset size
             receipt += this.resetFormatting();
+            // Re-aplicar line spacing após reset
+            receipt += ESC + '3' + String.fromCharCode(lineHeight);
           } else {
+            // Fallback normal
             receipt += this.applyFormatting(element.formatting);
             receipt += this.applyFontSizeFromElement(element.fontSize);
             receipt += this.formatLine(content, element.formatting.align, maxChars);
             receipt += '\x1D' + '!' + '\x00';
             receipt += this.resetFormatting();
+            // Re-aplicar line spacing após reset
+            receipt += ESC + '3' + String.fromCharCode(lineHeight);
           }
         } else {
           // Outros elementos normais
@@ -630,6 +686,8 @@ export class QZTrayPrinter {
           receipt += this.formatLine(content, element.formatting.align, maxChars);
           receipt += '\x1D' + '!' + '\x00';
           receipt += this.resetFormatting();
+          // Re-aplicar line spacing após reset
+          receipt += ESC + '3' + String.fromCharCode(lineHeight);
         }
         
         if (element.separator_below.show) {
