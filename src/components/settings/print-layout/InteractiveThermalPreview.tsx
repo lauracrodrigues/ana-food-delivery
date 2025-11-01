@@ -183,26 +183,57 @@ export function InteractiveThermalPreview({
   };
 
   const renderItemsSection = () => {
+    const maxChars = config.chars_per_line || 48;
+    
+    // Helper para justificar (IGUAL qz-tray.ts)
+    const formatJustifiedLine = (leftText: string, rightText: string) => {
+      const maxLeftLength = Math.max(1, maxChars - rightText.length - 1);
+      const truncatedLeft = leftText.length > maxLeftLength 
+        ? leftText.substring(0, maxLeftLength - 3) + '...' 
+        : leftText;
+      
+      const spaces = Math.max(1, maxChars - truncatedLeft.length - rightText.length);
+      return { left: truncatedLeft, spaces, right: rightText };
+    };
+  
     return (
-      <div className="space-y-1">
-        <div className="font-bold text-xs border-b border-foreground/20 pb-0.5">ITENS:</div>
+      <div>
+        <div className="font-bold text-xs">ITENS:</div>
+        <div style={{ height: '1em' }} /> {/* Simular \n da impressão */}
+        
         {mockOrder.items.map((item, idx) => (
-          <div key={idx} className="text-[10px]">
-            {/* Item name and price on same line with proper spacing */}
-            <div className="flex justify-between items-start">
-              <span className="flex-1">{`${item.quantity}x ${item.name}`}</span>
-              <span className="font-mono tabular-nums ml-2">{formatCurrency(item.price * item.quantity)}</span>
-            </div>
-            {/* Extras */}
+          <div key={idx}>
+            {/* Item com justificação IGUAL impressão */}
+            {(() => {
+              const formatted = formatJustifiedLine(
+                `${item.quantity}x ${item.name}`,
+                formatCurrency(item.price * item.quantity)
+              );
+              return (
+                <div className="font-mono text-[10px] flex">
+                  <span>{formatted.left}</span>
+                  <span style={{ whiteSpace: 'pre' }}>{' '.repeat(formatted.spaces)}</span>
+                  <span>{formatted.right}</span>
+                </div>
+              );
+            })()}
+            
+            {/* Extras com 2 espaços (IGUAL impressão) */}
             {item.extras && item.extras.length > 0 && item.extras.map((extra: any, i: number) => (
-              <div key={i} className="pl-3 text-muted-foreground">
-                + {typeof extra === 'string' ? extra : extra.name}
+              <div key={i} className="font-mono text-[10px]">
+                {'  '}+ {typeof extra === 'string' ? extra : extra.name}
               </div>
             ))}
-            {/* Observations */}
+            
+            {/* Observations com 2 espaços + prefix (IGUAL impressão) */}
             {item.observations && (
-              <div className="pl-3 text-muted-foreground italic">Obs: {item.observations}</div>
+              <div className="font-mono text-[10px]">
+                {'  '}Obs: {item.observations}
+              </div>
             )}
+            
+            {/* Linha extra (IGUAL \n da impressão) */}
+            <div style={{ height: '1em' }} />
           </div>
         ))}
       </div>
@@ -242,10 +273,29 @@ export function InteractiveThermalPreview({
     return modes[textMode as keyof typeof modes] || modes.normal;
   };
 
-  // Função para aplicar espaçamento dinâmico
+  // Função para aplicar espaçamento dinâmico (SINCRONIZADO COM IMPRESSÃO)
   const getLineSpacingStyle = () => {
     const multiplier = config.line_spacing_multiplier || 1.0;
-    return { lineHeight: `${multiplier * 1.5}em` };
+    const clampedSpacing = Math.max(0.5, Math.min(2.0, multiplier));
+    
+    // Converter de pontos ESC/POS para lineHeight CSS
+    // 24 pontos = 1.0x = normal
+    // Aproximação: 1 ponto ≈ 0.0625em (24 pontos = 1.5em)
+    const lineHeightEm = (24 * clampedSpacing) * 0.0625;
+    
+    return { lineHeight: `${lineHeightEm}em` };
+  };
+  
+  // Régua de debug para validar largura
+  const renderRuler = () => {
+    const maxChars = config.chars_per_line || 48;
+    const ruler = Array.from({ length: maxChars }, (_, i) => (i + 1) % 10).join('');
+    
+    return (
+      <div className="font-mono text-[8px] text-muted-foreground border-b border-foreground/10 mb-1">
+        {ruler}
+      </div>
+    );
   };
 
   const visibleElements = (config?.elements || [])
@@ -272,6 +322,9 @@ export function InteractiveThermalPreview({
                 className={`font-mono p-3 origin-left ${getTextModeClass()}`}
                 style={getLineSpacingStyle()}
               >
+              {/* Régua de debug */}
+              {renderRuler()}
+              
               {visibleElements.map((element) => {
                 const content = getElementContent(element);
                 const isEditable = editableFields.includes(element.tag);
@@ -288,6 +341,7 @@ export function InteractiveThermalPreview({
                     key={element.id}
                     element={element}
                     content={content}
+                    maxChars={config.chars_per_line || 48}
                     onUpdate={(updates) => handleUpdateElement(element.id, updates)}
                     onContentChange={(newContent) => handleContentChange(element.id, newContent)}
                     isSelected={selectedElementId === element.id}
@@ -316,8 +370,14 @@ export function InteractiveThermalPreview({
             </Button>
           </div>
 
+          {/* Warning sobre Text Mode */}
+          <div className="mt-3 text-xs text-amber-600 text-center">
+            ⚠️ O modo de texto (condensed/normal/expanded) é aproximado no preview.
+            O resultado real depende da impressora.
+          </div>
+          
           {/* Info */}
-          <div className="mt-3 text-xs text-muted-foreground text-center space-y-1">
+          <div className="mt-2 text-xs text-muted-foreground text-center space-y-1">
             <p>Clique em qualquer elemento para editá-lo</p>
             <p>Passe o mouse para ver opções de formatação</p>
           </div>

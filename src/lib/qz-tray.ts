@@ -222,25 +222,26 @@ export class QZTrayPrinter {
     return lines.map(line => this.formatLine(line, align, maxChars, false)).join('');
   }
 
-  private formatLine(text: string, align: 'left' | 'center' | 'right', maxChars: number, useEscPosCommands: boolean = true): string {
+  private formatLine(text: string, align: 'left' | 'center' | 'right', maxChars: number, useEscPosCommands: boolean = true, marginLeft: number = 0): string {
     const cleanText = text.substring(0, maxChars);
+    const marginSpaces = ' '.repeat(marginLeft);
     
     // When using ESC/POS commands, don't add manual spacing
     // The printer will handle alignment via ESC/POS commands
     if (useEscPosCommands) {
-      return cleanText + '\n';
+      return marginSpaces + cleanText + '\n';
     }
     
     // Manual spacing (for preview or non-ESC/POS contexts)
     if (align === 'center') {
       const padding = Math.max(0, Math.floor((maxChars - cleanText.length) / 2));
-      return ' '.repeat(padding) + cleanText + '\n';
+      return marginSpaces + ' '.repeat(padding) + cleanText + '\n';
     } else if (align === 'right') {
       const padding = Math.max(0, maxChars - cleanText.length);
-      return ' '.repeat(padding) + cleanText + '\n';
+      return marginSpaces + ' '.repeat(padding) + cleanText + '\n';
     }
     
-    return cleanText + '\n';
+    return marginSpaces + cleanText + '\n';
   }
 
   private applyFontSize(size: string): string {
@@ -369,7 +370,13 @@ export class QZTrayPrinter {
     }
     
     const config = layoutConfig || this.getLayoutConfig();
-    const maxChars = config.chars_per_line;
+    const extConfig = config as ExtendedLayoutConfig;
+    
+    // Calcular maxChars CONSIDERANDO MARGENS
+    const baseChars = config.chars_per_line;
+    const marginLeft = extConfig.margin_left || 0;
+    const marginRight = extConfig.margin_right || 0;
+    const maxChars = Math.max(20, baseChars - marginLeft - marginRight);
     
     const ESC = '\x1B';
     const GS = '\x1D';
@@ -379,7 +386,6 @@ export class QZTrayPrinter {
     // Comandos de inicialização
     receipt += ESC + '@'; // Reset printer
     receipt += ESC + 't' + '\x10'; // Selecionar code page PC850 (Multilingual) para suportar acentos em português
-    const extConfig = config as ExtendedLayoutConfig;
     
     // Aplicar espaçamento de linha
     const lineSpacing = extConfig.line_spacing_multiplier || 1.0;

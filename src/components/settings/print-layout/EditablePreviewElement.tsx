@@ -8,6 +8,7 @@ interface EditablePreviewElementProps {
   isSelected: boolean;
   onSelect: () => void;
   isEditable: boolean;
+  maxChars: number; // NOVO: largura para sincronizar com impressão
 }
 
 export function EditablePreviewElement({
@@ -18,6 +19,7 @@ export function EditablePreviewElement({
   isSelected,
   onSelect,
   isEditable,
+  maxChars,
 }: EditablePreviewElementProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(content);
@@ -52,13 +54,14 @@ export function EditablePreviewElement({
   };
 
   const getFontSizeClass = () => {
+    // Mapear para aproximar ESC/POS multipliers (2x, 4x)
     const sizeMap = {
-      small: "text-[10px]",
-      medium: "text-xs",
-      large: "text-sm",
-      xlarge: "text-base",
+      small: "text-[10px]",    // ESC/POS normal
+      medium: "text-[10px]",   // IGUAL a small (como impressão)
+      large: "text-[20px]",    // 2x do normal (ESC/POS large)
+      xlarge: "text-[40px]",   // 4x do normal (ESC/POS xlarge)
     };
-    return sizeMap[element.font_size as keyof typeof sizeMap] || "text-xs";
+    return sizeMap[element.font_size as keyof typeof sizeMap] || "text-[10px]";
   };
 
   const getAlignClass = () => {
@@ -81,12 +84,16 @@ export function EditablePreviewElement({
     ${element.double_width ? "scale-x-150 origin-left" : ""}
   `.trim();
 
-  // Renderizar separador se configurado
+  // Renderizar separador se configurado (SINCRONIZADO COM IMPRESSÃO)
   const renderSeparator = () => {
-    if (!element.separator || element.separator === "none") return null;
+    // Usar element.separator_below (nova estrutura) ou fallback
+    const separatorConfig = element.separator_below || { show: false };
     
-    const separatorChar = element.separator === "equals" ? "=" : "-";
-    const separatorLine = separatorChar.repeat(48);
+    if (!separatorConfig.show) return null;
+    
+    const char = separatorConfig.char || '-';
+    // USAR maxChars da config (igual à impressão)
+    const separatorLine = char.repeat(maxChars);
     
     return (
       <div className="text-[10px] text-foreground/20 leading-tight my-0.5">
