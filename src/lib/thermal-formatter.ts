@@ -96,10 +96,26 @@ export function formatReceipt(
   config: ExtendedLayoutConfig,
   companyData?: any
 ): string[] {
+  console.log('🎨 thermal-formatter.formatReceipt chamado:', {
+    order_number: order.order_number,
+    customer_name: order.customer_name,
+    items_count: order.items?.length,
+    chars_per_line: config.chars_per_line,
+    margin_left: config.margin_left,
+    margin_right: config.margin_right,
+  });
+  
   const charsPorLinha = config.chars_per_line || 48;
   const marginLeft = config.margin_left || 0;
   const marginRight = config.margin_right || 0;
   const effectiveWidth = charsPorLinha - marginLeft - marginRight;
+  
+  console.log('📏 Dimensões calculadas:', {
+    charsPorLinha,
+    marginLeft,
+    marginRight,
+    effectiveWidth,
+  });
   
   const lines: string[] = [];
   

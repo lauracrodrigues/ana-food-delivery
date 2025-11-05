@@ -12,6 +12,7 @@ import { printerCache } from "@/lib/printer-cache";
 import { SectorConfigPanel } from "./SectorConfigPanel";
 import type { PrintSector, SectorConfig, SECTOR_LABELS } from "@/types/printer-settings";
 import { DEFAULT_EXTENDED_CONFIG } from "@/types/printer-layout-extended";
+import { MOCK_ORDER } from "@/lib/thermal-mock";
 
 const SECTORS: PrintSector[] = ["caixa", "cozinha_1", "cozinha_2", "copa_bar"];
 
@@ -223,35 +224,20 @@ export function PrintLayoutConfig() {
         return;
       }
 
+      // USAR O MESMO MOCK DO PREVIEW (single source of truth)
       const testOrder = {
-        order_number: "001",
-        customer_name: "Cliente Teste",
-        customer_phone: "(99) 99999-9999",
-        address: "Rua Exemplo, 123 - Centro, São Paulo",
-        type: "delivery",
-        source: "Cardápio Digital",
-        // Campos da empresa necessários para impressão
-        company_name: "Empresa Teste",
-        company_fantasy_name: "Empresa Teste",
-        company_phone: "(11) 1234-5678",
-        company_address: "Rua da Empresa, 456\nCentro\nSão Paulo - SP\nCEP: 01234-567",
-        company_email: "contato@empresa.com",
-        items: [
-          {
-            name: "Produto Exemplo",
-            quantity: 2,
-            price: 25.5,
-            observations: "Sem cebola",
-            extras: [{ name: "Extra Queijo", price: 3.0 }],
-          },
-        ],
-        delivery_fee: 5.0,
-        subtotal: 54.0,
-        total: 59.0,
-        payment_method: "Dinheiro",
-        observations: "Entregar na portaria",
-        created_at: new Date().toISOString(),
+        ...MOCK_ORDER,
+        // Sobrescrever com dados reais da empresa se disponível
+        company_name: companyData?.name || MOCK_ORDER.company_name,
+        company_phone: companyData?.phone || MOCK_ORDER.company_phone,
+        company_address: companyData?.address || MOCK_ORDER.company_address,
       };
+      
+      console.log('🧪 Teste de impressão usando MOCK_ORDER:', {
+        order_number: testOrder.order_number,
+        customer_name: testOrder.customer_name,
+        items_count: testOrder.items.length,
+      });
 
       const qzTray = QZTrayPrinter.getInstance();
       await qzTray.connect();

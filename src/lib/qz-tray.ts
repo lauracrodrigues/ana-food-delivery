@@ -387,7 +387,15 @@ export class QZTrayPrinter {
     receipt += this.applyTextMode(extConfig.text_mode || 'normal');
     
     // USAR THERMAL FORMATTER (single source of truth)
+    console.log('🖨️ qz-tray.formatOrderReceipt usando thermal-formatter:', {
+      order_number: order.order_number,
+      customer_name: order.customer_name,
+      items_count: order.items?.length,
+    });
+    
     const lines = formatReceipt(order, extConfig, order.company_data);
+    
+    console.log('📄 Linhas geradas pelo thermal-formatter:', lines.length);
     
     // PROCESSAR LINHAS (adicionar apenas texto já formatado)
     for (const line of lines) {
@@ -407,97 +415,16 @@ export class QZTrayPrinter {
     return receipt;
   }
 
-  // Get content for a specific element
-  private getElementContent(element: UnifiedPrintElement, order: any, config: ExtendedLayoutConfig): string {
-    if (!order) {
-      console.error('❌ ERRO: Order undefined em getElementContent para tag:', element.tag);
-      return '';
-    }
-    
-    let content = '';
-    switch (element.tag) {
-      case '{nome_empresa}':
-        // Priorizar fantasy_name se disponível
-        content = order.company_fantasy_name || order.company_name || 'EMPRESA';
-        break;
-      case '{telefone_empresa}':
-        content = order.company_phone || '';
-        break;
-      case '{endereco_empresa}':
-        console.log('🏢 Formatando endereco_empresa para impressão:', {
-          raw: order.company_address,
-          type: typeof order.company_address
-        });
-        const companyAddr = this.formatAddressInline(order.company_address);
-        content = this.sanitizeForThermalPrint(companyAddr);
-        console.log('✅ Endereço empresa sanitizado:', content);
-        break;
-      case '{email_empresa}':
-        content = order.company_email ? `Email: ${order.company_email}` : '';
-        break;
-      case '{numero_pedido}':
-        // Usar order_number ou order_number_display
-        const orderNum = order.order_number || order.order_number_display || 'S/N';
-        content = `Pedido #${orderNum}`;
-        break;
-      case '{data_hora}':
-        content = format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR });
-        break;
-      case '{origem_pedido}':
-        content = `Origem: ${order.source === 'whatsapp' ? 'WhatsApp' : 'Cardapio Digital'}`;
-        break;
-      case '{nome_cliente}':
-        content = order.customer_name;
-        break;
-      case '{telefone_cliente}':
-        content = order.customer_phone;
-        break;
-      case '{endereco_cliente}':
-        content = order.type === 'delivery' && order.address 
-          ? this.sanitizeForThermalPrint(this.formatAddressInline(order.address))
-          : '';
-        break;
-      case '{observacoes_pedido}':
-        content = order.observations ? `Obs: ${order.observations}` : '';
-        break;
-      case '{mensagem_rodape}':
-        content = config.footer_message || '';
-        break;
-      case '{tipo_entrega}':
-        content = order.type === 'delivery' ? 'ENTREGA' : 'RETIRADA';
-        break;
-      case '{cnpj}':
-        content = order.company_cnpj ? `CNPJ: ${order.company_cnpj}` : '';
-        break;
-      case '{referencia}':
-        content = order.referencia ? `Ref: ${order.referencia}` : '';
-        break;
-      case '{subtotal}':
-        const subtotal = order.total - (order.delivery_fee || 0);
-        content = `Subtotal: ${formatCurrency(subtotal)}`;
-        break;
-      case '{taxa_entrega}':
-        content = order.delivery_fee > 0 ? `Taxa Entrega: ${formatCurrency(order.delivery_fee)}` : '';
-        break;
-      case '{total}':
-        content = `TOTAL: ${formatCurrency(order.total)}`;
-        break;
-      case '{forma_pagamento}':
-        content = this.formatPaymentMethod(order.payment_method);
-        break;
-      default:
-        return '';
-    }
-    
-    // Aplicar prefix e suffix
-    const prefix = element.prefix || '';
-    const suffix = element.suffix || '';
-    const fullContent = prefix + content + suffix;
-    
-    return this.sanitizeForThermalPrint(fullContent);
-  }
+  // =====================================================
+  // MÉTODOS OBSOLETOS REMOVIDOS
+  // =====================================================
+  // getElementContent -> agora em thermal-formatter.ts
+  // formatItems -> agora em thermal-formatter.ts  
+  // formatTotals -> agora em thermal-formatter.ts
+  // applyFontSizeFromElement -> não mais necessário
+  // =====================================================
 
-  // Apply font size from element
+  // Apply font size (ainda usado por outros métodos legados)
   private applyFontSizeFromElement(fontSize: string): string {
     const sizeMap: Record<string, string> = {
       'small': 'normal',
@@ -508,175 +435,9 @@ export class QZTrayPrinter {
     return this.applyFontSize(sizeMap[fontSize] || 'normal');
   }
 
-  // Format items section
-  private formatItems(order: any, config: ExtendedLayoutConfig, maxChars: number): string {
-    if (!order) {
-      console.error('❌ ERRO: Order undefined em formatItems');
-      return '';
-    }
-    
-    console.log('📦 formatItems - Validando items:', {
-      hasOrder: !!order,
-      hasItems: !!order.items,
-      isArray: Array.isArray(order.items),
-      itemsCount: order.items?.length,
-      firstItem: order.items?.[0]
-    });
-    
-    if (!order.items || !Array.isArray(order.items) || order.items.length === 0) {
-      console.warn('⚠️ Nenhum item para imprimir - Adicionando items de exemplo');
-      // ADICIONAR ITEMS DE EXEMPLO se não houver
-      order.items = [
-        { quantity: 2, name: 'Pizza Margherita G', price: 45.0, extras: [{ name: 'Borda recheada' }, { name: 'Catupiry extra' }], observations: 'Sem cebola' },
-        { quantity: 1, name: 'Refrigerante 2L', price: 8.0, extras: [], observations: '' },
-        { quantity: 3, name: 'Pastel de Carne', price: 5.0, extras: [{ name: 'Com queijo' }], observations: '' }
-      ];
-      console.log('✅ Items de exemplo adicionados:', order.items);
-    }
-    
-    const GS = '\x1D';
-    let receipt = '';
-    
-    receipt += this.formatLine('ITENS:', 'left', maxChars, false);
-    receipt += '\n';
-    
-    console.log('📦 Iniciando loop de items:', order.items.length, 'items');
-    
-    order.items.forEach((item: any, index: number) => {
-      console.log(`📦 Processando item ${index + 1}:`, item);
-      
-      const itemText = config.item_quantity_format === '2x' 
-        ? `${item.quantity}x ${item.name}`
-        : `Qtd: ${item.quantity} - ${item.name}`;
-      
-      // Sanitizar ANTES de formatar
-      const sanitizedItemText = this.sanitizeForThermalPrint(itemText);
-      const itemPrice = formatCurrency(item.price * item.quantity);
-      
-      console.log(`✅ Item formatado: "${sanitizedItemText}" - "${itemPrice}"`);
-      
-      // Justificar com textos já sanitizados
-      receipt += this.formatJustifiedLine(
-        sanitizedItemText,
-        itemPrice,
-        maxChars
-      );
-      
-      if (config.show_item_extras && item.extras && item.extras.length > 0) {
-        item.extras.forEach((extra: any) => {
-          receipt += this.formatLine(this.sanitizeForThermalPrint(`  ${config.item_extras_prefix}${extra.name}`), 'left', maxChars, false);
-        });
-      }
-      
-      if (config.show_item_observations && item.observations) {
-        receipt += this.formatLine(this.sanitizeForThermalPrint(`  ${config.item_observations_prefix || 'Obs: '}${item.observations}`), 'left', maxChars, false);
-      }
-      
-      receipt += '\n';
-    });
-    
-    return receipt;
-  }
+  // MÉTODO REMOVIDO: formatItems agora está em thermal-formatter.ts
 
-  // Format totals section
-  private formatTotals(order: any, config: ExtendedLayoutConfig, maxChars: number): string {
-    if (!order) {
-      console.error('❌ ERRO: Order undefined em formatTotals');
-      return '';
-    }
-    
-    // Declarar variáveis necessárias localmente
-    const ESC = '\x1B';
-    const lineSpacing = config.line_spacing_multiplier || 1.0;
-    const clampedSpacing = Math.max(0.5, Math.min(2.0, lineSpacing));
-    const lineHeight = Math.round(24 * clampedSpacing);
-    
-    let receipt = '';
-    
-    // Buscar elementos de totais que estão visíveis
-    const totalElements = (config.elements || [])
-      .filter(el => el.visible && ['{subtotal}', '{taxa_entrega}', '{total}', '{forma_pagamento}'].includes(el.tag))
-      .sort((a, b) => a.order - b.order);
-    
-    if (totalElements.length === 0) {
-      // Fallback para estrutura antiga
-      const GS = '\x1D';
-      const char = '-';
-      receipt += this.formatLine(char.repeat(maxChars), 'left', maxChars, false);
-      
-      if (config.show_subtotal && order.delivery_fee && order.delivery_fee > 0) {
-        receipt += this.formatLine(`Subtotal: ${formatCurrency(Number(order.total) - Number(order.delivery_fee))}`, 'left', maxChars, false);
-      }
-      
-      if (config.show_delivery_fee && order.delivery_fee && order.delivery_fee > 0) {
-        receipt += this.formatLine(`Taxa de Entrega: ${formatCurrency(order.delivery_fee)}`, 'left', maxChars, false);
-      }
-      
-      receipt += this.applyFormatting({ bold: true, underline: false, align: 'left' });
-      receipt += this.applyFontSize('large');
-      receipt += this.formatLine(`TOTAL: ${formatCurrency(order.total)}`, 'left', maxChars);
-      receipt += GS + '!' + '\x00'; // Reset size
-      receipt += this.resetFormatting();
-      receipt += '\n';
-      
-      if (config.show_payment_method && order.payment_method) {
-        receipt += this.formatLine(`Pagamento: ${this.formatPaymentMethod(order.payment_method)}`, 'left', maxChars, false);
-        receipt += '\n';
-      }
-    } else {
-      // Usar elementos configurados
-      for (const element of totalElements) {
-        const content = this.getElementContent(element, order, config);
-        if (!content) continue;
-        
-        // Se é valor (subtotal, taxa, total), justificar
-        if (['{subtotal}', '{taxa_entrega}', '{total}'].includes(element.tag)) {
-          const parts = content.split(':');
-          if (parts.length === 2) {
-            const label = parts[0].trim() + ':';
-            const value = parts[1].trim();
-            
-            // PRIMEIRO justificar (sem formatação)
-            const justifiedLine = this.formatJustifiedLine(label, value, maxChars);
-            
-            // DEPOIS aplicar formatação no resultado
-            receipt += this.applyFormatting(element.formatting);
-            receipt += this.applyFontSizeFromElement(element.fontSize);
-            receipt += justifiedLine; // Já tem \n no final
-            receipt += '\x1D' + '!' + '\x00'; // Reset size
-            receipt += this.resetFormatting();
-            // Re-aplicar line spacing após reset
-            receipt += ESC + '3' + String.fromCharCode(lineHeight);
-          } else {
-            // Fallback normal
-            receipt += this.applyFormatting(element.formatting);
-            receipt += this.applyFontSizeFromElement(element.fontSize);
-            receipt += this.formatLine(content, element.formatting.align, maxChars);
-            receipt += '\x1D' + '!' + '\x00';
-            receipt += this.resetFormatting();
-            // Re-aplicar line spacing após reset
-            receipt += ESC + '3' + String.fromCharCode(lineHeight);
-          }
-        } else {
-          // Outros elementos normais
-          receipt += this.applyFormatting(element.formatting);
-          receipt += this.applyFontSizeFromElement(element.fontSize);
-          receipt += this.formatLine(content, element.formatting.align, maxChars);
-          receipt += '\x1D' + '!' + '\x00';
-          receipt += this.resetFormatting();
-          // Re-aplicar line spacing após reset
-          receipt += ESC + '3' + String.fromCharCode(lineHeight);
-        }
-        
-        if (element.separator_below.show) {
-          const char = element.separator_below.char || '-';
-          receipt += char.repeat(maxChars) + '\n';
-        }
-      }
-    }
-    
-    return receipt;
-  }
+  // MÉTODO REMOVIDO: formatTotals agora está em thermal-formatter.ts
 
   // Old structure fallback
   private formatOrderReceiptOldStructure(order: any, config: LayoutConfig, maxChars: number, ESC: string, GS: string): string {

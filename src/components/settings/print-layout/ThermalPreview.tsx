@@ -28,8 +28,19 @@ export function ThermalPreview({
     company_cnpj: companyData?.cnpj || undefined,
   };
 
+  console.log('👁️ ThermalPreview renderizando:', {
+    order_number: order.order_number,
+    customer_name: order.customer_name,
+    items_count: order.items?.length,
+    chars_per_line: config.chars_per_line,
+    margin_left: config.margin_left,
+    margin_right: config.margin_right,
+  });
+
   // USAR FORMATADOR ÚNICO (single source of truth)
   const lines = formatReceipt(order, config, companyData);
+  
+  console.log('📺 Preview gerou', lines.length, 'linhas');
 
   return (
     <div className="space-y-4">
