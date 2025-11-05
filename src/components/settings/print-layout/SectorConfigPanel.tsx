@@ -22,8 +22,11 @@ interface SectorConfigPanelProps {
   availablePrinters: string[];
   companyData?: {
     name: string;
+    fantasy_name?: string;
     phone?: string;
-    address?: string;
+    address?: any;  // JSONB object or string
+    email?: string;
+    cnpj?: string;
   };
   onConfigChange: (config: SectorConfig) => void;
   onTestPrint: () => void;

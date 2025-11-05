@@ -236,16 +236,13 @@ function getElementContent(
       break;
     case '{endereco_empresa}':
       const companyAddr = companyData?.address || order.company_address;
-      console.log('🏢 Endereço empresa RAW:', companyAddr, 'tipo:', typeof companyAddr);
       
       if (!companyAddr) {
         content = '';
       } else if (typeof companyAddr === 'string') {
         content = companyAddr;
       } else if (typeof companyAddr === 'object' && companyAddr !== null) {
-        const formatted = formatAddress(companyAddr);
-        console.log('🏢 Endereço formatado:', formatted);
-        content = formatted;
+        content = formatAddress(companyAddr);
       } else {
         content = '';
       }
@@ -312,18 +309,19 @@ function getElementContent(
   return prefix + content + suffix;
 }
 
-// Helper para formatar endereço
+// Helper para formatar endereço (mapeia campos do DB em português)
 function formatAddress(addr: any): string {
   if (!addr) return '';
   if (typeof addr === 'string') return addr;
   
   if (typeof addr === 'object' && addr !== null) {
+    // Mapear campos do DB (português): logradouro, numero, bairro, cidade, estado, cep
     const parts = [
-      addr.street && addr.number ? `${addr.street}, ${addr.number}` : addr.street,
-      addr.complement,
-      addr.neighborhood,
-      addr.city && addr.state ? `${addr.city} - ${addr.state}` : addr.city,
-      addr.zip_code ? `CEP: ${addr.zip_code}` : null
+      addr.logradouro && addr.numero ? `${addr.logradouro}, ${addr.numero}` : addr.logradouro,
+      addr.complemento,
+      addr.bairro,
+      addr.cidade && addr.estado ? `${addr.cidade} - ${addr.estado}` : addr.cidade,
+      addr.cep ? `CEP: ${addr.cep}` : null
     ].filter(Boolean);
     
     return parts.length > 0 ? parts.join(', ') : '';

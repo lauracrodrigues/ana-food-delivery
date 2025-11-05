@@ -73,15 +73,20 @@ export function PrintLayoutConfig() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("companies")
-        .select("name, phone, address")
+        .select("name, fantasy_name, phone, address, email, cnpj")
         .eq("id", companyId)
         .single();
 
       if (error) throw error;
+      
+      // Manter tipos originais - NÃO converter para string
       return {
         name: data.name,
-        phone: data.phone ? String(data.phone) : undefined,
-        address: data.address ? String(data.address) : undefined,
+        fantasy_name: data.fantasy_name,
+        phone: data.phone,        // Manter como string do DB
+        address: data.address,    // Manter como objeto JSONB
+        email: data.email,
+        cnpj: data.cnpj,
       };
     },
     enabled: !!companyId,

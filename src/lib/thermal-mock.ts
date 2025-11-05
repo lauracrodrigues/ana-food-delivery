@@ -72,6 +72,6 @@ export const MOCK_ORDER: MockOrder = {
   observations: 'Entregar na portaria',
   company_name: 'EMPRESA EXEMPLO',
   company_phone: '(11) 1234-5678',
-  company_address: 'Endereço de exemplo',
+  company_address: 'Rua Exemplo, 123 - Centro - Cidade - SP - CEP: 12345-678',
   company_email: 'contato@empresa.com.br',
 };
