@@ -109,7 +109,7 @@ export function SectorConfigPanel({
         </div>
       </CardHeader>
 
-      <CardContent className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6">
+      <CardContent className="grid grid-cols-1 lg:grid-cols-[1fr,350px] gap-6">
         {/* Coluna Esquerda: Configurações com scroll */}
         <div className="space-y-4 max-h-[calc(100vh-14rem)] overflow-y-auto pr-2 scrollbar-thin">
           {/* NOVA SEÇÃO: Opções de Impressão */}
@@ -117,7 +117,7 @@ export function SectorConfigPanel({
             <h3 className="text-sm font-semibold">Opções de Impressão</h3>
             
             {/* Linha 1: Campos principais */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Template Base */}
               <div className="space-y-1.5">
                 <Label htmlFor={`template-${sector}`} className="text-xs font-medium">Template Base</Label>
@@ -138,7 +138,7 @@ export function SectorConfigPanel({
               </div>
 
               {/* Impressora + Buscar */}
-              <div className="space-y-1.5 lg:col-span-2">
+              <div className="space-y-1.5">
                 <Label htmlFor={`printer-${sector}`} className="text-xs font-medium">Impressora</Label>
                 <div className="flex gap-2">
                   <Select
@@ -176,31 +176,10 @@ export function SectorConfigPanel({
                   </Button>
                 </div>
               </div>
-
-              {/* Espaçamento entre Linhas */}
-              <div className="space-y-1.5">
-                <Label htmlFor={`spacing-${sector}`} className="text-xs font-medium">Espaçamento</Label>
-                <Select
-                  value={String(config.layout.line_spacing_multiplier || 1.0)}
-                  onValueChange={(value) => updateLayout({ line_spacing_multiplier: parseFloat(value) })}
-                  disabled={!config.enabled}
-                >
-                  <SelectTrigger id={`spacing-${sector}`} className="h-9">
-                    <SelectValue placeholder="Normal" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0.5">Muito Compacto</SelectItem>
-                    <SelectItem value="0.75">Compacto</SelectItem>
-                    <SelectItem value="1.0">Normal</SelectItem>
-                    <SelectItem value="1.5">Espaçado</SelectItem>
-                    <SelectItem value="2.0">Muito Espaçado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             {/* Linha 2: Opções adicionais */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {/* Número de Vias */}
               <div className="space-y-1.5">
                 <Label htmlFor={`copies-${sector}`} className="text-xs font-medium">Nº de Vias</Label>
@@ -276,7 +255,7 @@ export function SectorConfigPanel({
                   onChange={(e) => updateLayout({ footer_message: e.target.value })}
                   placeholder="Ex: Obrigado pela preferência!"
                   disabled={!config.enabled}
-                  className="flex-1 h-9"
+                  className="flex-1 h-8"
                 />
                 <Button
                   variant="outline"
