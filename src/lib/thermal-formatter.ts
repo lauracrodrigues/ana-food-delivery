@@ -235,8 +235,16 @@ function getElementContent(
       content = `Tel: ${companyData?.phone || order.company_phone || ''}`;
       break;
     case '{endereco_empresa}':
-      const companyAddr = companyData?.address || order.company_address || '';
-      content = typeof companyAddr === 'object' ? formatAddress(companyAddr) : String(companyAddr);
+      const companyAddr = companyData?.address || order.company_address;
+      if (!companyAddr) {
+        content = '';
+      } else if (typeof companyAddr === 'string') {
+        content = companyAddr;
+      } else if (typeof companyAddr === 'object') {
+        content = formatAddress(companyAddr);
+      } else {
+        content = '';
+      }
       break;
     case '{email_empresa}':
       content = companyData?.email ? `Email: ${companyData.email}` : '';
@@ -256,7 +264,7 @@ function getElementContent(
       content = order.source === 'whatsapp' ? 'Origem: WhatsApp' : 'Origem: Cardápio Digital';
       break;
     case '{tipo_entrega}':
-      content = order.type === 'delivery' ? '🛵 ENTREGA' : '🏪 RETIRADA';
+      content = order.type === 'delivery' ? 'ENTREGA' : 'RETIRADA';
       break;
     case '{nome_cliente}':
       content = `Cliente: ${order.customer_name || ''}`;
@@ -314,9 +322,8 @@ function formatAddress(addr: any): string {
       addr.zip_code ? `CEP: ${addr.zip_code}` : null
     ].filter(Boolean);
     
-    return parts.join(', ');
+    return parts.length > 0 ? parts.join(', ') : '';
   }
   
-  // Fallback: tentar converter para string
-  return String(addr);
+  return '';
 }
