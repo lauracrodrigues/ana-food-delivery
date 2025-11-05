@@ -97,6 +97,10 @@ export function formatReceipt(
   companyData?: any
 ): string[] {
   const charsPorLinha = config.chars_per_line || 48;
+  const marginLeft = config.margin_left || 0;
+  const marginRight = config.margin_right || 0;
+  const effectiveWidth = charsPorLinha - marginLeft - marginRight;
+  
   const lines: string[] = [];
   
   // Elementos visíveis e ordenados
@@ -107,27 +111,28 @@ export function formatReceipt(
   for (const element of visibleElements) {
     // SPECIAL CASE: {itens}
     if (element.tag === '{itens}') {
-      lines.push('ITENS:');
+      const margin = ' '.repeat(marginLeft);
+      lines.push(margin + 'ITENS:');
       lines.push(''); // linha em branco
       
       const items = order.items || [];
       items.forEach((item: any) => {
         const itemText = `${item.quantity}x ${item.name}`;
         const itemPrice = formatCurrency(item.price * item.quantity);
-        lines.push(itemWithPrice(itemText, itemPrice, charsPorLinha));
+        lines.push(margin + itemWithPrice(itemText, itemPrice, effectiveWidth));
         
         // Extras com indentação de 2 espaços
         if (item.extras && item.extras.length > 0) {
           item.extras.forEach((extra: any) => {
             const extraName = typeof extra === 'string' ? extra : extra.name;
-            lines.push(`  + ${extraName}`);
+            lines.push(margin + `  + ${extraName}`);
           });
         }
         
         // Observações com indentação de 2 espaços
         if (item.observations) {
-          const obsLines = wrapText(`  Obs: ${item.observations}`, charsPorLinha);
-          lines.push(...obsLines);
+          const obsLines = wrapText(`  Obs: ${item.observations}`, effectiveWidth);
+          obsLines.forEach(line => lines.push(margin + line));
         }
         
         lines.push(''); // linha em branco após cada item
@@ -136,7 +141,7 @@ export function formatReceipt(
       // Separator
       if (element.separator_below?.show) {
         const char = element.separator_below.char || '-';
-        lines.push(divider(char, charsPorLinha));
+        lines.push(margin + divider(char, effectiveWidth));
       }
       
       continue;
@@ -148,38 +153,45 @@ export function formatReceipt(
     
     // Apply alignment
     const align = element.formatting?.align || 'left';
+    const margin = ' '.repeat(marginLeft);
     
     // Se é endereço, fazer wrap
     if (element.tag === '{endereco_empresa}' || element.tag === '{endereco_cliente}') {
-      const wrappedLines = wrapText(content, charsPorLinha);
+      const wrappedLines = wrapText(content, effectiveWidth);
       wrappedLines.forEach(line => {
-        const formatted = align === 'center' ? padCenter(line, charsPorLinha) :
-                         align === 'right' ? padLeft(line, charsPorLinha) :
-                         padRight(line, charsPorLinha);
-        lines.push(formatted);
+        const formatted = align === 'center' ? padCenter(line, effectiveWidth) :
+                         align === 'right' ? padLeft(line, effectiveWidth) :
+                         padRight(line, effectiveWidth);
+        lines.push(margin + formatted);
       });
       
       // Separator
       if (element.separator_below?.show) {
         const char = element.separator_below.char || '-';
-        lines.push(divider(char, charsPorLinha));
+        lines.push(margin + divider(char, effectiveWidth));
       }
       
       continue;
     }
     
     // Elementos normais (uma linha)
-    const formatted = align === 'center' ? padCenter(content, charsPorLinha) :
-                     align === 'right' ? padLeft(content, charsPorLinha) :
-                     padRight(content, charsPorLinha);
+    const formatted = align === 'center' ? padCenter(content, effectiveWidth) :
+                     align === 'right' ? padLeft(content, effectiveWidth) :
+                     padRight(content, effectiveWidth);
     
-    lines.push(formatted);
+    lines.push(margin + formatted);
     
     // Separator
     if (element.separator_below?.show) {
       const char = element.separator_below.char || '-';
-      lines.push(divider(char, charsPorLinha));
+      lines.push(margin + divider(char, effectiveWidth));
     }
+  }
+  
+  // Adicionar linhas extras antes do corte (extra_feed_lines)
+  const extraFeed = config.extra_feed_lines || 4;
+  for (let i = 0; i < extraFeed; i++) {
+    lines.push('');
   }
   
   return lines;

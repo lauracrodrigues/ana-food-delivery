@@ -197,45 +197,7 @@ export function SectorConfigPanel({
             </div>
 
             {/* Linha 2: Opções adicionais */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              {/* Tipo de Corte */}
-              <div className="space-y-1.5">
-                <Label htmlFor={`cut-${sector}`} className="text-xs font-medium">Tipo de Corte</Label>
-                <Select
-                  value={config.cut_type}
-                  onValueChange={(value) => onConfigChange({ ...config, cut_type: value as CutType })}
-                  disabled={!config.enabled}
-                >
-                  <SelectTrigger id={`cut-${sector}`} className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="partial">Parcial</SelectItem>
-                    <SelectItem value="full">Total</SelectItem>
-                    <SelectItem value="none">Sem corte</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Largura do Texto */}
-              <div className="space-y-1.5">
-                <Label htmlFor={`text-mode-${sector}`} className="text-xs font-medium">Largura Texto</Label>
-                <Select
-                  value={config.text_mode}
-                  onValueChange={(value) => onConfigChange({ ...config, text_mode: value as TextMode })}
-                  disabled={!config.enabled}
-                >
-                  <SelectTrigger id={`text-mode-${sector}`} className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="condensed">Condensado</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="expanded">Expandido</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {/* Número de Vias */}
               <div className="space-y-1.5">
                 <Label htmlFor={`copies-${sector}`} className="text-xs font-medium">Nº de Vias</Label>

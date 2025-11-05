@@ -398,9 +398,10 @@ export class QZTrayPrinter {
     if (isReprint) {
       receipt += ESC + 'a' + '\x01'; // Center align
       receipt += '*** VIA REIMPRESSA ***\n';
+      receipt += '\n\n'; // Linhas extras para reimpressão
     }
     
-    // Corte parcial (padrão)
+    // Corte parcial SEMPRE (padrão fixo)
     receipt += GS + 'V' + '\x01'; // Partial cut
     
     return receipt;
