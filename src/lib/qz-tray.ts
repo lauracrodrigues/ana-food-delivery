@@ -165,8 +165,13 @@ export class QZTrayPrinter {
       // Configure printer
       const config = window.qz.configs.create(printer);
 
-      // Format receipt data
-      const receipt = this.formatOrderReceipt(order, isReprint, layoutConfig);
+      // Extract cut_type and text_mode from extended config
+      const extConfig = layoutConfig as ExtendedLayoutConfig;
+      const cutType = extConfig?.cut_type || 'full';
+      const textMode = extConfig?.text_mode || 'normal';
+
+      // Format receipt data (text_mode será aplicado dentro do formatOrderReceipt)
+      const receipt = this.formatOrderReceipt(order, isReprint, layoutConfig, cutType);
 
       // Print with proper format for QZ Tray 2.x
       // QZ Tray handles encoding internally when we pass string data
@@ -358,7 +363,7 @@ export class QZTrayPrinter {
   }
 
   // Format order data for thermal printer (ESC/POS)
-  private formatOrderReceipt(order: any, isReprint: boolean = false, layoutConfig?: LayoutConfig | ExtendedLayoutConfig): string {
+  private formatOrderReceipt(order: any, isReprint: boolean = false, layoutConfig?: LayoutConfig | ExtendedLayoutConfig, cutType: 'none' | 'partial' | 'full' = 'full'): string {
     console.log('🔍 formatOrderReceipt - Usando thermal-formatter');
     
     if (!order) {
@@ -447,8 +452,13 @@ export class QZTrayPrinter {
       receipt += '\n\n'; // Linhas extras para reimpressão
     }
     
-    // Corte parcial SEMPRE (padrão fixo)
-    receipt += GS + 'V' + '\x01'; // Partial cut
+    // Aplicar tipo de corte (respeitando configuração)
+    if (cutType === 'full') {
+      receipt += GS + 'V' + '\x00'; // Full cut
+    } else if (cutType === 'partial') {
+      receipt += GS + 'V' + '\x01'; // Partial cut
+    }
+    // Se 'none', não adiciona comando de corte
     
     return receipt;
   }

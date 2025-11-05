@@ -171,6 +171,7 @@ export interface ExtendedLayoutConfig extends LayoutConfig {
   margin_left?: number; // 0 a 20
   margin_right?: number; // 0 a 20
   text_mode?: 'condensed' | 'normal' | 'expanded';
+  cut_type?: 'none' | 'partial' | 'full';
   
   // NOVO: Controle de espaçamento
   line_spacing_multiplier?: number; // 0.5 a 3.0, padrão 1.0
@@ -407,6 +408,10 @@ export const DEFAULT_EXTENDED_CONFIG: ExtendedLayoutConfig = {
   encoding: 'UTF-8',
   margin_left: 0,
   margin_right: 0,
+  text_mode: 'normal',
+  cut_type: 'full',
+  line_spacing_multiplier: 1.0,
+  item_spacing: 0,
 };
 
 // Tag metadata for UI
