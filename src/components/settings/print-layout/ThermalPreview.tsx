@@ -49,7 +49,7 @@ export function ThermalPreview({
           <div className="max-h-[calc(100vh-20rem)] overflow-y-auto">
             <div 
               className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm p-4" 
-              style={{ width: '420px' }}
+              style={{ width: '294px' }}
             >
               {/* 
                 PREVIEW BURRO: SÓ DISPLAY EM <PRE> MONOSPACE

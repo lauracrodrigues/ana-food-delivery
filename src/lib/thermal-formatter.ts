@@ -124,12 +124,13 @@ export function formatReceipt(
     .filter(el => el.visible)
     .sort((a, b) => a.order - b.order);
   
+  const margin = ' '.repeat(marginLeft);
+  
   for (const element of visibleElements) {
     // SPECIAL CASE: {itens}
     if (element.tag === '{itens}') {
-      const margin = ' '.repeat(marginLeft);
       lines.push(margin + 'ITENS:');
-      lines.push(''); // linha em branco
+      lines.push(margin); // linha em branco com margem
       
       const items = order.items || [];
       items.forEach((item: any) => {
@@ -151,7 +152,7 @@ export function formatReceipt(
           obsLines.forEach(line => lines.push(margin + line));
         }
         
-        lines.push(''); // linha em branco após cada item
+        lines.push(margin); // linha em branco com margem após cada item
       });
       
       // Separator
@@ -169,10 +170,11 @@ export function formatReceipt(
     
     // Apply alignment
     const align = element.formatting?.align || 'left';
-    const margin = ' '.repeat(marginLeft);
     
-    // Se é endereço, fazer wrap
-    if (element.tag === '{endereco_empresa}' || element.tag === '{endereco_cliente}') {
+    // Se é endereço ou observações, fazer wrap
+    if (element.tag === '{endereco_empresa}' || 
+        element.tag === '{endereco_cliente}' || 
+        element.tag === '{observacoes_pedido}') {
       const wrappedLines = wrapText(content, effectiveWidth);
       wrappedLines.forEach(line => {
         const formatted = align === 'center' ? padCenter(line, effectiveWidth) :
@@ -205,9 +207,9 @@ export function formatReceipt(
   }
   
   // Adicionar linhas extras antes do corte (extra_feed_lines)
-  const extraFeed = config.extra_feed_lines || 4;
+  const extraFeed = config.extra_feed_lines || 3;
   for (let i = 0; i < extraFeed; i++) {
-    lines.push('');
+    lines.push(margin);
   }
   
   return lines;
@@ -233,7 +235,8 @@ function getElementContent(
       content = `Tel: ${companyData?.phone || order.company_phone || ''}`;
       break;
     case '{endereco_empresa}':
-      content = formatAddress(companyData?.address) || order.company_address || '';
+      const companyAddr = companyData?.address || order.company_address || '';
+      content = typeof companyAddr === 'object' ? formatAddress(companyAddr) : String(companyAddr);
       break;
     case '{email_empresa}':
       content = companyData?.email ? `Email: ${companyData.email}` : '';
@@ -314,5 +317,6 @@ function formatAddress(addr: any): string {
     return parts.join(', ');
   }
   
-  return '';
+  // Fallback: tentar converter para string
+  return String(addr);
 }

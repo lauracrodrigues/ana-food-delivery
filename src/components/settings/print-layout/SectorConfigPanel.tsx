@@ -246,6 +246,21 @@ export function SectorConfigPanel({
                   className="h-9"
                 />
               </div>
+
+              {/* Linhas Após Impressão */}
+              <div className="space-y-1.5">
+                <Label htmlFor={`extra-feed-${sector}`} className="text-xs font-medium">Linhas Após</Label>
+                <Input
+                  id={`extra-feed-${sector}`}
+                  type="number"
+                  min="0"
+                  max="10"
+                  value={config.layout.extra_feed_lines || 3}
+                  onChange={(e) => updateLayout({ extra_feed_lines: parseInt(e.target.value) || 3 })}
+                  disabled={!config.enabled}
+                  className="h-9"
+                />
+              </div>
             </div>
 
             {/* Linha 3: Mensagem de Rodapé */}
