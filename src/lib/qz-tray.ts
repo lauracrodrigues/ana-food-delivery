@@ -5,6 +5,7 @@ import { FONT_SIZE_COMMANDS, LINE_SPACING_VALUES, TEXT_FORMATTING_COMMANDS, PAPE
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency, formatCurrencyValue } from './currency-formatter';
+import { formatReceipt } from './thermal-formatter';
 
 declare global {
   interface Window {
@@ -385,11 +386,7 @@ export class QZTrayPrinter {
     // Text mode
     receipt += this.applyTextMode(extConfig.text_mode || 'normal');
     
-    // IMPORTAR E USAR THERMAL FORMATTER (single source of truth)
-    // Usar import dinâmico para evitar problemas de dependência circular
-    const { formatReceipt } = require('./thermal-formatter');
-    
-    // OBTER LINHAS FORMATADAS
+    // USAR THERMAL FORMATTER (single source of truth)
     const lines = formatReceipt(order, extConfig, order.company_data);
     
     // PROCESSAR LINHAS (adicionar apenas texto já formatado)
