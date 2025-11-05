@@ -236,12 +236,16 @@ function getElementContent(
       break;
     case '{endereco_empresa}':
       const companyAddr = companyData?.address || order.company_address;
+      console.log('🏢 Endereço empresa RAW:', companyAddr, 'tipo:', typeof companyAddr);
+      
       if (!companyAddr) {
         content = '';
       } else if (typeof companyAddr === 'string') {
         content = companyAddr;
-      } else if (typeof companyAddr === 'object') {
-        content = formatAddress(companyAddr);
+      } else if (typeof companyAddr === 'object' && companyAddr !== null) {
+        const formatted = formatAddress(companyAddr);
+        console.log('🏢 Endereço formatado:', formatted);
+        content = formatted;
       } else {
         content = '';
       }
