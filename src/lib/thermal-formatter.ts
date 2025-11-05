@@ -212,8 +212,18 @@ export function formatReceipt(
     }
     
     // Obter conteúdo do elemento
-    const content = getElementContent(element, order, config, companyData);
+    let content = getElementContent(element, order, config, companyData);
     if (!content) continue;
+    
+    // Elementos com preço justificado (usar :: como separador)
+    if (element.tag === '{subtotal}' || 
+        element.tag === '{taxa_entrega}' || 
+        element.tag === '{total}') {
+      if (content.includes('::')) {
+        const [label, price] = content.split('::');
+        content = itemWithPrice(label, price, effectiveWidth);
+      }
+    }
     
     // Apply alignment
     const align = element.formatting?.align || 'left';
@@ -257,11 +267,22 @@ export function formatReceipt(
                      align === 'right' ? padLeft(content, effectiveWidth) :
                      padRight(content, effectiveWidth);
     
+    // Para sublinhado, aplicar apenas no conteúdo, não nos espaços
+    let finalText = margin + formatted;
+    let shouldUnderline = false;
+    
+    if (element.formatting?.underline) {
+      // Remover underline da formatação da linha
+      // e aplicar apenas no conteúdo via marcador especial
+      shouldUnderline = false; // Não aplicar underline em toda linha
+      // TODO: Implementar underline seletivo se necessário
+    }
+    
     lines.push({
-      text: margin + formatted,
+      text: finalText,
       formatting: {
         bold: element.formatting?.bold,
-        underline: element.formatting?.underline,
+        underline: shouldUnderline, // Desabilitar underline de linha inteira
         fontSize: element.fontSize,
         align: element.formatting?.align
       }
@@ -357,13 +378,13 @@ function getElementContent(
       break;
     case '{subtotal}':
       const subtotal = order.total - (order.delivery_fee || 0);
-      content = `Subtotal: ${formatCurrency(subtotal)}`;
+      content = `Subtotal::${formatCurrency(subtotal)}`;
       break;
     case '{taxa_entrega}':
-      content = order.delivery_fee > 0 ? `Taxa Entrega: ${formatCurrency(order.delivery_fee)}` : '';
+      content = order.delivery_fee > 0 ? `Taxa Entrega::${formatCurrency(order.delivery_fee)}` : '';
       break;
     case '{total}':
-      content = `TOTAL: ${formatCurrency(order.total)}`;
+      content = `TOTAL::${formatCurrency(order.total)}`;
       break;
     case '{forma_pagamento}':
       content = `Pagamento: ${order.payment_method || ''}`;
