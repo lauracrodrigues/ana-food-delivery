@@ -245,28 +245,52 @@ export function SectorConfigPanel({
               </div>
             </div>
 
-            {/* Linha 3: Mensagem de Rodapé */}
-            <div className="space-y-1.5">
-              <Label htmlFor={`footer-${sector}`} className="text-xs font-medium">Mensagem de Rodapé</Label>
-              <div className="flex gap-2">
-                <Input
-                  id={`footer-${sector}`}
-                  value={config.layout.footer_message || ''}
-                  onChange={(e) => updateLayout({ footer_message: e.target.value })}
-                  placeholder="Ex: Obrigado pela preferência!"
+            {/* Linha 3: Espaçamento e Mensagem de Rodapé */}
+            <div className="grid grid-cols-1 sm:grid-cols-[200px,1fr] gap-3">
+              {/* Espaçamento entre Linhas */}
+              <div className="space-y-1.5">
+                <Label htmlFor={`spacing-${sector}`} className="text-xs font-medium">Espaçamento</Label>
+                <Select
+                  value={String(config.layout.line_spacing_multiplier || 1.0)}
+                  onValueChange={(value) => updateLayout({ line_spacing_multiplier: parseFloat(value) })}
                   disabled={!config.enabled}
-                  className="flex-1 h-8"
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setFooterDialogOpen(true)}
-                  disabled={!config.enabled}
-                  title="Abrir editor de mensagem"
-                  className="h-9 w-9 shrink-0"
                 >
-                  <Edit className="h-4 w-4" />
-                </Button>
+                  <SelectTrigger id={`spacing-${sector}`} className="h-8">
+                    <SelectValue placeholder="Normal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.5">Muito Compacto</SelectItem>
+                    <SelectItem value="0.75">Compacto</SelectItem>
+                    <SelectItem value="1.0">Normal</SelectItem>
+                    <SelectItem value="1.5">Espaçado</SelectItem>
+                    <SelectItem value="2.0">Muito Espaçado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Mensagem de Rodapé */}
+              <div className="space-y-1.5">
+                <Label htmlFor={`footer-${sector}`} className="text-xs font-medium">Mensagem de Rodapé</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id={`footer-${sector}`}
+                    value={config.layout.footer_message || ''}
+                    onChange={(e) => updateLayout({ footer_message: e.target.value })}
+                    placeholder="Ex: Obrigado pela preferência!"
+                    disabled={!config.enabled}
+                    className="flex-1 h-8"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setFooterDialogOpen(true)}
+                    disabled={!config.enabled}
+                    title="Abrir editor de mensagem"
+                    className="h-8 w-8 shrink-0"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
