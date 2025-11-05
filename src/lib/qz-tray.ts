@@ -406,13 +406,18 @@ export class QZTrayPrinter {
           receipt += this.applyFontSizeFromElement(line.formatting.fontSize);
         }
         
-        // Bold e underline
-        if (line.formatting.bold || line.formatting.underline) {
-          receipt += this.applyFormatting({
-            bold: line.formatting.bold || false,
-            underline: line.formatting.underline || false,
-            align: line.formatting.align || 'left'
-          });
+        // SEMPRE aplicar alinhamento (separado de bold/underline)
+        const align = line.formatting.align || 'left';
+        receipt += TEXT_FORMATTING_COMMANDS.align[align];
+        
+        // Bold
+        if (line.formatting.bold) {
+          receipt += TEXT_FORMATTING_COMMANDS.bold.on;
+        }
+        
+        // Underline
+        if (line.formatting.underline) {
+          receipt += TEXT_FORMATTING_COMMANDS.underline.on;
         }
       }
       

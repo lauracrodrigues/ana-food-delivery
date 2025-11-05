@@ -345,7 +345,13 @@ function getElementContent(
       content = companyData?.email ? `Email: ${companyData.email}` : '';
       break;
     case '{cnpj}':
-      content = companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` : '';
+      const cnpj = companyData?.cnpj || order.company_cnpj;
+      console.log('🔍 CNPJ debug:', { 
+        fromCompanyData: companyData?.cnpj, 
+        fromOrder: order.company_cnpj,
+        final: cnpj 
+      });
+      content = cnpj ? `CNPJ: ${cnpj}` : '';
       break;
     case '{numero_pedido}':
       content = `Pedido #${order.order_number || '000'}`;

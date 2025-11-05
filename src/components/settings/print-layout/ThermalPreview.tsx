@@ -95,7 +95,7 @@ export function ThermalPreview({
         <CardContent className="py-3 px-1">
           <div>
             <div 
-              className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm p-4 max-w-[294px]" 
+              className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm p-4 max-w-[294px] overflow-hidden" 
               style={{ width: '294px' }}
             >
               {/* Preview com formatação aplicada */}
