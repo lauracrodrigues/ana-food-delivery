@@ -39,6 +39,17 @@ export interface TextFormatting {
 export type FontSize = 'small' | 'medium' | 'large' | 'xlarge';
 export type SeparatorType = 'line' | 'dots' | 'equals';
 
+// Linha formatada com metadados para preview e impressão
+export interface FormattedLine {
+  text: string;
+  formatting?: {
+    bold?: boolean;
+    underline?: boolean;
+    fontSize?: FontSize;
+    align?: TextAlign;
+  };
+}
+
 // Elemento configurável do cupom
 export interface PrintElement {
   id: string;

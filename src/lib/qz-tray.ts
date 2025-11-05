@@ -1,6 +1,6 @@
 // QZ Tray integration for printing
 import type { LayoutConfig, PrintSector, TextFormatting } from '@/types/printer-layout';
-import type { ExtendedLayoutConfig, UnifiedPrintElement } from '@/types/printer-layout-extended';
+import type { ExtendedLayoutConfig, UnifiedPrintElement, FormattedLine } from '@/types/printer-layout-extended';
 import { FONT_SIZE_COMMANDS, LINE_SPACING_VALUES, TEXT_FORMATTING_COMMANDS, PAPER_WIDTHS, DEFAULT_LAYOUT_CONFIG } from '@/types/printer-layout';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -397,9 +397,32 @@ export class QZTrayPrinter {
     
     console.log('📄 Linhas geradas pelo thermal-formatter:', lines.length);
     
-    // PROCESSAR LINHAS (adicionar apenas texto já formatado)
+    // PROCESSAR LINHAS COM FORMATAÇÃO
     for (const line of lines) {
-      receipt += line + '\n';
+      // Aplicar formatação específica da linha
+      if (line.formatting) {
+        // Font size
+        if (line.formatting.fontSize) {
+          receipt += this.applyFontSizeFromElement(line.formatting.fontSize);
+        }
+        
+        // Bold e underline
+        if (line.formatting.bold || line.formatting.underline) {
+          receipt += this.applyFormatting({
+            bold: line.formatting.bold || false,
+            underline: line.formatting.underline || false,
+            align: line.formatting.align || 'left'
+          });
+        }
+      }
+      
+      // Adicionar texto da linha
+      receipt += line.text + '\n';
+      
+      // Reset formatação após cada linha
+      if (line.formatting) {
+        receipt += this.resetFormatting();
+      }
     }
     
     // Via de reimpressão

@@ -7,7 +7,7 @@
 import { formatCurrency } from './currency-formatter';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { ExtendedLayoutConfig, UnifiedPrintElement } from '@/types/printer-layout-extended';
+import type { ExtendedLayoutConfig, UnifiedPrintElement, FormattedLine } from '@/types/printer-layout-extended';
 
 // =====================================================
 // PRIMITIVAS DE PADDING
@@ -88,14 +88,27 @@ export function wrapText(text: string, charsPorLinha: number): string[] {
 }
 
 // =====================================================
-// FORMATADOR PRINCIPAL (retorna string[] puro)
+// HELPER: ESPAÇAMENTO ENTRE LINHAS
+// =====================================================
+
+function getLineSpacingCount(lineSpacing: string): number {
+  switch (lineSpacing) {
+    case 'compact': return 0;
+    case 'normal': return 1;
+    case 'relaxed': return 2;
+    default: return 1;
+  }
+}
+
+// =====================================================
+// FORMATADOR PRINCIPAL (retorna FormattedLine[] com metadados)
 // =====================================================
 
 export function formatReceipt(
   order: any,
   config: ExtendedLayoutConfig,
   companyData?: any
-): string[] {
+): FormattedLine[] {
   console.log('🎨 thermal-formatter.formatReceipt chamado:', {
     order_number: order.order_number,
     customer_name: order.customer_name,
@@ -117,7 +130,7 @@ export function formatReceipt(
     effectiveWidth,
   });
   
-  const lines: string[] = [];
+  const lines: FormattedLine[] = [];
   
   // Elementos visíveis e ordenados
   const visibleElements = (config.elements || [])
@@ -125,40 +138,74 @@ export function formatReceipt(
     .sort((a, b) => a.order - b.order);
   
   const margin = ' '.repeat(marginLeft);
+  const spacingLines = getLineSpacingCount(config.line_spacing || 'normal');
   
   for (const element of visibleElements) {
     // SPECIAL CASE: {itens}
     if (element.tag === '{itens}') {
-      lines.push(margin + 'ITENS:');
-      lines.push(margin); // linha em branco com margem
+      lines.push({
+        text: margin + 'ITENS:',
+        formatting: {
+          bold: element.formatting?.bold,
+          underline: element.formatting?.underline,
+          fontSize: element.fontSize,
+          align: element.formatting?.align
+        }
+      });
+      
+      // Espaçamento após título
+      for (let i = 0; i < spacingLines; i++) {
+        lines.push({ text: margin });
+      }
       
       const items = order.items || [];
       items.forEach((item: any) => {
         const itemText = `${item.quantity}x ${item.name}`;
         const itemPrice = formatCurrency(item.price * item.quantity);
-        lines.push(margin + itemWithPrice(itemText, itemPrice, effectiveWidth));
+        lines.push({
+          text: margin + itemWithPrice(itemText, itemPrice, effectiveWidth),
+          formatting: {
+            bold: element.formatting?.bold,
+            fontSize: element.fontSize,
+            align: 'left'
+          }
+        });
         
         // Extras com indentação de 2 espaços
         if (item.extras && item.extras.length > 0) {
           item.extras.forEach((extra: any) => {
             const extraName = typeof extra === 'string' ? extra : extra.name;
-            lines.push(margin + `  + ${extraName}`);
+            lines.push({
+              text: margin + `  + ${extraName}`,
+              formatting: { fontSize: 'small', align: 'left' }
+            });
           });
         }
         
         // Observações com indentação de 2 espaços
         if (item.observations) {
           const obsLines = wrapText(`  Obs: ${item.observations}`, effectiveWidth);
-          obsLines.forEach(line => lines.push(margin + line));
+          obsLines.forEach(line => lines.push({
+            text: margin + line,
+            formatting: { fontSize: 'small', align: 'left' }
+          }));
         }
         
-        lines.push(margin); // linha em branco com margem após cada item
+        // Espaçamento após cada item
+        for (let i = 0; i < spacingLines; i++) {
+          lines.push({ text: margin });
+        }
       });
       
       // Separator
       if (element.separator_below?.show) {
         const char = element.separator_below.char || '-';
-        lines.push(margin + divider(char, effectiveWidth));
+        lines.push({ text: margin + divider(char, effectiveWidth) });
+      }
+      
+      // Espaçamento após separador
+      for (let i = 0; i < spacingLines; i++) {
+        lines.push({ text: margin });
       }
       
       continue;
@@ -180,13 +227,26 @@ export function formatReceipt(
         const formatted = align === 'center' ? padCenter(line, effectiveWidth) :
                          align === 'right' ? padLeft(line, effectiveWidth) :
                          padRight(line, effectiveWidth);
-        lines.push(margin + formatted);
+        lines.push({
+          text: margin + formatted,
+          formatting: {
+            bold: element.formatting?.bold,
+            underline: element.formatting?.underline,
+            fontSize: element.fontSize,
+            align: element.formatting?.align
+          }
+        });
       });
       
       // Separator
       if (element.separator_below?.show) {
         const char = element.separator_below.char || '-';
-        lines.push(margin + divider(char, effectiveWidth));
+        lines.push({ text: margin + divider(char, effectiveWidth) });
+      }
+      
+      // Espaçamento após elemento
+      for (let i = 0; i < spacingLines; i++) {
+        lines.push({ text: margin });
       }
       
       continue;
@@ -197,19 +257,32 @@ export function formatReceipt(
                      align === 'right' ? padLeft(content, effectiveWidth) :
                      padRight(content, effectiveWidth);
     
-    lines.push(margin + formatted);
+    lines.push({
+      text: margin + formatted,
+      formatting: {
+        bold: element.formatting?.bold,
+        underline: element.formatting?.underline,
+        fontSize: element.fontSize,
+        align: element.formatting?.align
+      }
+    });
     
     // Separator
     if (element.separator_below?.show) {
       const char = element.separator_below.char || '-';
-      lines.push(margin + divider(char, effectiveWidth));
+      lines.push({ text: margin + divider(char, effectiveWidth) });
+    }
+    
+    // Espaçamento após elemento
+    for (let i = 0; i < spacingLines; i++) {
+      lines.push({ text: margin });
     }
   }
   
   // Adicionar linhas extras antes do corte (extra_feed_lines)
   const extraFeed = config.extra_feed_lines || 3;
   for (let i = 0; i < extraFeed; i++) {
-    lines.push(margin);
+    lines.push({ text: margin });
   }
   
   return lines;
