@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { RefreshCw, Edit } from 'lucide-react';
 import { UnifiedFieldsList } from './UnifiedFieldsList';
-import { InteractiveThermalPreview } from './InteractiveThermalPreview';
+import { ThermalPreview } from './ThermalPreview';
 import { FooterMessageDialog } from './FooterMessageDialog';
 import { SECTOR_TEMPLATES } from '@/lib/print-templates';
 import type { SectorConfig, PrintSector, CutType, TextMode } from '@/types/printer-settings';
@@ -332,15 +332,10 @@ export function SectorConfigPanel({
         {/* Coluna Direita: Preview sticky */}
         <div className="hidden lg:block">
           <div className="sticky top-4 max-h-[calc(100vh-8rem)]">
-            <InteractiveThermalPreview 
+            <ThermalPreview 
               config={config.layout} 
-              onChange={updateLayout}
               companyData={companyData}
               onTestPrint={onTestPrint}
-              onFieldFocus={(elementId) => {
-                setHighlightedFieldId(elementId);
-                setTimeout(() => setHighlightedFieldId(null), 2000);
-              }}
             />
           </div>
         </div>

@@ -358,25 +358,14 @@ export class QZTrayPrinter {
 
   // Format order data for thermal printer (ESC/POS)
   private formatOrderReceipt(order: any, isReprint: boolean = false, layoutConfig?: LayoutConfig | ExtendedLayoutConfig): string {
-    console.log('🔍 formatOrderReceipt - Validando order:', {
-      hasOrder: !!order,
-      orderType: typeof order,
-      orderKeys: order ? Object.keys(order) : []
-    });
+    console.log('🔍 formatOrderReceipt - Usando thermal-formatter');
     
     if (!order) {
-      console.error('❌ ERRO CRÍTICO: Order está undefined em formatOrderReceipt');
       throw new Error('Dados do pedido não disponíveis para formatação');
     }
     
     const config = layoutConfig || this.getLayoutConfig();
     const extConfig = config as ExtendedLayoutConfig;
-    
-    // Calcular maxChars CONSIDERANDO MARGENS
-    const baseChars = config.chars_per_line;
-    const marginLeft = extConfig.margin_left || 0;
-    const marginRight = extConfig.margin_right || 0;
-    const maxChars = Math.max(20, baseChars - marginLeft - marginRight);
     
     const ESC = '\x1B';
     const GS = '\x1D';
@@ -385,114 +374,37 @@ export class QZTrayPrinter {
     
     // Comandos de inicialização
     receipt += ESC + '@'; // Reset printer
-    receipt += ESC + 't' + '\x10'; // Selecionar code page PC850 (Multilingual) para suportar acentos em português
+    receipt += ESC + 't' + '\x10'; // Code page
     
-    // Aplicar espaçamento de linha
+    // Line spacing
     const lineSpacing = extConfig.line_spacing_multiplier || 1.0;
-    
-    // Limitar valores entre 0.5 e 2.0 para evitar valores extremos
     const clampedSpacing = Math.max(0.5, Math.min(2.0, lineSpacing));
-    
-    // Calcular line height: 24 pontos = normal (1.0x)
-    // 12 pontos = mínimo (0.5x), 48 pontos = máximo (2.0x)
     const lineHeight = Math.round(24 * clampedSpacing);
+    receipt += ESC + '3' + String.fromCharCode(lineHeight);
     
-    console.log('📏 Aplicando line spacing:', {
-      original: lineSpacing,
-      clamped: clampedSpacing,
-      lineHeight: lineHeight,
-      command: `ESC 3 ${lineHeight}`
-    });
+    // Text mode
+    receipt += this.applyTextMode(extConfig.text_mode || 'normal');
     
-    receipt += ESC + '3' + String.fromCharCode(lineHeight); // Set line spacing
+    // IMPORTAR E USAR THERMAL FORMATTER (single source of truth)
+    // Usar import dinâmico para evitar problemas de dependência circular
+    const { formatReceipt } = require('./thermal-formatter');
     
-    receipt += this.applyTextMode(extConfig.text_mode || 'normal'); // Aplicar largura do texto
+    // OBTER LINHAS FORMATADAS
+    const lines = formatReceipt(order, extConfig, order.company_data);
     
-    // Check if we have the new unified structure
-    const extendedConfig = config as ExtendedLayoutConfig;
-    if (extendedConfig.elements && extendedConfig.elements.length > 0) {
-      // Use new unified structure
-      const sortedElements = [...extendedConfig.elements].sort((a, b) => a.order - b.order);
-      
-      for (const element of sortedElements) {
-        // ⚠️ IMPORTANTE: Respeitar visible - pular elementos não visíveis
-        if (!element.visible) {
-          console.log(`⏭️ Pulando elemento ${element.tag} - não visível`);
-          continue;
-        }
-        
-        // Special handling for {itens} tag - PROCESSAR ANTES da verificação de conteúdo
-        if (element.tag === '{itens}') {
-          console.log('📦 Processando elemento {itens}:', {
-            visible: element.visible,
-            hasOrder: !!order,
-            hasItems: !!order.items,
-            itemsCount: order.items?.length,
-            items: order.items
-          });
-          const itemsReceipt = this.formatItems(order, extendedConfig, maxChars);
-          console.log('📦 Resultado formatItems:', {
-            length: itemsReceipt.length,
-            preview: itemsReceipt.substring(0, 100)
-          });
-          receipt += itemsReceipt;
-          
-          // Add separator if configured
-          if (element.separator_below.show) {
-            const char = element.separator_below.char || '-';
-            receipt += char.repeat(maxChars) + '\n';
-          }
-          continue; // Pular para próximo elemento
-        }
-        
-        // Get element content para outros elementos
-        const content = this.getElementContent(element, order, extendedConfig);
-        if (!content) {
-          console.log(`⏭️ Pulando elemento ${element.tag} - sem conteúdo`);
-          continue;
-        }
-        
-        // Apply formatting and font size
-        receipt += this.applyFormatting(element.formatting);
-        receipt += this.applyFontSizeFromElement(element.fontSize);
-        
-        // Se é endereço, usar formatMultiLine para quebrar linhas longas
-        if (['{endereco_empresa}', '{endereco_cliente}'].includes(element.tag)) {
-          receipt += this.formatMultiLine(content, element.formatting.align, maxChars);
-        } else {
-          receipt += this.formatLine(content, element.formatting.align, maxChars);
-        }
-        
-        receipt += GS + '!' + '\x00'; // Reset size
-        receipt += this.resetFormatting();
-        // Re-aplicar line spacing após reset
-        receipt += ESC + '3' + String.fromCharCode(lineHeight);
-        
-        // Add separator if configured
-        if (element.separator_below.show) {
-          const char = element.separator_below.char || '-';
-          // Delimitador deve usar largura COMPLETA (ignorar margens)
-          receipt += char.repeat(maxChars) + '\n';
-        }
-      }
-      
-    } else {
-      // Fallback to old structure
-      receipt += this.formatOrderReceiptOldStructure(order, config as LayoutConfig, maxChars, ESC, GS);
+    // PROCESSAR LINHAS (adicionar apenas texto já formatado)
+    for (const line of lines) {
+      receipt += line + '\n';
     }
     
     // Via de reimpressão
     if (isReprint) {
       receipt += ESC + 'a' + '\x01'; // Center align
-      receipt += this.formatLine('*** VIA REIMPRESSA ***', 'center', maxChars);
-      receipt += this.addSpacing(config.line_spacing);
+      receipt += '*** VIA REIMPRESSA ***\n';
     }
     
-    // Avançar papel e cortar (se configurado)
-    if (config.cut_paper) {
-      receipt += '\n'.repeat(config.extra_feed_lines);
-      receipt += GS + 'V' + '\x41' + '\x03'; // Corte parcial
-    }
+    // Corte parcial (padrão)
+    receipt += GS + 'V' + '\x01'; // Partial cut
     
     return receipt;
   }
