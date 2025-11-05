@@ -267,22 +267,14 @@ export function formatReceipt(
     // Apenas padding left precisa ser aplicado aqui
     const formatted = align === 'left' ? padRight(content, effectiveWidth) : content.trim();
     
-    // Para sublinhado, aplicar apenas no conteúdo, não nos espaços
+    // Aplicar formatação final
     let finalText = margin + formatted;
-    let shouldUnderline = false;
-    
-    if (element.formatting?.underline) {
-      // Remover underline da formatação da linha
-      // e aplicar apenas no conteúdo via marcador especial
-      shouldUnderline = false; // Não aplicar underline em toda linha
-      // TODO: Implementar underline seletivo se necessário
-    }
     
     lines.push({
       text: finalText,
       formatting: {
         bold: element.formatting?.bold,
-        underline: shouldUnderline, // Desabilitar underline de linha inteira
+        underline: element.formatting?.underline || false,
         fontSize: element.fontSize,
         align: element.formatting?.align
       }

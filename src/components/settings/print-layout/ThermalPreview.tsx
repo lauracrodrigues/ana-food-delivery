@@ -94,17 +94,26 @@ export function ThermalPreview({
       <Card className="bg-muted/30">
         <CardContent className="py-3 px-1">
           <div className="flex justify-center">
+            {/* Wrapper para aplicar zoom mantendo centralização */}
             <div 
-              className="bg-[#F5E6D3] shadow-lg rounded-sm overflow-hidden" 
-              style={{ width: '320px' }}
+              style={{ 
+                transform: 'scale(1.2)', 
+                transformOrigin: 'center',
+                margin: '20px 0'
+              }}
             >
-              {/* Preview com formatação aplicada */}
-              <div className="p-3 leading-tight" style={{ letterSpacing: '-0.5px' }}>
-                {lines.map((line, idx) => (
-                  <div key={idx} className={getLineClasses(line)}>
-                    {line.text}
-                  </div>
-                ))}
+              <div 
+                className="bg-[#F5E6D3] shadow-lg rounded-sm overflow-hidden" 
+                style={{ width: '240px' }}
+              >
+                {/* Preview com formatação aplicada */}
+                <div className="p-3 leading-tight" style={{ letterSpacing: '-0.5px' }}>
+                  {lines.map((line, idx) => (
+                    <div key={idx} className={getLineClasses(line)}>
+                      {line.text}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
