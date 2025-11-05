@@ -30,6 +30,63 @@ export type PrintTag =
 
 export type TextAlign = 'left' | 'center' | 'right';
 
+// ============================
+// MODELOS DE IMPRESSORA
+// ============================
+
+export type PrinterModel = 
+  | 'G250'
+  | 'TMT-T20'
+  | 'Elgin i9'
+  | 'Elgin i8'
+  | 'Bematech MP4200TH';
+
+export interface PrinterModelConfig {
+  model: PrinterModel;
+  chars_per_line: number;
+  supports_partial_cut: boolean;
+  supports_qr_code: boolean;
+  max_print_width_mm: number;
+}
+
+export const PRINTER_MODELS: Record<PrinterModel, PrinterModelConfig> = {
+  'G250': {
+    model: 'G250',
+    chars_per_line: 48,
+    supports_partial_cut: true,
+    supports_qr_code: true,
+    max_print_width_mm: 80,
+  },
+  'TMT-T20': {
+    model: 'TMT-T20',
+    chars_per_line: 48,
+    supports_partial_cut: true,
+    supports_qr_code: true,
+    max_print_width_mm: 80,
+  },
+  'Elgin i9': {
+    model: 'Elgin i9',
+    chars_per_line: 48,
+    supports_partial_cut: true,
+    supports_qr_code: true,
+    max_print_width_mm: 80,
+  },
+  'Elgin i8': {
+    model: 'Elgin i8',
+    chars_per_line: 48,
+    supports_partial_cut: true,
+    supports_qr_code: false,
+    max_print_width_mm: 80,
+  },
+  'Bematech MP4200TH': {
+    model: 'Bematech MP4200TH',
+    chars_per_line: 48,
+    supports_partial_cut: true,
+    supports_qr_code: true,
+    max_print_width_mm: 80,
+  },
+};
+
 export interface TextFormatting {
   bold: boolean;
   underline: boolean;
@@ -87,6 +144,9 @@ export interface SectionConfig {
 
 // Layout completo expandido - extends LayoutConfig for backward compatibility
 export interface ExtendedLayoutConfig extends LayoutConfig {
+  // Printer model
+  printer_model?: PrinterModel;
+  
   // Nova estrutura unificada (opcional para migração gradual)
   elements?: UnifiedPrintElement[];
   
@@ -119,6 +179,9 @@ export interface ExtendedLayoutConfig extends LayoutConfig {
 
 // Configuração padrão expandida
 export const DEFAULT_EXTENDED_CONFIG: ExtendedLayoutConfig = {
+  // Printer model
+  printer_model: 'G250',
+  
   // Estrutura unificada (nova)
   elements: [],
   

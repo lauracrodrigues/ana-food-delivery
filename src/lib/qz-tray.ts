@@ -429,6 +429,16 @@ export class QZTrayPrinter {
         receipt += this.resetFormatting();
       }
     }
+
+    // RESET line spacing para padrão antes das linhas finais
+    const defaultLineHeight = 24; // Espaçamento padrão (1.0x)
+    receipt += ESC + '3' + String.fromCharCode(defaultLineHeight);
+
+    // Adicionar linhas extras antes do corte
+    const extraFeedLines = extConfig.extra_feed_lines || 3;
+    for (let i = 0; i < extraFeedLines; i++) {
+      receipt += '\n';
+    }
     
     // Via de reimpressão
     if (isReprint) {

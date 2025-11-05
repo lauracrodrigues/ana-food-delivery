@@ -12,7 +12,8 @@ import { ThermalPreview } from './ThermalPreview';
 import { FooterMessageDialog } from './FooterMessageDialog';
 import { SECTOR_TEMPLATES } from '@/lib/print-templates';
 import type { SectorConfig, PrintSector, CutType, TextMode } from '@/types/printer-settings';
-import type { ExtendedLayoutConfig } from '@/types/printer-layout-extended';
+import type { ExtendedLayoutConfig, PrinterModel } from '@/types/printer-layout-extended';
+import { PRINTER_MODELS } from '@/types/printer-layout-extended';
 
 interface SectorConfigPanelProps {
   sector: PrintSector;
@@ -178,7 +179,33 @@ export function SectorConfigPanel({
               </div>
             </div>
 
-            {/* Linha 2: Opções adicionais */}
+            {/* Linha 2: Modelo da Impressora */}
+            <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor={`printer-model-${sector}`} className="text-xs font-medium">Modelo da Impressora</Label>
+                <Select
+                  value={config.layout.printer_model || 'G250'}
+                  onValueChange={(value) => updateLayout({ printer_model: value as PrinterModel })}
+                  disabled={!config.enabled}
+                >
+                  <SelectTrigger id={`printer-model-${sector}`} className="h-9">
+                    <SelectValue placeholder="Selecione o modelo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="G250">Gertec G250</SelectItem>
+                    <SelectItem value="TMT-T20">Epson TMT-T20</SelectItem>
+                    <SelectItem value="Elgin i9">Elgin i9</SelectItem>
+                    <SelectItem value="Elgin i8">Elgin i8</SelectItem>
+                    <SelectItem value="Bematech MP4200TH">Bematech MP4200TH</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {PRINTER_MODELS[config.layout.printer_model || 'G250'].chars_per_line} caracteres por linha
+                </p>
+              </div>
+            </div>
+
+            {/* Linha 3: Opções adicionais */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {/* Número de Vias */}
               <div className="space-y-1.5">
@@ -245,7 +272,7 @@ export function SectorConfigPanel({
               </div>
             </div>
 
-            {/* Linha 3: Espaçamento e Mensagem de Rodapé */}
+            {/* Linha 4: Espaçamento e Mensagem de Rodapé */}
             <div className="grid grid-cols-1 sm:grid-cols-[200px,1fr] gap-3">
               {/* Espaçamento entre Linhas */}
               <div className="space-y-1.5">

@@ -44,7 +44,7 @@ export function ThermalPreview({
 
   // Helper para aplicar classes CSS baseadas na formatação
   const getLineClasses = (line: FormattedLine): string => {
-    const classes: string[] = ['font-mono'];
+    const classes: string[] = ['font-mono', 'tracking-tighter'];
     
     if (line.formatting) {
       // Bold
@@ -95,11 +95,11 @@ export function ThermalPreview({
         <CardContent className="py-3 px-1">
           <div>
             <div 
-              className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm p-4 max-w-[294px] overflow-hidden" 
-              style={{ width: '294px' }}
+              className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm p-4 max-w-[384px] overflow-hidden" 
+              style={{ width: '384px' }}
             >
               {/* Preview com formatação aplicada */}
-              <div className="leading-tight">
+              <div className="leading-tight" style={{ letterSpacing: '-0.5px' }}>
                 {lines.map((line, idx) => (
                   <div key={idx} className={getLineClasses(line)}>
                     {line.text}
