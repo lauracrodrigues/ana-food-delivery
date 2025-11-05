@@ -442,12 +442,20 @@ export function OrdersKanban() {
         orderNumber: enrichedOrder.order_number
       });
       
-      // Determinar setor baseado no status do pedido
-      const sector = order.status === 'pending' ? 'caixa' : 'cozinha_1';
+      // SEMPRE usar setor CAIXA para impressões manuais do kanban
+      const sector = 'caixa';
       
-      // Buscar config do setor apropriado
+      // Buscar config do setor CAIXA
       const printerSettings = storeSettings?.printer_settings as any;
       const sectorConfig = printerSettings?.sectors?.[sector];
+      
+      console.log('🖨️ Configuração de impressão:', {
+        sector,
+        enabled: sectorConfig?.enabled,
+        printer: sectorConfig?.printer_name,
+        copies: sectorConfig?.copies,
+        hasLayout: !!sectorConfig?.layout
+      });
       
       if (sectorConfig?.enabled && sectorConfig?.printer_name) {
         await qzPrinter.printOrder(
