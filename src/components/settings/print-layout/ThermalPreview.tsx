@@ -93,13 +93,13 @@ export function ThermalPreview({
     <div className="space-y-4">
       <Card className="bg-muted/30">
         <CardContent className="py-3 px-1">
-          <div className="max-h-[calc(100vh-20rem)] overflow-y-auto">
+          <div>
             <div 
               className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm p-4 max-w-[294px]" 
               style={{ width: '294px' }}
             >
               {/* Preview com formatação aplicada */}
-              <div className="leading-tight whitespace-pre">
+              <div className="leading-tight">
                 {lines.map((line, idx) => (
                   <div key={idx} className={getLineClasses(line)}>
                     {line.text}

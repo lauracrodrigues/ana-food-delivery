@@ -263,9 +263,9 @@ export function formatReceipt(
     }
     
     // Elementos normais (uma linha)
-    const formatted = align === 'center' ? padCenter(content, effectiveWidth) :
-                     align === 'right' ? padLeft(content, effectiveWidth) :
-                     padRight(content, effectiveWidth);
+    // Para center e right, deixar o CSS fazer o alinhamento
+    // Apenas padding left precisa ser aplicado aqui
+    const formatted = align === 'left' ? padRight(content, effectiveWidth) : content.trim();
     
     // Para sublinhado, aplicar apenas no conteúdo, não nos espaços
     let finalText = margin + formatted;

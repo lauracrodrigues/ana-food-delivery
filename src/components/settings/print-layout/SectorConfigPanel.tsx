@@ -251,7 +251,7 @@ export function SectorConfigPanel({
               <div className="space-y-1.5">
                 <Label htmlFor={`spacing-${sector}`} className="text-xs font-medium">Espaçamento</Label>
                 <Select
-                  value={String(config.layout.line_spacing_multiplier || 1.0)}
+                  value={(config.layout.line_spacing_multiplier || 1.0).toFixed(1)}
                   onValueChange={(value) => updateLayout({ line_spacing_multiplier: parseFloat(value) })}
                   disabled={!config.enabled}
                 >
