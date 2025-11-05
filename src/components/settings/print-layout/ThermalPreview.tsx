@@ -92,7 +92,7 @@ export function ThermalPreview({
   return (
     <div className="space-y-4">
       <Card className="bg-muted/30">
-        <CardContent className="p-6">
+        <CardContent className="p-3">
           <div className="max-h-[calc(100vh-20rem)] overflow-y-auto">
             <div 
               className="bg-[#F5E6D3] shadow-lg mx-auto rounded-sm p-4" 
@@ -119,10 +119,6 @@ export function ThermalPreview({
               <Printer className="h-4 w-4" />
               Imprimir Teste
             </Button>
-          </div>
-          
-          <div className="mt-3 text-xs text-muted-foreground text-center">
-            Preview com formatação aplicada (negrito, tamanho, alinhamento).
           </div>
         </CardContent>
       </Card>

@@ -142,7 +142,7 @@ export function AdvancedSection({ config, onChange, onCalibrationPrint, isPrinti
       <div className="space-y-3">
         <Label className="text-sm font-semibold">Espaçamento entre Linhas</Label>
         <RadioGroup
-          value={config.line_spacing || 'normal'}
+          value={config.line_spacing ?? 'normal'}
           onValueChange={(value) => {
             console.log('🔄 Mudando line_spacing para:', value);
             onChange({ line_spacing: value as 'compact' | 'normal' | 'relaxed' });
@@ -162,7 +162,7 @@ export function AdvancedSection({ config, onChange, onCalibrationPrint, isPrinti
           </div>
         </RadioGroup>
         <p className="text-xs text-muted-foreground">
-          Atual: {config.line_spacing || 'normal'}
+          Selecionado: {config.line_spacing ?? 'normal'}
         </p>
       </div>
     </div>
