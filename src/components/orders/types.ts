@@ -14,14 +14,21 @@ export interface Order {
   customer_phone: string;
   items: OrderItem[];
   payment_method: string;
+  // Endereço estruturado
   address?: string;
+  address_number?: string;
+  address_complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
   observations?: string;
   status: string;
   type: "delivery" | "pickup";
   created_at: string;
   delivery_fee?: number;
   company_id: string;
-  source: "whatsapp" | "digital_menu";
+  source: "whatsapp" | "digital_menu" | "counter";
 }
 
 export interface StoreSettings {

@@ -20,20 +20,53 @@ serve(async (req) => {
     const webhookData = await req.json();
     console.log('🎣 Webhook recebido do N8n:', webhookData);
 
-    // Gerar número do pedido
-    const { data: lastOrder } = await supabase
+    // Buscar configuração de numeração
+    const { data: storeSettings } = await supabase
+      .from('store_settings')
+      .select('order_numbering_mode, order_numbering_reset_time')
+      .eq('company_id', webhookData.company_id)
+      .maybeSingle();
+
+    const mode = storeSettings?.order_numbering_mode || 'sequential';
+    const resetTime = storeSettings?.order_numbering_reset_time || '00:00';
+
+    console.log(`📊 Modo de numeração: ${mode}, Hora de reset: ${resetTime}`);
+
+    // Construir query base para buscar último pedido
+    let query = supabase
       .from('orders')
       .select('order_number')
       .eq('company_id', webhookData.company_id)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
+
+    // Se modo diário, filtrar apenas pedidos do dia atual
+    if (mode === 'daily') {
+      const now = new Date();
+      const [hours, minutes] = resetTime.split(':').map(Number);
+      
+      // Calcular início do dia baseado na hora de reset
+      const resetDate = new Date(now);
+      resetDate.setHours(hours, minutes, 0, 0);
+      
+      // Se ainda não passou a hora de reset, usar o dia anterior
+      if (now < resetDate) {
+        resetDate.setDate(resetDate.getDate() - 1);
+      }
+      
+      console.log(`📅 Filtrando pedidos desde: ${resetDate.toISOString()}`);
+      query = query.gte('created_at', resetDate.toISOString());
+    }
+
+    const { data: lastOrder } = await query.maybeSingle();
 
     const nextNumber = lastOrder?.order_number 
       ? String(parseInt(lastOrder.order_number) + 1).padStart(3, '0')
       : '001';
 
-    // Inserir pedido do WhatsApp
+    console.log(`🔢 Próximo número de pedido: ${nextNumber}`);
+
+    // Inserir pedido do WhatsApp com campos de endereço estruturados
     const { data: order, error } = await supabase
       .from('orders')
       .insert({
@@ -47,7 +80,14 @@ serve(async (req) => {
         delivery_fee: webhookData.delivery_fee || 0,
         payment_method: webhookData.payment_method || 'dinheiro',
         type: webhookData.type || 'delivery',
-        address: webhookData.address || '',
+        // Endereço estruturado
+        address: webhookData.address || webhookData.street || '',
+        address_number: webhookData.address_number || '',
+        address_complement: webhookData.address_complement || '',
+        neighborhood: webhookData.neighborhood || '',
+        city: webhookData.city || '',
+        state: webhookData.state || '',
+        zip_code: webhookData.zip_code || '',
         observations: webhookData.observations || 'Pedido via WhatsApp',
         estimated_time: webhookData.estimated_time || 30,
         source: 'whatsapp',
@@ -66,7 +106,7 @@ serve(async (req) => {
       .eq('company_id', webhookData.company_id)
       .eq('config_type', 'session')
       .eq('is_active', true)
-      .single();
+      .maybeSingle();
 
     console.log('📱 Config WhatsApp:', whatsappConfig ? 'Encontrada' : 'Não encontrada');
     if (configError) console.log('⚠️ Erro ao buscar config:', configError);
@@ -79,7 +119,7 @@ serve(async (req) => {
       .eq('config_type', 'status_message')
       .eq('status', 'pending')
       .eq('is_active', true)
-      .single();
+      .maybeSingle();
 
     console.log(`📊 Status: pending, Config encontrada: ${!!statusMessageConfig}, is_active: ${statusMessageConfig?.is_active}`);
 
@@ -98,8 +138,16 @@ serve(async (req) => {
         // Formatar valor total
         const totalFormatted = `R$ ${(webhookData.total || 0).toFixed(2).replace('.', ',')}`;
 
-        // Formatar endereço
-        const deliveryAddress = webhookData.address || 'Retirada no local';
+        // Formatar endereço completo
+        const addressParts = [
+          webhookData.address || webhookData.street,
+          webhookData.address_number,
+          webhookData.address_complement,
+          webhookData.neighborhood,
+          webhookData.city,
+          webhookData.state
+        ].filter(Boolean);
+        const deliveryAddress = addressParts.length > 0 ? addressParts.join(', ') : 'Retirada no local';
 
         // Substituir variáveis no template
         let message = statusMessageConfig.message_template
