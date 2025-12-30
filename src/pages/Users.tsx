@@ -463,24 +463,21 @@ export default function Users() {
 
       {/* Create/Edit User Dialog */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>
-              {selectedUser ? "Editar Usuário" : "Adicionar Novo Usuário"}
+              {selectedUser ? "Editar Usuário" : "Novo Usuário"}
             </DialogTitle>
             <DialogDescription>
               {selectedUser 
-                ? "Atualize as informações do usuário" 
-                : "Preencha os dados para criar um novo usuário"}
+                ? "Atualize as informações do usuário." 
+                : "Preencha os dados para criar um novo usuário."}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-6 py-4">
             <div className="space-y-2">
-              <Label htmlFor="email">
-                <Mail className="inline w-4 h-4 mr-2" />
-                Email
-              </Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 type="email"
@@ -495,10 +492,7 @@ export default function Users() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="fullName">
-                <UserCircle className="inline w-4 h-4 mr-2" />
-                Nome Completo
-              </Label>
+              <Label htmlFor="fullName">Nome Completo *</Label>
               <Input
                 id="fullName"
                 placeholder="João Silva"
@@ -511,10 +505,7 @@ export default function Users() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="role">
-                <Shield className="inline w-4 h-4 mr-2" />
-                Permissão
-              </Label>
+              <Label htmlFor="role">Permissão *</Label>
               <Select
                 value={formData.role}
                 onValueChange={(value: "company_admin" | "company_staff") => 
@@ -522,7 +513,7 @@ export default function Users() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione uma permissão" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="company_admin">
@@ -560,7 +551,7 @@ export default function Users() {
               Cancelar
             </Button>
             <Button onClick={handleSave} disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? "Salvando..." : selectedUser ? "Atualizar" : "Criar"}
+              {saveMutation.isPending ? "Salvando..." : selectedUser ? "Salvar" : "Criar"}
             </Button>
           </DialogFooter>
         </DialogContent>

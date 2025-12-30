@@ -37,14 +37,14 @@ export function WhatsAppSessionDialog({
             {isEditing ? "Editar Sessão" : "Nova Sessão WhatsApp"}
           </DialogTitle>
           <DialogDescription>
-            {isEditing ? 
-              "Atualize as informações da sessão WhatsApp." : 
-              "Configure uma nova sessão do WhatsApp para sua empresa."}
+            {isEditing 
+              ? "Atualize as informações da sessão WhatsApp." 
+              : "Configure uma nova sessão do WhatsApp para sua empresa."}
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
+        <div className="space-y-6 py-4">
+          <div className="space-y-2">
             <Label htmlFor="session_name">Nome da Sessão *</Label>
             <Input
               id="session_name"
@@ -54,7 +54,7 @@ export function WhatsAppSessionDialog({
             />
           </div>
           
-          <div className="grid gap-2">
+          <div className="space-y-2">
             <Label htmlFor="agent_name">Nome do Agente *</Label>
             <Input
               id="agent_name"
@@ -64,7 +64,7 @@ export function WhatsAppSessionDialog({
             />
           </div>
           
-          <div className="grid gap-2">
+          <div className="space-y-2">
             <Label htmlFor="agent_prompt">Prompt do Agente</Label>
             <Textarea
               id="agent_prompt"
@@ -81,7 +81,7 @@ export function WhatsAppSessionDialog({
             Cancelar
           </Button>
           <Button onClick={onSave}>
-            {isEditing ? "Salvar Alterações" : "Adicionar Sessão"}
+            {isEditing ? "Salvar" : "Criar"}
           </Button>
         </DialogFooter>
       </DialogContent>

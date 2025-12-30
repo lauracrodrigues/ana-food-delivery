@@ -6,6 +6,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -193,13 +194,15 @@ export function ProductEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px] md:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Editar Produto" : "Novo Produto"}
           </DialogTitle>
           <DialogDescription>
-            Preencha as informações do produto
+            {isEditing 
+              ? "Atualize as informações do produto." 
+              : "Preencha os dados para criar um novo produto."}
           </DialogDescription>
         </DialogHeader>
 
@@ -211,9 +214,9 @@ export function ProductEditDialog({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="general" className="space-y-4 py-4">
+          <TabsContent value="general" className="space-y-6 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nome do Produto</Label>
+              <Label htmlFor="name">Nome do Produto *</Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -226,7 +229,7 @@ export function ProductEditDialog({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="price">Preço</Label>
+                <Label htmlFor="price">Preço *</Label>
                 <Input
                   id="price"
                   type="number"
@@ -264,46 +267,48 @@ export function ProductEditDialog({
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="category">Categoria</Label>
-              <Select
-                value={formData.category_id}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, category_id: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat: any) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="category">Categoria</Label>
+                <Select
+                  value={formData.category_id}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, category_id: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat: any) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="print_sector">Setor de Impressão</Label>
-              <Select
-                value={formData.print_sector || "none"}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, print_sector: value === "none" ? "" : value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um setor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhum (não imprimir)</SelectItem>
-                  <SelectItem value="caixa">Caixa</SelectItem>
-                  <SelectItem value="cozinha1">Cozinha 1</SelectItem>
-                  <SelectItem value="cozinha2">Cozinha 2</SelectItem>
-                  <SelectItem value="bar">Copa/Bar</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Label htmlFor="print_sector">Setor de Impressão</Label>
+                <Select
+                  value={formData.print_sector || "none"}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, print_sector: value === "none" ? "" : value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um setor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    <SelectItem value="caixa">Caixa</SelectItem>
+                    <SelectItem value="cozinha1">Cozinha 1</SelectItem>
+                    <SelectItem value="cozinha2">Cozinha 2</SelectItem>
+                    <SelectItem value="bar">Copa/Bar</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -365,7 +370,7 @@ export function ProductEditDialog({
 
             <div className="space-y-3 border-t pt-4">
               <div className="space-y-2">
-                <Label>Disponibilidade</Label>
+                <Label>Disponibilidade *</Label>
                 <p className="text-sm text-muted-foreground">
                   Selecione os dias da semana em que este produto estará disponível
                 </p>
@@ -401,7 +406,7 @@ export function ProductEditDialog({
             </div>
           </TabsContent>
 
-          <TabsContent value="groups" className="space-y-4 py-4">
+          <TabsContent value="groups" className="space-y-6 py-4">
             {isEditing ? (
               <ProductGroupsTab
                 productId={product.id}
@@ -415,7 +420,7 @@ export function ProductEditDialog({
           </TabsContent>
         </Tabs>
 
-        <div className="flex justify-end gap-2 pt-4">
+        <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
@@ -428,9 +433,9 @@ export function ProductEditDialog({
               !formData.available_weekdays?.length
             }
           >
-            {saveMutation.isPending ? "Salvando..." : "Salvar"}
+            {saveMutation.isPending ? "Salvando..." : isEditing ? "Salvar" : "Criar"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
