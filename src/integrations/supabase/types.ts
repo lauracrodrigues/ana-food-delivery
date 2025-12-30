@@ -286,7 +286,6 @@ export type Database = {
           city: string | null
           company_id: string
           created_at: string
-          current_step: string | null
           email: string | null
           id: string
           last_order_at: string | null
@@ -295,6 +294,8 @@ export type Database = {
           name: string
           neighborhood: string | null
           notes: string | null
+          order_date: Json | null
+          pending_order: Json | null
           phone: string
           state: string | null
           total_orders: number | null
@@ -308,7 +309,6 @@ export type Database = {
           city?: string | null
           company_id: string
           created_at?: string
-          current_step?: string | null
           email?: string | null
           id?: string
           last_order_at?: string | null
@@ -317,6 +317,8 @@ export type Database = {
           name: string
           neighborhood?: string | null
           notes?: string | null
+          order_date?: Json | null
+          pending_order?: Json | null
           phone: string
           state?: string | null
           total_orders?: number | null
@@ -330,7 +332,6 @@ export type Database = {
           city?: string | null
           company_id?: string
           created_at?: string
-          current_step?: string | null
           email?: string | null
           id?: string
           last_order_at?: string | null
@@ -339,6 +340,8 @@ export type Database = {
           name?: string
           neighborhood?: string | null
           notes?: string | null
+          order_date?: Json | null
+          pending_order?: Json | null
           phone?: string
           state?: string | null
           total_orders?: number | null
