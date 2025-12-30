@@ -18,7 +18,9 @@ import {
   RefreshCw,
   Palette,
   Sun,
-  Moon
+  Moon,
+  Hash,
+  RotateCcw
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,13 +40,12 @@ interface StoreSettings {
   sound_enabled: boolean;
   delivery_time: number;
   pickup_time: number;
-  delivery_fee: number;
   alert_time: number;
   printer_settings?: any;
   visible_columns?: any;
+  order_numbering_mode?: string;
+  order_numbering_reset_time?: string;
 }
-
-
 
 export function Settings() {
   const { toast } = useToast();
@@ -100,11 +101,52 @@ export function Settings() {
         sound_enabled: true,
         delivery_time: 30,
         pickup_time: 45,
-        delivery_fee: 5.00,
         alert_time: 60,
+        order_numbering_mode: 'sequential',
+        order_numbering_reset_time: '00:00',
       } as StoreSettings;
     },
     enabled: !!profile?.company_id,
+  });
+
+  // Fetch next order number preview
+  const { data: nextOrderNumber } = useQuery({
+    queryKey: ["next-order-number", profile?.company_id, storeSettings?.order_numbering_mode],
+    queryFn: async () => {
+      if (!profile?.company_id) return null;
+      
+      const mode = storeSettings?.order_numbering_mode || 'sequential';
+      const resetTime = storeSettings?.order_numbering_reset_time || '00:00';
+      
+      let query = supabase
+        .from("orders")
+        .select("order_number")
+        .eq("company_id", profile.company_id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      // Se modo diário, filtrar apenas pedidos do dia atual
+      if (mode === 'daily') {
+        const now = new Date();
+        const [hours, minutes] = resetTime.split(':').map(Number);
+        
+        const resetDate = new Date(now);
+        resetDate.setHours(hours, minutes, 0, 0);
+        
+        if (now < resetDate) {
+          resetDate.setDate(resetDate.getDate() - 1);
+        }
+        
+        query = query.gte('created_at', resetDate.toISOString());
+      }
+
+      const { data } = await query.maybeSingle();
+      
+      return data?.order_number 
+        ? String(parseInt(data.order_number) + 1).padStart(3, '0')
+        : '001';
+    },
+    enabled: !!profile?.company_id && !!storeSettings,
   });
 
   // Load printer settings when store settings are available
@@ -174,6 +216,7 @@ export function Settings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["store-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["next-order-number"] });
       toast({
         title: "Sucesso",
         description: "Configurações atualizadas",
@@ -197,6 +240,28 @@ export function Settings() {
     const newSettings = { ...printerSettings, [sector]: printer };
     setPrinterSettings(newSettings);
     handleSettingsUpdate("printer_settings", newSettings);
+  };
+
+  // Reset order counter manually
+  const handleResetOrderCounter = async () => {
+    if (!confirm("Tem certeza que deseja zerar a contagem de pedidos? O próximo pedido será #001.")) {
+      return;
+    }
+
+    // Não há nada a fazer no banco - a lógica de reset é baseada em filtros
+    // Apenas mudamos para modo diário com hora atual para "simular" um reset
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    updateSettingsMutation.mutate({ 
+      order_numbering_mode: 'daily',
+      order_numbering_reset_time: currentTime 
+    });
+    
+    toast({
+      title: "Sucesso",
+      description: "Contagem zerada! Próximo pedido será #001",
+    });
   };
 
   return (
@@ -351,6 +416,95 @@ export function Settings() {
                   <p className="text-sm text-muted-foreground">
                     Tempo em minutos para alertar pedidos em atraso (apenas Em Preparo)
                   </p>
+                </div>
+
+              </CardContent>
+            </Card>
+
+            {/* Order Numbering Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Hash className="h-5 w-5" />
+                  Numeração de Pedidos
+                </CardTitle>
+                <CardDescription>
+                  Configure como os números dos pedidos são gerados
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <Label>Modo de Numeração</Label>
+                  <RadioGroup
+                    value={storeSettings?.order_numbering_mode || 'sequential'}
+                    onValueChange={(value) => handleSettingsUpdate("order_numbering_mode", value)}
+                    disabled={loadingSettings}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                  >
+                    <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                      <RadioGroupItem value="sequential" id="sequential" className="mt-1" />
+                      <div className="space-y-1">
+                        <Label htmlFor="sequential" className="font-medium cursor-pointer">
+                          Sequencial
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          Nunca reinicia. Os números continuam crescendo indefinidamente (001, 002, 003...)
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                      <RadioGroupItem value="daily" id="daily" className="mt-1" />
+                      <div className="space-y-1">
+                        <Label htmlFor="daily" className="font-medium cursor-pointer">
+                          Diária
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          Reinicia todo dia na hora configurada. Começa em 001 a cada dia.
+                        </p>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {storeSettings?.order_numbering_mode === 'daily' && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <Label htmlFor="reset-time">
+                        <Clock className="inline h-4 w-4 mr-2" />
+                        Hora de Reset
+                      </Label>
+                      <Input
+                        id="reset-time"
+                        type="time"
+                        value={storeSettings?.order_numbering_reset_time || '00:00'}
+                        onChange={(e) => handleSettingsUpdate("order_numbering_reset_time", e.target.value)}
+                        disabled={loadingSettings}
+                        className="w-32"
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Hora em que a numeração reinicia para 001
+                      </p>
+                    </div>
+                  </>
+                )}
+
+                <Separator />
+
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Próximo pedido será:</p>
+                    <p className="text-2xl font-bold text-primary">#{nextOrderNumber || '001'}</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleResetOrderCounter}
+                    disabled={loadingSettings || updateSettingsMutation.isPending}
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Zerar Contagem
+                  </Button>
                 </div>
 
               </CardContent>

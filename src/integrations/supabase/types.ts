@@ -20,7 +20,7 @@ export type Database = {
           created_at: string
           details: Json | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           record_id: string | null
           table_name: string
           user_id: string
@@ -30,7 +30,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           record_id?: string | null
           table_name: string
           user_id: string
@@ -40,7 +40,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           record_id?: string | null
           table_name?: string
           user_id?: string
@@ -284,6 +284,7 @@ export type Database = {
           city: string | null
           company_id: string
           created_at: string
+          current_step: string | null
           email: string | null
           id: string
           name: string
@@ -299,6 +300,7 @@ export type Database = {
           city?: string | null
           company_id: string
           created_at?: string
+          current_step?: string | null
           email?: string | null
           id?: string
           name: string
@@ -314,6 +316,7 @@ export type Database = {
           city?: string | null
           company_id?: string
           created_at?: string
+          current_step?: string | null
           email?: string | null
           id?: string
           name?: string
@@ -530,6 +533,9 @@ export type Database = {
       orders: {
         Row: {
           address: string | null
+          address_complement: string | null
+          address_number: string | null
+          city: string | null
           company_id: string
           created_at: string | null
           customer_name: string | null
@@ -538,17 +544,23 @@ export type Database = {
           estimated_time: number | null
           id: string
           items: Json | null
+          neighborhood: string | null
           observations: string | null
           order_number: string | null
           payment_method: string | null
           source: string
+          state: string | null
           status: string
           total: number
           type: string | null
           updated_at: string | null
+          zip_code: string | null
         }
         Insert: {
           address?: string | null
+          address_complement?: string | null
+          address_number?: string | null
+          city?: string | null
           company_id: string
           created_at?: string | null
           customer_name?: string | null
@@ -557,17 +569,23 @@ export type Database = {
           estimated_time?: number | null
           id?: string
           items?: Json | null
+          neighborhood?: string | null
           observations?: string | null
           order_number?: string | null
           payment_method?: string | null
           source: string
+          state?: string | null
           status?: string
           total: number
           type?: string | null
           updated_at?: string | null
+          zip_code?: string | null
         }
         Update: {
           address?: string | null
+          address_complement?: string | null
+          address_number?: string | null
+          city?: string | null
           company_id?: string
           created_at?: string | null
           customer_name?: string | null
@@ -576,14 +594,17 @@ export type Database = {
           estimated_time?: number | null
           id?: string
           items?: Json | null
+          neighborhood?: string | null
           observations?: string | null
           order_number?: string | null
           payment_method?: string | null
           source?: string
+          state?: string | null
           status?: string
           total?: number
           type?: string | null
           updated_at?: string | null
+          zip_code?: string | null
         }
         Relationships: [
           {
@@ -865,10 +886,11 @@ export type Database = {
           company_id: string
           created_at: string | null
           default_whatsapp_session: string | null
-          delivery_fee: number | null
           delivery_time: number | null
           id: string
           notification_sound: string | null
+          order_numbering_mode: string | null
+          order_numbering_reset_time: string | null
           pickup_time: number | null
           printer_settings: Json | null
           sound_enabled: boolean | null
@@ -882,10 +904,11 @@ export type Database = {
           company_id: string
           created_at?: string | null
           default_whatsapp_session?: string | null
-          delivery_fee?: number | null
           delivery_time?: number | null
           id?: string
           notification_sound?: string | null
+          order_numbering_mode?: string | null
+          order_numbering_reset_time?: string | null
           pickup_time?: number | null
           printer_settings?: Json | null
           sound_enabled?: boolean | null
@@ -899,10 +922,11 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           default_whatsapp_session?: string | null
-          delivery_fee?: number | null
           delivery_time?: number | null
           id?: string
           notification_sound?: string | null
+          order_numbering_mode?: string | null
+          order_numbering_reset_time?: string | null
           pickup_time?: number | null
           printer_settings?: Json | null
           sound_enabled?: boolean | null
@@ -975,15 +999,11 @@ export type Database = {
           agent_prompt: string | null
           company_id: string
           config_type: string
-          connection_status: string | null
           created_at: string
-          customer_name: string | null
           id: string
           is_active: boolean | null
           message: string | null
           message_template: string | null
-          phone: string | null
-          read: boolean | null
           session_name: string | null
           status: string | null
           updated_at: string
@@ -994,15 +1014,11 @@ export type Database = {
           agent_prompt?: string | null
           company_id: string
           config_type: string
-          connection_status?: string | null
           created_at?: string
-          customer_name?: string | null
           id?: string
           is_active?: boolean | null
           message?: string | null
           message_template?: string | null
-          phone?: string | null
-          read?: boolean | null
           session_name?: string | null
           status?: string | null
           updated_at?: string
@@ -1013,15 +1029,11 @@ export type Database = {
           agent_prompt?: string | null
           company_id?: string
           config_type?: string
-          connection_status?: string | null
           created_at?: string
-          customer_name?: string | null
           id?: string
           is_active?: boolean | null
           message?: string | null
           message_template?: string | null
-          phone?: string | null
-          read?: boolean | null
           session_name?: string | null
           status?: string | null
           updated_at?: string
@@ -1108,10 +1120,7 @@ export type Database = {
       }
     }
     Functions: {
-      get_user_company_id: {
-        Args: { _user_id: string }
-        Returns: string
-      }
+      get_user_company_id: { Args: { _user_id: string }; Returns: string }
       has_company_role: {
         Args: {
           _company_id: string

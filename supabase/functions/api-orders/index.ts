@@ -184,8 +184,6 @@ Deno.serve(async (req: Request) => {
       }
 
       case 'delete': {
-        const body: OrderRequest = await req.json();
-        
         if (!body.order_id) {
           return new Response(
             JSON.stringify({ error: 'order_id é obrigatório' }),
@@ -235,25 +233,59 @@ Deno.serve(async (req: Request) => {
 
         console.log('📦 Novo pedido recebido:', orderData);
 
-        // Gerar número do pedido usando service role
+        // Usar service role para operações de criação
         const supabaseServiceRole = createClient(
           Deno.env.get('SUPABASE_URL')!,
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
         );
 
-        const { data: lastOrder } = await supabaseServiceRole
+        // Buscar configuração de numeração
+        const { data: storeSettings } = await supabaseServiceRole
+          .from('store_settings')
+          .select('order_numbering_mode, order_numbering_reset_time')
+          .eq('company_id', orderData.company_id)
+          .maybeSingle();
+
+        const mode = storeSettings?.order_numbering_mode || 'sequential';
+        const resetTime = storeSettings?.order_numbering_reset_time || '00:00';
+
+        console.log(`📊 Modo de numeração: ${mode}, Hora de reset: ${resetTime}`);
+
+        // Construir query base para buscar último pedido
+        let query = supabaseServiceRole
           .from('orders')
           .select('order_number')
           .eq('company_id', orderData.company_id)
           .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+          .limit(1);
+
+        // Se modo diário, filtrar apenas pedidos do dia atual
+        if (mode === 'daily') {
+          const now = new Date();
+          const [hours, minutes] = resetTime.split(':').map(Number);
+          
+          // Calcular início do dia baseado na hora de reset
+          const resetDate = new Date(now);
+          resetDate.setHours(hours, minutes, 0, 0);
+          
+          // Se ainda não passou a hora de reset, usar o dia anterior
+          if (now < resetDate) {
+            resetDate.setDate(resetDate.getDate() - 1);
+          }
+          
+          console.log(`📅 Filtrando pedidos desde: ${resetDate.toISOString()}`);
+          query = query.gte('created_at', resetDate.toISOString());
+        }
+
+        const { data: lastOrder } = await query.maybeSingle();
 
         const nextNumber = lastOrder?.order_number 
           ? String(parseInt(lastOrder.order_number) + 1).padStart(3, '0')
           : '001';
 
-        // Inserir pedido
+        console.log(`🔢 Próximo número de pedido: ${nextNumber}`);
+
+        // Inserir pedido com campos de endereço estruturados
         const { data: order, error: orderError } = await supabaseServiceRole
           .from('orders')
           .insert({
@@ -267,7 +299,14 @@ Deno.serve(async (req: Request) => {
             delivery_fee: orderData.delivery_fee || 0,
             payment_method: orderData.payment_method || 'dinheiro',
             type: orderData.type || 'delivery',
-            address: orderData.address || '',
+            // Endereço estruturado
+            address: orderData.address || orderData.street || '',
+            address_number: orderData.address_number || '',
+            address_complement: orderData.address_complement || '',
+            neighborhood: orderData.neighborhood || '',
+            city: orderData.city || '',
+            state: orderData.state || '',
+            zip_code: orderData.zip_code || '',
             observations: orderData.observations || '',
             estimated_time: orderData.estimated_time || 30,
             source: orderData.source || 'digital_menu',
@@ -286,7 +325,7 @@ Deno.serve(async (req: Request) => {
           .eq('company_id', orderData.company_id)
           .eq('config_type', 'session')
           .eq('is_active', true)
-          .single();
+          .maybeSingle();
 
         // Buscar configuração de mensagem para status 'pending'
         const { data: statusMessageConfig } = await supabaseServiceRole
@@ -296,7 +335,7 @@ Deno.serve(async (req: Request) => {
           .eq('config_type', 'status_message')
           .eq('status', 'pending')
           .eq('is_active', true)
-          .single();
+          .maybeSingle();
 
         console.log(`📊 Status: pending, Config encontrada: ${!!statusMessageConfig}, is_active: ${statusMessageConfig?.is_active}`);
 
@@ -315,8 +354,16 @@ Deno.serve(async (req: Request) => {
             // Formatar valor total
             const totalFormatted = `R$ ${(orderData.total || 0).toFixed(2).replace('.', ',')}`;
 
-            // Formatar endereço
-            const deliveryAddress = orderData.address || 'Retirada no local';
+            // Formatar endereço completo
+            const addressParts = [
+              orderData.address || orderData.street,
+              orderData.address_number,
+              orderData.address_complement,
+              orderData.neighborhood,
+              orderData.city,
+              orderData.state
+            ].filter(Boolean);
+            const deliveryAddress = addressParts.length > 0 ? addressParts.join(', ') : 'Retirada no local';
 
             // Substituir variáveis no template
             let message = statusMessageConfig.message_template
