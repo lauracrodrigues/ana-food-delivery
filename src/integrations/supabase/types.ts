@@ -281,53 +281,79 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          address_complement: string | null
+          address_number: string | null
           city: string | null
           company_id: string
           created_at: string
           current_step: string | null
           email: string | null
           id: string
+          last_order_at: string | null
+          last_order_data: Json | null
+          last_order_id: string | null
           name: string
           neighborhood: string | null
           notes: string | null
           phone: string
           state: string | null
+          total_orders: number | null
           updated_at: string
           zip_code: string | null
         }
         Insert: {
           address?: string | null
+          address_complement?: string | null
+          address_number?: string | null
           city?: string | null
           company_id: string
           created_at?: string
           current_step?: string | null
           email?: string | null
           id?: string
+          last_order_at?: string | null
+          last_order_data?: Json | null
+          last_order_id?: string | null
           name: string
           neighborhood?: string | null
           notes?: string | null
           phone: string
           state?: string | null
+          total_orders?: number | null
           updated_at?: string
           zip_code?: string | null
         }
         Update: {
           address?: string | null
+          address_complement?: string | null
+          address_number?: string | null
           city?: string | null
           company_id?: string
           created_at?: string
           current_step?: string | null
           email?: string | null
           id?: string
+          last_order_at?: string | null
+          last_order_data?: Json | null
+          last_order_id?: string | null
           name?: string
           neighborhood?: string | null
           notes?: string | null
           phone?: string
           state?: string | null
+          total_orders?: number | null
           updated_at?: string
           zip_code?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customers_last_order_id_fkey"
+            columns: ["last_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       delivery_fees: {
         Row: {

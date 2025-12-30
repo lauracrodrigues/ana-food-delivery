@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,34 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/use-user-role";
-import { Search, Plus, Edit, Trash2, Phone, Mail, MapPin } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Phone, Mail, MapPin, Calendar, ShoppingBag } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+interface LastOrderItem {
+  product_id?: string;
+  name: string;
+  quantity: number;
+  extras?: Array<{ extra_id?: string; name: string }>;
+  observations?: string;
+}
+
+interface LastOrderData {
+  order_number?: string;
+  type?: string;
+  payment_method?: string;
+  observations?: string;
+  items?: LastOrderItem[];
+  delivery_address?: {
+    address?: string;
+    address_number?: string;
+    address_complement?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+    zip_code?: string;
+  };
+}
 
 interface Customer {
   id: string;
@@ -19,13 +46,45 @@ interface Customer {
   phone: string;
   email?: string;
   address?: string;
+  address_number?: string;
+  address_complement?: string;
   neighborhood?: string;
   city?: string;
   state?: string;
   zip_code?: string;
   notes?: string;
+  last_order_id?: string;
+  last_order_data?: LastOrderData;
+  last_order_at?: string;
+  total_orders?: number;
   created_at?: string;
 }
+
+const formatAddress = (customer: Customer) => {
+  const parts = [];
+  if (customer.address) parts.push(customer.address);
+  if (customer.address_number) parts.push(customer.address_number);
+  if (customer.address_complement) parts.push(customer.address_complement);
+  
+  let formatted = parts.join(', ');
+  
+  if (customer.neighborhood) formatted += ` - ${customer.neighborhood}`;
+  if (customer.city) {
+    formatted += `, ${customer.city}`;
+    if (customer.state) formatted += `/${customer.state}`;
+  }
+  
+  return formatted || '-';
+};
+
+const formatLastOrderDate = (dateString?: string) => {
+  if (!dateString) return null;
+  try {
+    return format(new Date(dateString), "dd/MM/yy", { locale: ptBR });
+  } catch {
+    return null;
+  }
+};
 
 export function Customers() {
   const [search, setSearch] = useState("");
@@ -36,6 +95,8 @@ export function Customers() {
     phone: "",
     email: "",
     address: "",
+    address_number: "",
+    address_complement: "",
     neighborhood: "",
     city: "",
     state: "",
@@ -64,30 +125,19 @@ export function Customers() {
     },
   });
 
-  // Fetch customers - use restricted view for staff
+  // Fetch customers
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ["customers", profile?.company_id, isAdmin],
     queryFn: async () => {
-      if (!profile?.company_id) {
-        console.log("No company_id found for customers query");
-        return [];
-      }
+      if (!profile?.company_id) return [];
       
-      console.log("Fetching customers for company:", profile.company_id);
-      
-      // Staff see restricted data through RLS policies
       const { data, error } = await supabase
         .from("customers")
         .select("*")
         .eq("company_id", profile.company_id)
         .order("name");
       
-      if (error) {
-        console.error("Error fetching customers:", error);
-        throw error;
-      }
-      
-      console.log("Customers fetched:", data);
+      if (error) throw error;
       return data as Customer[];
     },
     enabled: !!profile?.company_id,
@@ -98,28 +148,31 @@ export function Customers() {
     mutationFn: async (data: Partial<Customer>) => {
       if (!profile?.company_id) throw new Error("Company ID not found");
       
+      const customerData = {
+        name: data.name || '',
+        phone: data.phone || '',
+        email: data.email,
+        address: data.address,
+        address_number: data.address_number,
+        address_complement: data.address_complement,
+        neighborhood: data.neighborhood,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zip_code,
+        notes: data.notes,
+      };
+      
       if (editingCustomer) {
         const { error } = await supabase
           .from("customers")
-          .update(data)
+          .update(customerData)
           .eq("id", editingCustomer.id);
         
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("customers")
-          .insert([{ 
-            name: data.name || '', 
-            phone: data.phone || '',
-            email: data.email,
-            address: data.address,
-            neighborhood: data.neighborhood,
-            city: data.city,
-            state: data.state,
-            zip_code: data.zip_code,
-            notes: data.notes,
-            company_id: profile.company_id 
-          }]);
+          .insert([{ ...customerData, company_id: profile.company_id }]);
         
         if (error) throw error;
       }
@@ -178,6 +231,8 @@ export function Customers() {
         phone: "",
         email: "",
         address: "",
+        address_number: "",
+        address_complement: "",
         neighborhood: "",
         city: "",
         state: "",
@@ -196,6 +251,8 @@ export function Customers() {
       phone: "",
       email: "",
       address: "",
+      address_number: "",
+      address_complement: "",
       neighborhood: "",
       city: "",
       state: "",
@@ -264,11 +321,13 @@ export function Customers() {
                   <TableHead>Telefone</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Endereço</TableHead>
+                  <TableHead>Último Pedido</TableHead>
+                  <TableHead className="text-center">Total</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                 {filteredCustomers.map((customer) => (
+                {filteredCustomers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
                     <TableCell>
@@ -291,16 +350,31 @@ export function Customers() {
                     </TableCell>
                     <TableCell>
                       {isAdmin ? (
-                        customer.address && (
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3 text-muted-foreground" />
-                            {customer.address}
-                            {customer.neighborhood && `, ${customer.neighborhood}`}
-                          </div>
-                        )
+                        <div className="flex items-center gap-1 max-w-[200px]">
+                          <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <span className="truncate" title={formatAddress(customer)}>
+                            {formatAddress(customer)}
+                          </span>
+                        </div>
                       ) : (
                         <span className="text-muted-foreground">***</span>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      {customer.last_order_at ? (
+                        <div className="flex items-center gap-1 text-sm">
+                          <Calendar className="h-3 w-3 text-muted-foreground" />
+                          {formatLastOrderDate(customer.last_order_at)}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <ShoppingBag className="h-3 w-3 text-muted-foreground" />
+                        {customer.total_orders || 0}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       {isAdmin ? (
@@ -341,7 +415,7 @@ export function Customers() {
       </Card>
 
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingCustomer ? "Editar Cliente" : "Novo Cliente"}
@@ -349,6 +423,7 @@ export function Customers() {
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
+            {/* Dados básicos */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="name">Nome *</Label>
@@ -378,16 +453,38 @@ export function Customers() {
               />
             </div>
             
-            <div>
-              <Label htmlFor="address">Endereço</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              />
+            {/* Endereço organizado */}
+            <div className="grid grid-cols-[1fr_120px] gap-4">
+              <div>
+                <Label htmlFor="address">Rua</Label>
+                <Input
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Ex: Rua das Flores"
+                />
+              </div>
+              <div>
+                <Label htmlFor="address_number">Número</Label>
+                <Input
+                  id="address_number"
+                  value={formData.address_number}
+                  onChange={(e) => setFormData({ ...formData, address_number: e.target.value })}
+                  placeholder="123"
+                />
+              </div>
             </div>
             
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="address_complement">Complemento</Label>
+                <Input
+                  id="address_complement"
+                  value={formData.address_complement}
+                  onChange={(e) => setFormData({ ...formData, address_complement: e.target.value })}
+                  placeholder="Apto 45, Bloco B"
+                />
+              </div>
               <div>
                 <Label htmlFor="neighborhood">Bairro</Label>
                 <Input
@@ -396,6 +493,9 @@ export function Customers() {
                   onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
                 />
               </div>
+            </div>
+            
+            <div className="grid grid-cols-[1fr_80px_120px] gap-4">
               <div>
                 <Label htmlFor="city">Cidade</Label>
                 <Input
@@ -411,17 +511,18 @@ export function Customers() {
                   value={formData.state}
                   onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                   maxLength={2}
+                  placeholder="SP"
                 />
               </div>
-            </div>
-            
-            <div>
-              <Label htmlFor="zip_code">CEP</Label>
-              <Input
-                id="zip_code"
-                value={formData.zip_code}
-                onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
-              />
+              <div>
+                <Label htmlFor="zip_code">CEP</Label>
+                <Input
+                  id="zip_code"
+                  value={formData.zip_code}
+                  onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
+                  placeholder="00000-000"
+                />
+              </div>
             </div>
             
             <div>
@@ -433,6 +534,48 @@ export function Customers() {
                 rows={3}
               />
             </div>
+            
+            {/* Histórico de pedidos - somente leitura ao editar */}
+            {editingCustomer && (
+              <div className="border-t pt-4 mt-2">
+                <h4 className="font-medium text-sm text-muted-foreground mb-3">Histórico</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <div className="text-muted-foreground mb-1">Último pedido</div>
+                    <div className="font-medium">
+                      {editingCustomer.last_order_at ? (
+                        <>
+                          {editingCustomer.last_order_data?.order_number && (
+                            <span className="text-primary">#{editingCustomer.last_order_data.order_number}</span>
+                          )}{' '}
+                          em {formatLastOrderDate(editingCustomer.last_order_at)}
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">Nunca pediu</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <div className="text-muted-foreground mb-1">Total de pedidos</div>
+                    <div className="font-medium">{editingCustomer.total_orders || 0}</div>
+                  </div>
+                </div>
+                
+                {editingCustomer.last_order_data?.items && editingCustomer.last_order_data.items.length > 0 && (
+                  <div className="mt-3 bg-muted/50 rounded-lg p-3">
+                    <div className="text-muted-foreground mb-2 text-sm">Itens do último pedido</div>
+                    <ul className="text-sm space-y-1">
+                      {editingCustomer.last_order_data.items.map((item, idx) => (
+                        <li key={idx} className="flex items-center gap-2">
+                          <span className="font-medium">{item.quantity}x</span>
+                          <span>{item.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           
           <DialogFooter>
