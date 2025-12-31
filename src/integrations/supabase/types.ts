@@ -280,10 +280,7 @@ export type Database = {
       }
       customers: {
         Row: {
-          address: string | null
-          address_complement: string | null
-          address_number: string | null
-          city: string | null
+          addresses: Json | null
           company_id: string
           created_at: string
           email: string | null
@@ -292,21 +289,14 @@ export type Database = {
           last_order_data: Json | null
           last_order_id: string | null
           name: string
-          neighborhood: string | null
           notes: string | null
-          order_date: Json | null
           pending_order: Json | null
           phone: string
-          state: string | null
           total_orders: number | null
           updated_at: string
-          zip_code: string | null
         }
         Insert: {
-          address?: string | null
-          address_complement?: string | null
-          address_number?: string | null
-          city?: string | null
+          addresses?: Json | null
           company_id: string
           created_at?: string
           email?: string | null
@@ -315,21 +305,14 @@ export type Database = {
           last_order_data?: Json | null
           last_order_id?: string | null
           name: string
-          neighborhood?: string | null
           notes?: string | null
-          order_date?: Json | null
           pending_order?: Json | null
           phone: string
-          state?: string | null
           total_orders?: number | null
           updated_at?: string
-          zip_code?: string | null
         }
         Update: {
-          address?: string | null
-          address_complement?: string | null
-          address_number?: string | null
-          city?: string | null
+          addresses?: Json | null
           company_id?: string
           created_at?: string
           email?: string | null
@@ -338,15 +321,11 @@ export type Database = {
           last_order_data?: Json | null
           last_order_id?: string | null
           name?: string
-          neighborhood?: string | null
           notes?: string | null
-          order_date?: Json | null
           pending_order?: Json | null
           phone?: string
-          state?: string | null
           total_orders?: number | null
           updated_at?: string
-          zip_code?: string | null
         }
         Relationships: [
           {
