@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,11 +10,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/use-user-role";
-import { Search, Plus, Edit, Trash2, Phone, Mail, MapPin, Calendar, ShoppingBag } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Phone, Mail, MapPin, Calendar, ShoppingBag, Home, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+interface CustomerAddress {
+  label: string;
+  is_default: boolean;
+  address: string;
+  address_number: string;
+  address_complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zip_code?: string;
+}
 
 interface LastOrderItem {
   product_id?: string;
@@ -46,13 +60,7 @@ interface Customer {
   name: string;
   phone: string;
   email?: string;
-  address?: string;
-  address_number?: string;
-  address_complement?: string;
-  neighborhood?: string;
-  city?: string;
-  state?: string;
-  zip_code?: string;
+  addresses: CustomerAddress[];
   notes?: string;
   last_order_id?: string;
   last_order_data?: LastOrderData;
@@ -61,20 +69,31 @@ interface Customer {
   created_at?: string;
 }
 
-const formatAddress = (customer: Customer) => {
-  const parts = [];
-  if (customer.address) parts.push(customer.address);
-  if (customer.address_number) parts.push(customer.address_number);
-  if (customer.address_complement) parts.push(customer.address_complement);
+const emptyAddress: CustomerAddress = {
+  label: "Casa",
+  is_default: true,
+  address: "",
+  address_number: "",
+  address_complement: "",
+  neighborhood: "",
+  city: "",
+  state: "",
+  zip_code: "",
+};
+
+const formatPrimaryAddress = (customer: Customer) => {
+  const addresses = customer.addresses || [];
+  const addr = addresses.find(a => a.is_default) || addresses[0];
   
+  if (!addr) return '-';
+  
+  const parts = [addr.address, addr.address_number].filter(Boolean);
   let formatted = parts.join(', ');
-  
-  if (customer.neighborhood) formatted += ` - ${customer.neighborhood}`;
-  if (customer.city) {
-    formatted += `, ${customer.city}`;
-    if (customer.state) formatted += `/${customer.state}`;
+  if (addr.neighborhood) formatted += ` - ${addr.neighborhood}`;
+  if (addr.city) {
+    formatted += `, ${addr.city}`;
+    if (addr.state) formatted += `/${addr.state}`;
   }
-  
   return formatted || '-';
 };
 
@@ -91,19 +110,14 @@ export function Customers() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [formData, setFormData] = useState<Partial<Customer>>({
+  const [formData, setFormData] = useState({
     name: "",
     phone: "",
     email: "",
-    address: "",
-    address_number: "",
-    address_complement: "",
-    neighborhood: "",
-    city: "",
-    state: "",
-    zip_code: "",
     notes: "",
   });
+  const [addresses, setAddresses] = useState<CustomerAddress[]>([{ ...emptyAddress }]);
+  const [editingAddressIndex, setEditingAddressIndex] = useState<number | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -139,28 +153,36 @@ export function Customers() {
         .order("name");
       
       if (error) throw error;
-      return data as Customer[];
+      
+      // Parse addresses from JSONB - cast to unknown first for type safety
+      return (data || []).map(customer => ({
+        ...customer,
+        addresses: Array.isArray(customer.addresses) 
+          ? (customer.addresses as unknown as CustomerAddress[]) 
+          : [],
+      })) as unknown as Customer[];
     },
     enabled: !!profile?.company_id,
   });
 
   // Create/Update customer
   const saveMutation = useMutation({
-    mutationFn: async (data: Partial<Customer>) => {
+    mutationFn: async () => {
       if (!profile?.company_id) throw new Error("Company ID not found");
       
+      // Ensure at least one address is marked as default
+      const cleanedAddresses = addresses.filter(a => a.address || a.neighborhood);
+      if (cleanedAddresses.length > 0 && !cleanedAddresses.some(a => a.is_default)) {
+        cleanedAddresses[0].is_default = true;
+      }
+      
+      // Cast addresses to Json for Supabase compatibility
       const customerData = {
-        name: data.name || '',
-        phone: data.phone || '',
-        email: data.email,
-        address: data.address,
-        address_number: data.address_number,
-        address_complement: data.address_complement,
-        neighborhood: data.neighborhood,
-        city: data.city,
-        state: data.state,
-        zip_code: data.zip_code,
-        notes: data.notes,
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email || null,
+        notes: formData.notes || null,
+        addresses: cleanedAddresses as unknown as Json,
       };
       
       if (editingCustomer) {
@@ -224,42 +246,28 @@ export function Customers() {
   const handleOpenModal = (customer?: Customer) => {
     if (customer) {
       setEditingCustomer(customer);
-      setFormData(customer);
+      setFormData({
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email || "",
+        notes: customer.notes || "",
+      });
+      setAddresses(customer.addresses?.length > 0 ? customer.addresses : [{ ...emptyAddress }]);
     } else {
       setEditingCustomer(null);
-      setFormData({
-        name: "",
-        phone: "",
-        email: "",
-        address: "",
-        address_number: "",
-        address_complement: "",
-        neighborhood: "",
-        city: "",
-        state: "",
-        zip_code: "",
-        notes: "",
-      });
+      setFormData({ name: "", phone: "", email: "", notes: "" });
+      setAddresses([{ ...emptyAddress }]);
     }
+    setEditingAddressIndex(null);
     setShowModal(true);
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingCustomer(null);
-    setFormData({
-      name: "",
-      phone: "",
-      email: "",
-      address: "",
-      address_number: "",
-      address_complement: "",
-      neighborhood: "",
-      city: "",
-      state: "",
-      zip_code: "",
-      notes: "",
-    });
+    setFormData({ name: "", phone: "", email: "", notes: "" });
+    setAddresses([{ ...emptyAddress }]);
+    setEditingAddressIndex(null);
   };
 
   const handleSave = () => {
@@ -272,7 +280,41 @@ export function Customers() {
       return;
     }
     
-    saveMutation.mutate(formData);
+    saveMutation.mutate();
+  };
+
+  const handleAddAddress = () => {
+    const newAddress: CustomerAddress = {
+      ...emptyAddress,
+      label: `Endereço ${addresses.length + 1}`,
+      is_default: addresses.length === 0,
+    };
+    setAddresses([...addresses, newAddress]);
+    setEditingAddressIndex(addresses.length);
+  };
+
+  const handleRemoveAddress = (index: number) => {
+    const newAddresses = addresses.filter((_, i) => i !== index);
+    // If removed address was default, set first as default
+    if (addresses[index].is_default && newAddresses.length > 0) {
+      newAddresses[0].is_default = true;
+    }
+    setAddresses(newAddresses);
+    setEditingAddressIndex(null);
+  };
+
+  const handleSetDefault = (index: number) => {
+    const newAddresses = addresses.map((addr, i) => ({
+      ...addr,
+      is_default: i === index,
+    }));
+    setAddresses(newAddresses);
+  };
+
+  const updateAddress = (index: number, field: keyof CustomerAddress, value: string | boolean) => {
+    const newAddresses = [...addresses];
+    newAddresses[index] = { ...newAddresses[index], [field]: value };
+    setAddresses(newAddresses);
   };
 
   const filteredCustomers = customers.filter(customer =>
@@ -353,9 +395,14 @@ export function Customers() {
                       {isAdmin ? (
                         <div className="flex items-center gap-1 max-w-[200px]">
                           <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                          <span className="truncate" title={formatAddress(customer)}>
-                            {formatAddress(customer)}
+                          <span className="truncate" title={formatPrimaryAddress(customer)}>
+                            {formatPrimaryAddress(customer)}
                           </span>
+                          {customer.addresses?.length > 1 && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              (+{customer.addresses.length - 1})
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <span className="text-muted-foreground">***</span>
@@ -468,83 +515,180 @@ export function Customers() {
             
             <Separator />
             
-            {/* Seção: Endereço */}
+            {/* Seção: Endereços */}
             <div className="space-y-4">
-              <h4 className="text-sm font-medium text-muted-foreground">Endereço</h4>
-              
-              <div className="grid grid-cols-[1fr_120px] gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="address">Rua</Label>
-                  <Input
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="Ex: Rua das Flores"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address_number">Número</Label>
-                  <Input
-                    id="address_number"
-                    value={formData.address_number}
-                    onChange={(e) => setFormData({ ...formData, address_number: e.target.value })}
-                    placeholder="123"
-                  />
-                </div>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-muted-foreground">Endereços</h4>
+                <Button type="button" variant="outline" size="sm" onClick={handleAddAddress}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Adicionar
+                </Button>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="address_complement">Complemento</Label>
-                  <Input
-                    id="address_complement"
-                    value={formData.address_complement}
-                    onChange={(e) => setFormData({ ...formData, address_complement: e.target.value })}
-                    placeholder="Apto 45, Bloco B"
-                  />
+              {addresses.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground text-sm border border-dashed rounded-lg">
+                  Nenhum endereço cadastrado
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="neighborhood">Bairro</Label>
-                  <Input
-                    id="neighborhood"
-                    value={formData.neighborhood}
-                    onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
-                    placeholder="Centro"
-                  />
+              ) : (
+                <div className="space-y-3">
+                  {addresses.map((addr, index) => (
+                    <div
+                      key={index}
+                      className={`border rounded-lg p-4 space-y-3 transition-colors ${
+                        editingAddressIndex === index ? 'border-primary bg-muted/30' : ''
+                      }`}
+                    >
+                      {/* Header do endereço */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {addr.label.toLowerCase().includes('trabalho') ? (
+                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Home className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          <Input
+                            value={addr.label}
+                            onChange={(e) => updateAddress(index, 'label', e.target.value)}
+                            className="h-7 w-32 text-sm font-medium"
+                            placeholder="Ex: Casa"
+                          />
+                          {addr.is_default && (
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                              Padrão
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!addr.is_default && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSetDefault(index)}
+                              className="text-xs"
+                            >
+                              Definir padrão
+                            </Button>
+                          )}
+                          {editingAddressIndex === index ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingAddressIndex(null)}
+                            >
+                              Fechar
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingAddressIndex(index)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {addresses.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveAddress(index)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Preview do endereço (quando não está editando) */}
+                      {editingAddressIndex !== index && (addr.address || addr.neighborhood) && (
+                        <div className="text-sm text-muted-foreground pl-6">
+                          {[addr.address, addr.address_number].filter(Boolean).join(', ')}
+                          {addr.neighborhood && ` - ${addr.neighborhood}`}
+                          {addr.city && `, ${addr.city}`}
+                          {addr.state && `/${addr.state}`}
+                        </div>
+                      )}
+
+                      {/* Formulário de edição do endereço */}
+                      {editingAddressIndex === index && (
+                        <div className="space-y-3 pt-2">
+                          <div className="grid grid-cols-[1fr_100px] gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs">Rua</Label>
+                              <Input
+                                value={addr.address}
+                                onChange={(e) => updateAddress(index, 'address', e.target.value)}
+                                placeholder="Ex: Rua das Flores"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Número</Label>
+                              <Input
+                                value={addr.address_number}
+                                onChange={(e) => updateAddress(index, 'address_number', e.target.value)}
+                                placeholder="123"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs">Complemento</Label>
+                              <Input
+                                value={addr.address_complement || ''}
+                                onChange={(e) => updateAddress(index, 'address_complement', e.target.value)}
+                                placeholder="Apto 45"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Bairro</Label>
+                              <Input
+                                value={addr.neighborhood}
+                                onChange={(e) => updateAddress(index, 'neighborhood', e.target.value)}
+                                placeholder="Centro"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-[1fr_60px_100px] gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs">Cidade</Label>
+                              <Input
+                                value={addr.city}
+                                onChange={(e) => updateAddress(index, 'city', e.target.value)}
+                                placeholder="São Paulo"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">UF</Label>
+                              <Input
+                                value={addr.state}
+                                onChange={(e) => updateAddress(index, 'state', e.target.value.toUpperCase())}
+                                maxLength={2}
+                                placeholder="SP"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">CEP</Label>
+                              <Input
+                                value={addr.zip_code || ''}
+                                onChange={(e) => updateAddress(index, 'zip_code', e.target.value)}
+                                placeholder="00000-000"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-[1fr_80px_120px] gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="city">Cidade</Label>
-                  <Input
-                    id="city"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    placeholder="São Paulo"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">Estado</Label>
-                  <Input
-                    id="state"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    maxLength={2}
-                    placeholder="SP"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="zip_code">CEP</Label>
-                  <Input
-                    id="zip_code"
-                    value={formData.zip_code}
-                    onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
-                    placeholder="00000-000"
-                  />
-                </div>
-              </div>
+              )}
             </div>
+            
+            <Separator />
             
             <div className="space-y-2">
               <Label htmlFor="notes">Observações</Label>
@@ -604,7 +748,7 @@ export function Customers() {
             <Button variant="outline" onClick={handleCloseModal}>
               Cancelar
             </Button>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} disabled={saveMutation.isPending}>
               {editingCustomer ? "Salvar" : "Cadastrar"}
             </Button>
           </DialogFooter>
