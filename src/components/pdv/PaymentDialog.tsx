@@ -164,7 +164,7 @@ export function PaymentDialog({ open, onOpenChange, total: originalTotal }: Paym
   const handleAddPayment = () => {
     if (!selectedMethod) return;
 
-    const amount = parseAmount(inputAmount);
+    let amount = parseAmount(inputAmount);
     if (amount <= 0) {
       toast({
         title: 'Valor inválido',
@@ -174,11 +174,16 @@ export function PaymentDialog({ open, onOpenChange, total: originalTotal }: Paym
       return;
     }
 
+    // Se o valor excede o restante, ajustar automaticamente
     if (amount > remaining) {
+      amount = remaining;
+    }
+
+    // Se não há mais nada a pagar
+    if (remaining <= 0) {
       toast({
-        title: 'Valor excede o restante',
-        description: `O valor máximo permitido é ${formatCurrency(remaining)}.`,
-        variant: 'destructive',
+        title: 'Conta já paga',
+        description: 'O valor total já foi coberto pelos pagamentos.',
       });
       return;
     }
