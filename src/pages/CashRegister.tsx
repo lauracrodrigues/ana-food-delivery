@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useCashRegister } from '@/hooks/pdv/useCashRegister';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -17,6 +16,16 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   Wallet, 
   DollarSign, 
@@ -27,15 +36,19 @@ import {
   QrCode,
   Clock,
   CheckCircle2,
-  AlertCircle,
   Plus,
   Minus,
+  Trash2,
+  History,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency-formatter';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { CashRegisterClosing } from '@/components/pdv/CashRegisterClosing';
+import { useNavigate } from 'react-router-dom';
 
 export default function CashRegister() {
+  const navigate = useNavigate();
   const { 
     activeRegister, 
     summary, 
@@ -44,20 +57,20 @@ export default function CashRegister() {
     openRegister,
     closeRegister,
     addMovement,
+    deleteMovement,
     isOpening,
     isClosing,
   } = useCashRegister();
 
   const [openingAmount, setOpeningAmount] = useState('');
   const [openingNotes, setOpeningNotes] = useState('');
-  const [closingAmount, setClosingAmount] = useState('');
-  const [closingNotes, setClosingNotes] = useState('');
   const [movementAmount, setMovementAmount] = useState('');
   const [movementReason, setMovementReason] = useState('');
   const [movementType, setMovementType] = useState<'withdrawal' | 'deposit'>('withdrawal');
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
-  const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [isMovementDialogOpen, setIsMovementDialogOpen] = useState(false);
+  const [showClosingScreen, setShowClosingScreen] = useState(false);
+  const [movementToDelete, setMovementToDelete] = useState<string | null>(null);
 
   const handleOpenRegister = () => {
     openRegister({
@@ -69,14 +82,20 @@ export default function CashRegister() {
     setOpeningNotes('');
   };
 
-  const handleCloseRegister = () => {
+  const handleCloseRegister = (data: {
+    closing_amounts: Record<string, number>;
+    closing_notes?: string;
+    justification?: string;
+  }) => {
+    const totalCounted = Object.values(data.closing_amounts).reduce((acc, v) => acc + v, 0);
+    let notes = data.closing_notes || '';
+    if (data.justification) {
+      notes = `Justificativa: ${data.justification}${notes ? ` | ${notes}` : ''}`;
+    }
     closeRegister({
-      closing_amount: parseFloat(closingAmount) || 0,
-      closing_notes: closingNotes || undefined,
+      closing_amount: totalCounted,
+      closing_notes: notes || undefined,
     });
-    setIsCloseDialogOpen(false);
-    setClosingAmount('');
-    setClosingNotes('');
   };
 
   const handleAddMovement = () => {
@@ -90,7 +109,13 @@ export default function CashRegister() {
     setMovementReason('');
   };
 
-  // Calculate expected cash
+  const handleDeleteMovement = () => {
+    if (movementToDelete) {
+      deleteMovement(movementToDelete);
+      setMovementToDelete(null);
+    }
+  };
+
   const expectedCash = summary ? 
     summary.opening_amount + summary.total_cash + summary.total_deposits - summary.total_withdrawals : 0;
 
@@ -99,6 +124,18 @@ export default function CashRegister() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
+    );
+  }
+
+  // Show closing screen
+  if (showClosingScreen && summary) {
+    return (
+      <CashRegisterClosing
+        summary={summary}
+        onClose={handleCloseRegister}
+        onCancel={() => setShowClosingScreen(false)}
+        isClosing={isClosing}
+      />
     );
   }
 
@@ -112,11 +149,11 @@ export default function CashRegister() {
               <Wallet className="w-8 h-8 text-muted-foreground" />
             </div>
             <CardTitle>Caixa Fechado</CardTitle>
-            <CardDescription>
+            <p className="text-sm text-muted-foreground mt-2">
               Abra o caixa para iniciar as vendas do dia
-            </CardDescription>
+            </p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             <Dialog open={isOpenDialogOpen} onOpenChange={setIsOpenDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="w-full" size="lg">
@@ -163,13 +200,21 @@ export default function CashRegister() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => navigate('/caixa/historico')}
+            >
+              <History className="w-4 h-4 mr-2" />
+              Histórico de Caixas
+            </Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // Register open state - show summary
+  // Register open state
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -184,6 +229,10 @@ export default function CashRegister() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate('/caixa/historico')}>
+            <History className="w-4 h-4 mr-1" />
+            Histórico
+          </Button>
           <Badge variant="default" className="bg-success">
             <CheckCircle2 className="w-3 h-3 mr-1" />
             Aberto
@@ -351,7 +400,7 @@ export default function CashRegister() {
               {summary?.movements && summary.movements.length > 0 ? (
                 <div className="space-y-2">
                   {summary.movements.map((mov) => (
-                    <div key={mov.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                    <div key={mov.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 group">
                       <div className="flex items-center gap-2">
                         {mov.movement_type === 'withdrawal' ? (
                           <TrendingDown className="w-4 h-4 text-destructive" />
@@ -367,9 +416,19 @@ export default function CashRegister() {
                           )}
                         </div>
                       </div>
-                      <span className={`font-bold ${mov.movement_type === 'withdrawal' ? 'text-destructive' : 'text-success'}`}>
-                        {mov.movement_type === 'withdrawal' ? '-' : '+'}{formatCurrency(mov.amount)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-bold ${mov.movement_type === 'withdrawal' ? 'text-destructive' : 'text-success'}`}>
+                          {mov.movement_type === 'withdrawal' ? '-' : '+'}{formatCurrency(mov.amount)}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => setMovementToDelete(mov.id)}
+                        >
+                          <Trash2 className="w-3 h-3 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -394,70 +453,30 @@ export default function CashRegister() {
                 Encerrar as operações e gerar relatório de fechamento
               </p>
             </div>
-            <Dialog open={isCloseDialogOpen} onOpenChange={setIsCloseDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="destructive">
-                  Fechar Caixa
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Fechar Caixa</DialogTitle>
-                  <DialogDescription>
-                    Confirme o valor em caixa para encerrar as operações
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="p-4 rounded-lg bg-muted">
-                    <div className="flex justify-between mb-2">
-                      <span className="text-muted-foreground">Valor esperado:</span>
-                      <span className="font-bold">{formatCurrency(expectedCash)}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="closing-amount">Valor Contado</Label>
-                    <Input
-                      id="closing-amount"
-                      type="number"
-                      step="0.01"
-                      placeholder="0,00"
-                      value={closingAmount}
-                      onChange={(e) => setClosingAmount(e.target.value)}
-                    />
-                  </div>
-                  {closingAmount && parseFloat(closingAmount) !== expectedCash && (
-                    <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
-                      <div className="flex items-center gap-2 text-warning">
-                        <AlertCircle className="w-4 h-4" />
-                        <span className="text-sm font-medium">
-                          Diferença de {formatCurrency(Math.abs(parseFloat(closingAmount) - expectedCash))}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    <Label htmlFor="closing-notes">Observações (opcional)</Label>
-                    <Textarea
-                      id="closing-notes"
-                      placeholder="Adicione observações sobre o fechamento..."
-                      value={closingNotes}
-                      onChange={(e) => setClosingNotes(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCloseDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button variant="destructive" onClick={handleCloseRegister} disabled={isClosing}>
-                    {isClosing ? 'Fechando...' : 'Confirmar Fechamento'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button variant="destructive" onClick={() => setShowClosingScreen(true)}>
+              Fechar Caixa
+            </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete Movement Confirmation */}
+      <AlertDialog open={!!movementToDelete} onOpenChange={() => setMovementToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover movimentação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover esta movimentação? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteMovement}>
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

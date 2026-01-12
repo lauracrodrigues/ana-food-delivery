@@ -91,6 +91,14 @@ export interface CashRegisterSummary extends CashRegister {
   total_withdrawals: number;
   total_deposits: number;
   movements: CashMovement[];
+  // Extended stats for closing
+  total_checks?: number;
+  average_ticket?: number;
+  payments_by_type?: {
+    type: string;
+    name: string;
+    total: number;
+  }[];
 }
 
 // PDV Store state

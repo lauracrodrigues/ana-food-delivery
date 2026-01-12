@@ -25,7 +25,8 @@ import {
   Menu,
   LayoutGrid,
   Wallet,
-  Receipt
+  Receipt,
+  Clock
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -81,6 +82,7 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
       { title: "Vendas", url: "/pdv", icon: ShoppingCart },
       { title: "Mesas", url: "/mesas", icon: LayoutGrid },
       { title: "Caixa", url: "/caixa", icon: Wallet },
+      { title: "Histórico Caixas", url: "/caixa/historico", icon: Clock },
     ],
   },
   {

@@ -52,14 +52,35 @@ export function useCashRegister() {
         .eq('cash_register_id', activeRegister.id)
         .eq('status', 'completed');
 
+      // Get checks count for statistics
+      const { data: checks } = await supabase
+        .from('checks')
+        .select('id, total_amount')
+        .eq('cash_register_id', activeRegister.id)
+        .eq('status', 'closed');
+
+      const total_checks = checks?.length || 0;
+
       // Calculate totals
       const total_sales = payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
       const total_cash = payments?.filter(p => p.payment_method_type === 'cash').reduce((acc, p) => acc + p.amount, 0) || 0;
       const total_card = payments?.filter(p => ['credit', 'debit'].includes(p.payment_method_type || '')).reduce((acc, p) => acc + p.amount, 0) || 0;
       const total_pix = payments?.filter(p => p.payment_method_type === 'pix').reduce((acc, p) => acc + p.amount, 0) || 0;
+      const total_credit = payments?.filter(p => p.payment_method_type === 'credit').reduce((acc, p) => acc + p.amount, 0) || 0;
+      const total_debit = payments?.filter(p => p.payment_method_type === 'debit').reduce((acc, p) => acc + p.amount, 0) || 0;
 
       const total_withdrawals = movements?.filter(m => m.movement_type === 'withdrawal').reduce((acc, m) => acc + m.amount, 0) || 0;
       const total_deposits = movements?.filter(m => m.movement_type === 'deposit').reduce((acc, m) => acc + m.amount, 0) || 0;
+
+      const average_ticket = total_checks > 0 ? total_sales / total_checks : 0;
+
+      // Build payments by type
+      const payments_by_type = [
+        { type: 'cash', name: 'Dinheiro', total: total_cash },
+        { type: 'pix', name: 'PIX', total: total_pix },
+        { type: 'credit', name: 'Cartão Crédito', total: total_credit },
+        { type: 'debit', name: 'Cartão Débito', total: total_debit },
+      ].filter(p => p.total > 0);
 
       return {
         ...activeRegister,
@@ -70,6 +91,9 @@ export function useCashRegister() {
         total_pix,
         total_withdrawals,
         total_deposits,
+        total_checks,
+        average_ticket,
+        payments_by_type,
       } as CashRegisterSummary;
     },
     enabled: !!activeRegister?.id,
@@ -220,6 +244,33 @@ export function useCashRegister() {
     },
   });
 
+  // Delete movement
+  const deleteMovement = useMutation({
+    mutationFn: async (movementId: string) => {
+      const { error } = await supabase
+        .from('cash_movements')
+        .delete()
+        .eq('id', movementId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cash-register-summary', activeRegister?.id] });
+      toast({
+        title: 'Movimentação removida',
+        description: 'A movimentação foi removida com sucesso.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erro ao remover movimentação',
+        description: 'Não foi possível remover a movimentação.',
+        variant: 'destructive',
+      });
+      console.error('Error deleting movement:', error);
+    },
+  });
+
   return {
     activeRegister,
     summary,
@@ -228,7 +279,9 @@ export function useCashRegister() {
     openRegister: openRegister.mutate,
     closeRegister: closeRegister.mutate,
     addMovement: addMovement.mutate,
+    deleteMovement: deleteMovement.mutate,
     isOpening: openRegister.isPending,
     isClosing: closeRegister.isPending,
+    isDeleting: deleteMovement.isPending,
   };
 }
