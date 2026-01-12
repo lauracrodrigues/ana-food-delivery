@@ -4,12 +4,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCompanyId } from '@/hooks/useCompanyId';
 import { usePOSStore } from '@/stores/posStore';
 import { useCashRegister } from '@/hooks/pdv/useCashRegister';
+import { useChecks } from '@/hooks/pdv/useChecks';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { PaymentDialog } from '@/components/pdv/PaymentDialog';
+import { useToast } from '@/hooks/use-toast';
 import { 
   ShoppingCart, 
   Plus, 
@@ -20,12 +23,15 @@ import {
   CreditCard,
   Wallet,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency-formatter';
 
 export default function POS() {
   const { companyId } = useCompanyId();
+  const { toast } = useToast();
   const { isRegisterOpen, activeRegister } = useCashRegister();
+  const { createCheck, addItemsToCheck, isCreating, isAddingItems } = useChecks();
   const { 
     cart, 
     subtotal, 
@@ -42,6 +48,8 @@ export default function POS() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   // Fetch categories
   const { data: categories = [] } = useQuery({
@@ -108,6 +116,36 @@ export default function POS() {
     } else {
       updateItem(itemId, { quantity: newQuantity });
     }
+  };
+
+  // Handle "Enviar" - create open check with items (for table sales)
+  const handleSend = async () => {
+    if (cart.length === 0) return;
+    
+    setIsSending(true);
+    try {
+      const check = await createCheck({});
+      addItemsToCheck(check.id);
+      toast({
+        title: 'Comanda criada',
+        description: `Comanda #${check.check_number} foi criada com sucesso.`,
+      });
+    } catch (error) {
+      console.error('Error sending order:', error);
+      toast({
+        title: 'Erro ao criar comanda',
+        description: 'Não foi possível criar a comanda.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Handle "Pagar" - open payment dialog
+  const handlePay = () => {
+    if (cart.length === 0) return;
+    setPaymentDialogOpen(true);
   };
 
   // Show warning if register is not open
@@ -305,17 +343,35 @@ export default function POS() {
 
           {/* Actions */}
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <Button variant="outline" disabled={cart.length === 0}>
-              <Receipt className="w-4 h-4 mr-2" />
+            <Button 
+              variant="outline" 
+              disabled={cart.length === 0 || isSending}
+              onClick={handleSend}
+            >
+              {isSending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Receipt className="w-4 h-4 mr-2" />
+              )}
               Enviar
             </Button>
-            <Button disabled={cart.length === 0}>
+            <Button 
+              disabled={cart.length === 0}
+              onClick={handlePay}
+            >
               <CreditCard className="w-4 h-4 mr-2" />
               Pagar
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Payment Dialog */}
+      <PaymentDialog 
+        open={paymentDialogOpen}
+        onOpenChange={setPaymentDialogOpen}
+        total={total}
+      />
     </div>
   );
 }
