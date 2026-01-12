@@ -124,16 +124,10 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
     }
 
     const isCash = selectedMethod.type === 'cash';
-    const received = isCash ? parseAmount(receivedAmount) : amount;
-    
-    if (isCash && received < amount) {
-      toast({
-        title: 'Valor recebido insuficiente',
-        description: 'O valor recebido deve ser igual ou maior que o valor do pagamento.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    // For cash: if received amount is provided and valid, use it; otherwise assume exact payment
+    const receivedValue = parseAmount(receivedAmount);
+    const received = isCash && receivedValue > 0 ? receivedValue : amount;
+    const change = isCash && receivedValue > amount ? receivedValue - amount : 0;
 
     const newPayment: PaymentEntry = {
       id: `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -142,7 +136,7 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
       payment_method_type: selectedMethod.type,
       amount,
       received_amount: isCash ? received : undefined,
-      change_amount: isCash ? received - amount : undefined,
+      change_amount: isCash ? change : undefined,
     };
 
     setPayments([...payments, newPayment]);
