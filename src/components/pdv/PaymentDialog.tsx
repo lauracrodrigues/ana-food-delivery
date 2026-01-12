@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,13 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Banknote,
   QrCode,
@@ -20,6 +27,9 @@ import {
   Plus,
   Loader2,
   CheckCircle2,
+  Percent,
+  DollarSign,
+  ChevronDown,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency-formatter';
 import { usePaymentMethods, PaymentMethod } from '@/hooks/pdv/usePaymentMethods';
@@ -74,12 +84,19 @@ const getPaymentLabel = (type: string | null) => {
   }
 };
 
-export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps) {
+export function PaymentDialog({ open, onOpenChange, total: originalTotal }: PaymentDialogProps) {
   const { toast } = useToast();
   const { paymentMethods, isLoading: isLoadingMethods } = usePaymentMethods();
   const { createCheck, isCreating } = useChecks();
   const { activeRegister } = useCashRegister();
-  const clearCart = usePOSStore(state => state.clearCart);
+  const { 
+    clearCart, 
+    context, 
+    service_percent: storeServicePercent,
+    setService,
+    setDiscount,
+    subtotal,
+  } = usePOSStore();
 
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
@@ -87,9 +104,52 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
   const [receivedAmount, setReceivedAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Discount/Markup state
+  const [discountType, setDiscountType] = useState<'percent' | 'value'>('percent');
+  const [discountValue, setDiscountValue] = useState('');
+  const [isMarkup, setIsMarkup] = useState(false); // false = discount, true = markup
+
+  // Service charge state (for table orders)
+  const [serviceEnabled, setServiceEnabled] = useState(context.type === 'table');
+  const [servicePercent, setServicePercent] = useState(storeServicePercent || 10);
+
+  // Refs for auto-focus
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const receivedInputRef = useRef<HTMLInputElement>(null);
+
+  // Calculate adjusted total with discount/markup and service
+  const discountAmount = discountType === 'percent' 
+    ? subtotal * (parseFloat(discountValue) || 0) / 100
+    : parseFloat(discountValue.replace(',', '.')) || 0;
+  
+  const adjustedSubtotal = isMarkup 
+    ? subtotal + discountAmount 
+    : subtotal - discountAmount;
+  
+  const serviceAmount = serviceEnabled 
+    ? adjustedSubtotal * (servicePercent / 100) 
+    : 0;
+  
+  const adjustedTotal = Math.max(0, adjustedSubtotal + serviceAmount);
+
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-  const remaining = Math.max(0, total - totalPaid);
+  const remaining = Math.max(0, adjustedTotal - totalPaid);
   const canFinalize = remaining === 0 && payments.length > 0;
+
+  // Auto-focus on amount input when method is selected
+  useEffect(() => {
+    if (selectedMethod && amountInputRef.current) {
+      setTimeout(() => amountInputRef.current?.focus(), 100);
+    }
+  }, [selectedMethod]);
+
+  // Update store when discount/service changes
+  useEffect(() => {
+    if (open) {
+      setDiscount(isMarkup ? -discountAmount : discountAmount, discountType === 'percent' ? parseFloat(discountValue) || 0 : 0);
+      setService(serviceEnabled ? servicePercent : 0);
+    }
+  }, [discountAmount, isMarkup, serviceEnabled, servicePercent, open]);
 
   const handleSelectMethod = (method: PaymentMethod) => {
     setSelectedMethod(method);
@@ -124,7 +184,7 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
     }
 
     const isCash = selectedMethod.type === 'cash';
-    // For cash: if received amount is provided and valid, use it; otherwise assume exact payment
+    // For cash: use received amount if provided, otherwise assume exact payment
     const receivedValue = parseAmount(receivedAmount);
     const received = isCash && receivedValue > 0 ? receivedValue : amount;
     const change = isCash && receivedValue > amount ? receivedValue - amount : 0;
@@ -149,23 +209,37 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
     setPayments(payments.filter((p) => p.id !== paymentId));
   };
 
+  // Handle keyboard shortcuts
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedMethod) {
+        handleAddPayment();
+      }
+    }
+    
+    // Numeric shortcuts for payment methods (1-9)
+    if (!selectedMethod && e.key >= '1' && e.key <= '9') {
+      const index = parseInt(e.key) - 1;
+      if (paymentMethods[index]) {
+        handleSelectMethod(paymentMethods[index]);
+      }
+    }
+  };
+
   const handleFinalize = async () => {
     if (!canFinalize) return;
 
     setIsProcessing(true);
     try {
-      // 1. Create check
       const check = await createCheck({});
 
-      // 2. Add items (uses mutate, not async)
       const { supabase } = await import('@/integrations/supabase/client');
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('User not authenticated');
 
-      // Get cart from store
-      const { cart, subtotal, service_amount, service_percent, discount_amount, couvert_amount, delivery_fee, total } = usePOSStore.getState();
+      const { cart } = usePOSStore.getState();
 
-      // Insert items
       const items = cart.map(item => ({
         check_id: check.id,
         company_id: check.company_id,
@@ -190,23 +264,19 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
 
       if (itemsError) throw itemsError;
 
-      // 3. Update check totals
       const { error: totalsError } = await supabase
         .from('checks')
         .update({
-          subtotal,
-          service_percent,
-          service_amount,
-          discount_amount,
-          couvert_amount,
-          delivery_fee,
-          total_amount: total,
+          subtotal: adjustedSubtotal,
+          service_percent: serviceEnabled ? servicePercent : 0,
+          service_amount: serviceAmount,
+          discount_amount: isMarkup ? -discountAmount : discountAmount,
+          total_amount: adjustedTotal,
         })
         .eq('id', check.id);
 
       if (totalsError) throw totalsError;
 
-      // 4. Add payments
       const paymentRecords = payments.map((p) => ({
         check_id: check.id,
         company_id: check.company_id,
@@ -227,7 +297,6 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
 
       if (paymentError) throw paymentError;
 
-      // 5. Update paid amount and close check
       const totalPaidAmount = payments.reduce((sum, p) => sum + p.amount, 0);
       const { error: closeError } = await supabase
         .from('checks')
@@ -242,10 +311,11 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
 
       if (closeError) throw closeError;
 
-      // 6. Clear and close
       clearCart();
       onOpenChange(false);
       setPayments([]);
+      setDiscountValue('');
+      setIsMarkup(false);
 
       toast({
         title: 'Venda finalizada',
@@ -269,6 +339,8 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
       setSelectedMethod(null);
       setInputAmount('');
       setReceivedAmount('');
+      setDiscountValue('');
+      setIsMarkup(false);
       onOpenChange(false);
     }
   };
@@ -279,17 +351,114 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg" onKeyDown={handleKeyDown}>
         <DialogHeader>
           <DialogTitle>Pagamento</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Discount/Markup Section */}
+          <div className="rounded-lg border p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Desconto / Acréscimo</Label>
+              <div className="flex items-center gap-2">
+                <span className={cn("text-xs", !isMarkup && "font-medium")}>Desconto</span>
+                <Switch checked={isMarkup} onCheckedChange={setIsMarkup} />
+                <span className={cn("text-xs", isMarkup && "font-medium")}>Acréscimo</span>
+              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-24">
+                    {discountType === 'percent' ? (
+                      <><Percent className="w-3 h-3 mr-1" /> %</>
+                    ) : (
+                      <><DollarSign className="w-3 h-3 mr-1" /> R$</>
+                    )}
+                    <ChevronDown className="w-3 h-3 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => setDiscountType('percent')}>
+                    <Percent className="w-4 h-4 mr-2" /> Percentual
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setDiscountType('value')}>
+                    <DollarSign className="w-4 h-4 mr-2" /> Valor Fixo
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <Input
+                value={discountValue}
+                onChange={(e) => setDiscountValue(e.target.value)}
+                placeholder={discountType === 'percent' ? '0' : '0,00'}
+                className="flex-1 text-right font-mono"
+              />
+            </div>
+            
+            {discountAmount > 0 && (
+              <div className={cn(
+                "text-sm font-medium text-right",
+                isMarkup ? "text-orange-600" : "text-green-600"
+              )}>
+                {isMarkup ? '+' : '-'} {formatCurrency(discountAmount)}
+              </div>
+            )}
+          </div>
+
+          {/* Service Charge (for table orders) */}
+          {context.type === 'table' && (
+            <div className="rounded-lg border p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Taxa de Serviço</Label>
+                <Switch checked={serviceEnabled} onCheckedChange={setServiceEnabled} />
+              </div>
+              
+              {serviceEnabled && (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={servicePercent}
+                    onChange={(e) => setServicePercent(parseFloat(e.target.value) || 0)}
+                    className="w-20 text-right font-mono"
+                    min={0}
+                    max={100}
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                  <span className="text-sm font-medium ml-auto">
+                    {formatCurrency(serviceAmount)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Summary */}
           <div className="rounded-lg bg-muted p-4 space-y-2">
             <div className="flex justify-between text-sm">
+              <span>Subtotal</span>
+              <span className="font-medium">{formatCurrency(subtotal)}</span>
+            </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>{isMarkup ? 'Acréscimo' : 'Desconto'}</span>
+                <span className={cn("font-medium", isMarkup ? "text-orange-600" : "text-green-600")}>
+                  {isMarkup ? '+' : '-'}{formatCurrency(discountAmount)}
+                </span>
+              </div>
+            )}
+            {serviceEnabled && serviceAmount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Serviço ({servicePercent}%)</span>
+                <span className="font-medium">{formatCurrency(serviceAmount)}</span>
+              </div>
+            )}
+            <Separator />
+            <div className="flex justify-between text-sm">
               <span>Total da Conta</span>
-              <span className="font-medium">{formatCurrency(total)}</span>
+              <span className="font-medium">{formatCurrency(adjustedTotal)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span>Já Pago</span>
@@ -349,7 +518,10 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
           {/* Add Payment Section */}
           {remaining > 0 && (
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Adicionar Pagamento</Label>
+              <Label className="text-sm font-medium">
+                Adicionar Pagamento 
+                <span className="text-xs text-muted-foreground ml-2">(Atalhos: 1-9)</span>
+              </Label>
               
               {/* Payment Method Buttons */}
               {!selectedMethod && (
@@ -359,15 +531,18 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
                       <Loader2 className="w-5 h-5 animate-spin" />
                     </div>
                   ) : (
-                    paymentMethods.map((method) => {
+                    paymentMethods.map((method, index) => {
                       const Icon = getPaymentIcon(method.type);
                       return (
                         <Button
                           key={method.id}
                           variant="outline"
-                          className="flex flex-col h-auto py-3 gap-1"
+                          className="flex flex-col h-auto py-3 gap-1 relative"
                           onClick={() => handleSelectMethod(method)}
                         >
+                          <span className="absolute top-1 left-1 text-[10px] text-muted-foreground">
+                            {index + 1}
+                          </span>
                           <Icon className="w-5 h-5" />
                           <span className="text-xs">{method.name}</span>
                         </Button>
@@ -400,9 +575,20 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
                   <div className="space-y-2">
                     <Label htmlFor="amount">Valor</Label>
                     <Input
+                      ref={amountInputRef}
                       id="amount"
                       value={inputAmount}
                       onChange={(e) => setInputAmount(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (selectedMethod.type === 'cash') {
+                            receivedInputRef.current?.focus();
+                          } else {
+                            handleAddPayment();
+                          }
+                        }
+                      }}
                       placeholder="0,00"
                       className="text-right text-lg font-mono"
                     />
@@ -411,11 +597,18 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
                   {selectedMethod.type === 'cash' && (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="received">Valor Recebido</Label>
+                        <Label htmlFor="received">Valor Recebido (opcional)</Label>
                         <Input
+                          ref={receivedInputRef}
                           id="received"
                           value={receivedAmount}
                           onChange={(e) => setReceivedAmount(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddPayment();
+                            }
+                          }}
                           placeholder="0,00"
                           className="text-right text-lg font-mono"
                         />
@@ -434,7 +627,7 @@ export function PaymentDialog({ open, onOpenChange, total }: PaymentDialogProps)
 
                   <Button onClick={handleAddPayment} className="w-full">
                     <Plus className="w-4 h-4 mr-2" />
-                    Adicionar Pagamento
+                    Adicionar Pagamento (Enter)
                   </Button>
                 </div>
               )}
