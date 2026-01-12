@@ -22,7 +22,10 @@ import {
   Pin,
   PinOff,
   X,
-  Menu
+  Menu,
+  LayoutGrid,
+  Wallet,
+  Receipt
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -70,6 +73,15 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
     title: "Dashboard",
     url: "/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    title: "PDV",
+    icon: Receipt,
+    subItems: [
+      { title: "Vendas", url: "/pdv", icon: ShoppingCart },
+      { title: "Mesas", url: "/mesas", icon: LayoutGrid },
+      { title: "Caixa", url: "/caixa", icon: Wallet },
+    ],
   },
   {
     title: "Pedidos",

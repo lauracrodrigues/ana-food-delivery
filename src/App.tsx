@@ -34,6 +34,9 @@ const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
 const MenuManagement = lazy(() => import("./pages/MenuManagement"));
 const PublicMenu = lazy(() => import("./pages/PublicMenu"));
 const Users = lazy(() => import("./pages/Users"));
+const POS = lazy(() => import("./pages/POS"));
+const Tables = lazy(() => import("./pages/Tables"));
+const CashRegister = lazy(() => import("./pages/CashRegister"));
 
 const queryClient = new QueryClient();
 
@@ -93,6 +96,9 @@ const App = () => (
               <Route path="/menu-management" element={<MenuManagement />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/company-profile" element={<CompanyProfile />} />
+              <Route path="/pdv" element={<POS />} />
+              <Route path="/mesas" element={<Tables />} />
+              <Route path="/caixa" element={<CashRegister />} />
               
               {/* Protected admin-only routes */}
               <Route path="/users" element={

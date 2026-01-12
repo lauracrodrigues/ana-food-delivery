@@ -64,7 +64,7 @@ export function useTables() {
         })) as TableWithStatus[];
       }
 
-      return data as TableWithStatus[];
+      return data as unknown as TableWithStatus[];
     },
     enabled: !!companyId,
     refetchInterval: 30000, // Refresh every 30 seconds for idle time updates

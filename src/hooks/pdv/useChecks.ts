@@ -132,7 +132,7 @@ export function useChecks() {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('User not authenticated');
 
-      // Convert cart items to check_items
+      // Convert cart items to check_items - cast extras to Json
       const items = cart.map(item => ({
         check_id: checkId,
         company_id: companyId,
@@ -142,7 +142,7 @@ export function useChecks() {
         product_sku: item.product_sku,
         unit_price: item.unit_price,
         quantity: item.quantity,
-        extras: item.extras as unknown as Record<string, unknown>[],
+        extras: JSON.parse(JSON.stringify(item.extras)),
         extras_total: item.extras_total,
         notes: item.notes,
         promotion_id: item.promotion_id,
