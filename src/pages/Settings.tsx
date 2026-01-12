@@ -20,7 +20,8 @@ import {
   Sun,
   Moon,
   Hash,
-  RotateCcw
+  RotateCcw,
+  Grid3X3,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +32,7 @@ import { qzPrinter } from "@/lib/qz-tray";
 import { useTheme } from "@/components/theme-provider";
 import { useColorPalette, type ColorPalette } from "@/hooks/use-color-palette";
 import { PrintLayoutConfig } from "@/components/settings/print-layout/PrintLayoutConfig";
+import { TablesSettings } from "@/components/settings/TablesSettings";
 
 interface StoreSettings {
   id?: string;
@@ -287,10 +289,14 @@ export function Settings() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-3 w-full max-w-4xl">
+          <TabsList className="grid grid-cols-4 w-full max-w-4xl">
             <TabsTrigger value="general">Geral</TabsTrigger>
+            <TabsTrigger value="tables">
+              <Grid3X3 className="h-4 w-4 mr-1" />
+              Mesas
+            </TabsTrigger>
             <TabsTrigger value="appearance">Aparência</TabsTrigger>
-            <TabsTrigger value="print">Configurações de Impressão</TabsTrigger>
+            <TabsTrigger value="print">Impressão</TabsTrigger>
           </TabsList>
 
           {/* General Settings */}
@@ -609,6 +615,11 @@ export function Settings() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Tables Settings */}
+          <TabsContent value="tables" className="space-y-6">
+            <TablesSettings />
           </TabsContent>
 
           {/* Print Settings */}

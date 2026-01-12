@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { MenuHeader } from "@/components/menu/MenuHeader";
@@ -47,6 +47,7 @@ interface CartItem {
 
 export default function PublicMenu() {
   const { subdomain } = useParams();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<Company | null>(null);
@@ -55,6 +56,10 @@ export default function PublicMenu() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
+  
+  // Table identification from QR code
+  const tableNumber = searchParams.get('mesa');
+  const [tableInfo, setTableInfo] = useState<{ id: string; table_number: string } | null>(null);
 
   useEffect(() => {
     loadMenuData();
@@ -82,6 +87,20 @@ export default function PublicMenu() {
       }
 
       setCompany(companyData);
+
+      // Se tem mesa na URL, buscar informações da mesa
+      if (tableNumber) {
+        const { data: tableData } = await supabase
+          .from('tables')
+          .select('id, table_number')
+          .eq('company_id', companyData.id)
+          .eq('table_number', tableNumber)
+          .maybeSingle();
+        
+        if (tableData) {
+          setTableInfo(tableData);
+        }
+      }
 
       // Buscar categorias
       const { data: categoriesData } = await supabase
@@ -186,6 +205,14 @@ export default function PublicMenu() {
     <div className="min-h-screen bg-background">
       <MenuHeader company={company} />
       
+      {/* Table identification banner */}
+      {tableInfo && (
+        <div className="bg-primary text-primary-foreground py-2 px-4 text-center">
+          <span className="font-medium">Mesa {tableInfo.table_number}</span>
+          <span className="ml-2 text-sm opacity-80">Pedido via QR Code</span>
+        </div>
+      )}
+      
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -219,6 +246,8 @@ export default function PublicMenu() {
           cart={cart}
           total={getCartTotal()}
           company={company}
+          tableInfo={tableInfo}
+          requireCustomerInfo={!!tableInfo}
           onClose={() => setShowCheckout(false)}
           onSuccess={() => {
             clearCart();

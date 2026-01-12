@@ -29,21 +29,26 @@ interface MenuCheckoutProps {
   cart: CartItem[];
   total: number;
   company: Company;
+  tableInfo?: { id: string; table_number: string } | null;
+  requireCustomerInfo?: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export function MenuCheckout({ cart, total, company, onClose, onSuccess }: MenuCheckoutProps) {
+export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerInfo, onClose, onSuccess }: MenuCheckoutProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     customer_name: "",
     customer_phone: "",
-    type: "delivery",
+    type: tableInfo ? "table" : "delivery",
     address: "",
     payment_method: "dinheiro",
     observations: "",
   });
+
+  // For table orders, always require customer info
+  const isTableOrder = !!tableInfo;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +74,7 @@ export function MenuCheckout({ cart, total, company, onClose, onSuccess }: MenuC
     setLoading(true);
 
     try {
-      const orderData = {
+      const orderData: any = {
         company_id: company.id,
         customer_name: formData.customer_name,
         customer_phone: formData.customer_phone,
@@ -81,7 +86,7 @@ export function MenuCheckout({ cart, total, company, onClose, onSuccess }: MenuC
           quantity: item.quantity,
           observations: item.observations,
         })),
-        type: formData.type,
+        type: isTableOrder ? "table" : formData.type,
         address: formData.address,
         payment_method: formData.payment_method,
         observations: formData.observations,
@@ -89,6 +94,13 @@ export function MenuCheckout({ cart, total, company, onClose, onSuccess }: MenuC
         delivery_fee: 0,
         estimated_time: 30,
       };
+
+      // Add table info if it's a table order
+      if (tableInfo) {
+        orderData.table_id = tableInfo.id;
+        orderData.table_number = tableInfo.table_number;
+        orderData.source = "qr_code";
+      }
 
       const response: any = await apiClient.createOrder(orderData);
 
@@ -114,7 +126,9 @@ export function MenuCheckout({ cart, total, company, onClose, onSuccess }: MenuC
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Finalizar Pedido</DialogTitle>
+          <DialogTitle>
+            {isTableOrder ? `Finalizar Pedido - Mesa ${tableInfo?.table_number}` : 'Finalizar Pedido'}
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -146,26 +160,28 @@ export function MenuCheckout({ cart, total, company, onClose, onSuccess }: MenuC
             </div>
           </div>
 
-          {/* Order Type */}
-          <div className="space-y-4">
-            <h3 className="font-semibold">Tipo de Pedido</h3>
-            <RadioGroup
-              value={formData.type}
-              onValueChange={(value) => setFormData({ ...formData, type: value })}
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="delivery" id="delivery" />
-                <Label htmlFor="delivery">Entrega</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="pickup" id="pickup" />
-                <Label htmlFor="pickup">Retirada</Label>
-              </div>
-            </RadioGroup>
-          </div>
+          {/* Order Type - only for non-table orders */}
+          {!isTableOrder && (
+            <div className="space-y-4">
+              <h3 className="font-semibold">Tipo de Pedido</h3>
+              <RadioGroup
+                value={formData.type}
+                onValueChange={(value) => setFormData({ ...formData, type: value })}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="delivery" id="delivery" />
+                  <Label htmlFor="delivery">Entrega</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="pickup" id="pickup" />
+                  <Label htmlFor="pickup">Retirada</Label>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
 
-          {/* Address */}
-          {formData.type === "delivery" && (
+          {/* Address - only for delivery */}
+          {!isTableOrder && formData.type === "delivery" && (
             <div className="space-y-2">
               <Label htmlFor="address">Endereço de Entrega *</Label>
               <Textarea

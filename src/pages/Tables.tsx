@@ -250,9 +250,9 @@ export default function Tables() {
             {counts.occupied} / {counts.all} ocupadas
           </Badge>
         </div>
-        <Button>
+        <Button onClick={() => navigate('/settings?tab=tables')}>
           <Plus className="w-4 h-4 mr-2" />
-          Nova Mesa
+          Gerenciar Mesas
         </Button>
       </div>
 
@@ -332,7 +332,7 @@ export default function Tables() {
           <p className="text-muted-foreground mb-4 max-w-md">
             Para começar a usar o sistema de mesas, cadastre as mesas do seu estabelecimento.
           </p>
-          <Button>
+          <Button onClick={() => navigate('/settings?tab=tables')}>
             <Plus className="w-4 h-4 mr-2" />
             Cadastrar Mesas
           </Button>
