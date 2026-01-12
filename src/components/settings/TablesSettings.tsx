@@ -578,14 +578,14 @@ export function TablesSettings() {
               <div className="space-y-2">
                 <Label>Área</Label>
                 <Select
-                  value={tableForm.area_id}
-                  onValueChange={(v) => setTableForm({ ...tableForm, area_id: v })}
+                  value={tableForm.area_id || 'none'}
+                  onValueChange={(v) => setTableForm({ ...tableForm, area_id: v === 'none' ? '' : v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma</SelectItem>
+                    <SelectItem value="none">Nenhuma</SelectItem>
                     {areas.map((area) => (
                       <SelectItem key={area.id} value={area.id}>
                         {area.name}
@@ -685,14 +685,14 @@ export function TablesSettings() {
               <div className="space-y-2">
                 <Label>Área</Label>
                 <Select
-                  value={batchForm.area_id}
-                  onValueChange={(v) => setBatchForm({ ...batchForm, area_id: v })}
+                  value={batchForm.area_id || 'none'}
+                  onValueChange={(v) => setBatchForm({ ...batchForm, area_id: v === 'none' ? '' : v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma</SelectItem>
+                    <SelectItem value="none">Nenhuma</SelectItem>
                     {areas.map((area) => (
                       <SelectItem key={area.id} value={area.id}>
                         {area.name}
