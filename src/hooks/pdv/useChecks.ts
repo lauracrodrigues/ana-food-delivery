@@ -64,6 +64,9 @@ export function useChecks() {
       customer_name?: string;
       customer_phone?: string;
       waiter_id?: string;
+      waiter_name?: string;
+      guest_count?: number;
+      notes?: string;
       type?: SaleType;
     }) => {
       if (!companyId) throw new Error('Company ID not found');
@@ -87,6 +90,9 @@ export function useChecks() {
         customer_name: data?.customer_name || context.customer_name,
         customer_phone: data?.customer_phone || context.customer_phone,
         waiter_id: data?.waiter_id || context.waiter_id,
+        waiter_name: data?.waiter_name || context.waiter_name,
+        guest_count: data?.guest_count || 1,
+        notes: data?.notes,
         status: 'open',
         // Delivery info
         address: context.address,
