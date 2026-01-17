@@ -965,6 +965,8 @@ export type Database = {
       customers: {
         Row: {
           addresses: Json | null
+          atendimento_lock: boolean | null
+          atendimento_lock_at: string | null
           company_id: string
           created_at: string
           email: string | null
@@ -981,6 +983,8 @@ export type Database = {
         }
         Insert: {
           addresses?: Json | null
+          atendimento_lock?: boolean | null
+          atendimento_lock_at?: string | null
           company_id: string
           created_at?: string
           email?: string | null
@@ -997,6 +1001,8 @@ export type Database = {
         }
         Update: {
           addresses?: Json | null
+          atendimento_lock?: boolean | null
+          atendimento_lock_at?: string | null
           company_id?: string
           created_at?: string
           email?: string | null
@@ -1193,6 +1199,7 @@ export type Database = {
           message: Json | null
           name: string | null
           phone: string | null
+          processed: boolean | null
           session_id: string | null
           timestamp: string | null
         }
@@ -1205,6 +1212,7 @@ export type Database = {
           message?: Json | null
           name?: string | null
           phone?: string | null
+          processed?: boolean | null
           session_id?: string | null
           timestamp?: string | null
         }
@@ -1217,6 +1225,7 @@ export type Database = {
           message?: Json | null
           name?: string | null
           phone?: string | null
+          processed?: boolean | null
           session_id?: string | null
           timestamp?: string | null
         }
