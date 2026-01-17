@@ -228,44 +228,7 @@ export function CashRegisterClosing({
     return 'bg-muted/50';
   };
 
-  // Success screen
-  if (showSuccess) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
-        <div className="w-20 h-20 rounded-full bg-success/20 flex items-center justify-center mb-6">
-          <CheckCircle2 className="w-10 h-10 text-success" />
-        </div>
-        <h2 className="text-2xl font-bold mb-2">Caixa Fechado com Sucesso!</h2>
-        <p className="text-muted-foreground mb-8">O que deseja fazer agora?</p>
-        
-        <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
-          <Button 
-            variant="outline" 
-            className="flex-1"
-            onClick={() => window.location.href = '/dashboard'}
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sair
-          </Button>
-          <Button 
-            variant="outline" 
-            className="flex-1"
-            onClick={() => window.print()}
-          >
-            <Printer className="w-4 h-4 mr-2" />
-            Imprimir
-          </Button>
-          <Button 
-            className="flex-1"
-            onClick={() => window.location.href = '/caixa/historico'}
-          >
-            <Eye className="w-4 h-4 mr-2" />
-            Visualizar
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  // Success screen removed - now handled by parent via CashRegisterSuccessDialog
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6 pb-32">

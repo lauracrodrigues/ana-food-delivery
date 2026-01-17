@@ -15,10 +15,23 @@ export type CheckItem = Database['public']['Tables']['check_items']['Row'];
 export type CheckPayment = Database['public']['Tables']['check_payments']['Row'];
 export type PendingSale = Database['public']['Tables']['pending_sales']['Row'];
 
-// Extended types for UI
+// Extended types for UI - matches v_tables_with_checks view
 export interface TableWithStatus extends Table {
   area_name?: string;
-  active_check?: Check | null;
+  // Fields from v_tables_with_checks view
+  open_checks_count?: number;
+  current_total?: number;
+  oldest_opened_at?: string;
+  last_item_at?: string;
+  waiter_name?: string;
+  minutes_occupied?: number;
+  minutes_idle?: number;
+  // Computed/legacy fields for component compatibility
+  active_check?: {
+    id?: string;
+    check_number?: number;
+    status?: string;
+  } | null;
   check_items_count?: number;
   check_total?: number;
   idle_minutes?: number;

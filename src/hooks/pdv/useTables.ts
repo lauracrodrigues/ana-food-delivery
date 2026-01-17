@@ -61,10 +61,24 @@ export function useTables() {
           check_total: 0,
           idle_minutes: 0,
           idle_color: null,
+          open_checks_count: 0,
+          current_total: 0,
+          minutes_idle: 0,
         })) as TableWithStatus[];
       }
 
-      return data as unknown as TableWithStatus[];
+      // Map view fields to component-expected fields
+      return (data as any[]).map(t => ({
+        ...t,
+        // Map view fields for component compatibility
+        check_total: t.current_total || 0,
+        idle_minutes: t.minutes_idle || 0,
+        check_items_count: t.open_checks_count || 0,
+        active_check: t.open_checks_count > 0 ? {
+          id: t.id,
+          status: 'open',
+        } : null,
+      })) as TableWithStatus[];
     },
     enabled: !!companyId,
     refetchInterval: 30000, // Refresh every 30 seconds for idle time updates

@@ -481,6 +481,12 @@ export default function CashRegister() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Success Dialog after closing register */}
+      <CashRegisterSuccessDialog
+        open={showSuccessDialog}
+        onOpenChange={setShowSuccessDialog}
+      />
     </div>
   );
 }

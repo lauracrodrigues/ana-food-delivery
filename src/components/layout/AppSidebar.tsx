@@ -77,12 +77,15 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
   },
   {
     title: "PDV",
+    url: "/pdv",
     icon: Receipt,
+  },
+  {
+    title: "Caixa",
+    icon: Wallet,
     subItems: [
-      { title: "Vendas", url: "/pdv", icon: ShoppingCart },
-      { title: "Mesas", url: "/mesas", icon: LayoutGrid },
-      { title: "Caixa", url: "/caixa", icon: Wallet },
-      { title: "Histórico Caixas", url: "/caixa/historico", icon: Clock },
+      { title: "Sessão Atual", url: "/caixa", icon: Wallet },
+      { title: "Histórico", url: "/caixa/historico", icon: Clock },
     ],
   },
   {
