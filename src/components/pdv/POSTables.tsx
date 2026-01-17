@@ -135,30 +135,37 @@ export function POSTables({ onTableSelected, onManageTables }: POSTablesProps) {
     return null;
   };
 
-  const formatIdleTime = (minutes: number | null | undefined) => {
-    if (!minutes) return '';
+  // Format idle time display - use minutes_idle from view
+  const formatIdleTimeStr = (table: TableWithStatus) => {
+    const minutes = table.minutes_idle ?? table.idle_minutes ?? 0;
+    if (!minutes || minutes < 1) return '';
     if (minutes < 60) return `${minutes}min`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return `${hours}h${mins > 0 ? `${mins}m` : ''}`;
+    return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`;
   };
 
   const getStatusLabel = (table: TableWithStatus) => {
-    if (!table.active_check || table.status === 'available') return 'Livre';
-    if (table.active_check?.status === 'paid') return 'Paga';
+    const hasOpenChecks = (table.open_checks_count ?? 0) > 0 || table.active_check;
+    if (!hasOpenChecks || table.status === 'available') return 'Livre';
+    if (table.status === 'paid' || table.active_check?.status === 'paid') return 'Paga';
     return 'Ocupada';
   };
 
   const counts = useMemo(() => ({
     all: tables.length,
-    free: tables.filter(t => !t.active_check || t.status === 'available').length,
-    occupied: tables.filter(t => t.active_check && t.status === 'occupied' && t.active_check.status !== 'paid').length,
-    paid: tables.filter(t => t.active_check?.status === 'paid').length,
+    free: tables.filter(t => !((t.open_checks_count ?? 0) > 0 || t.active_check) || t.status === 'available').length,
+    occupied: tables.filter(t => ((t.open_checks_count ?? 0) > 0 || t.active_check) && t.status === 'occupied' && t.active_check?.status !== 'paid').length,
+    paid: tables.filter(t => t.status === 'paid' || t.active_check?.status === 'paid').length,
   }), [tables]);
 
   const renderTableCard = (table: TableWithStatus) => {
     const iconColor = getIconColor(table);
-    const idleColor = table.idle_minutes ? getIdleColor(table.idle_minutes) : null;
+    const idleTimeStr = formatIdleTimeStr(table);
+    const idleColor = (table.minutes_idle ?? table.idle_minutes) ? getIdleColor(table.minutes_idle ?? table.idle_minutes ?? 0) : null;
+    const hasOpenChecks = (table.open_checks_count ?? 0) > 0 || table.active_check;
+    const tableTotal = table.current_total ?? table.check_total ?? 0;
+    const itemsCount = table.open_checks_count ?? table.check_items_count ?? 0;
 
     return (
       <Card 
@@ -197,29 +204,29 @@ export function POSTables({ onTableSelected, onManageTables }: POSTablesProps) {
             </div>
           )}
 
-          {table.status === 'occupied' && table.active_check && (
+          {table.status === 'occupied' && hasOpenChecks && (
             <div className="mt-2 pt-2 border-t space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1">
                   <Receipt className="w-3 h-3" />
-                  <span>#{table.active_check.check_number}</span>
+                  <span>#{table.active_check?.check_number || itemsCount} comanda(s)</span>
                 </div>
-                {table.idle_minutes && table.idle_minutes > 0 && (
+                {idleTimeStr && (
                   <div 
                     className="flex items-center gap-1 animate-pulse"
                     style={{ color: idleColor || undefined }}
                   >
                     <Clock className="w-3 h-3" />
-                    <span className="text-xs font-medium">{formatIdleTime(table.idle_minutes)}</span>
+                    <span className="text-xs font-medium">{idleTimeStr}</span>
                   </div>
                 )}
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">
-                  {table.check_items_count || 0} itens
+                  {table.waiter_name || 'Sem garçom'}
                 </span>
                 <span className="font-bold text-primary text-sm">
-                  {formatCurrency(table.check_total || 0)}
+                  {formatCurrency(tableTotal)}
                 </span>
               </div>
             </div>
