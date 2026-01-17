@@ -45,6 +45,7 @@ import { formatCurrency } from '@/lib/currency-formatter';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CashRegisterClosing } from '@/components/pdv/CashRegisterClosing';
+import { CashRegisterSuccessDialog } from '@/components/pdv/CashRegisterSuccessDialog';
 import { useNavigate } from 'react-router-dom';
 
 export default function CashRegister() {
@@ -71,6 +72,7 @@ export default function CashRegister() {
   const [isMovementDialogOpen, setIsMovementDialogOpen] = useState(false);
   const [showClosingScreen, setShowClosingScreen] = useState(false);
   const [movementToDelete, setMovementToDelete] = useState<string | null>(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   const handleOpenRegister = () => {
     openRegister({
@@ -82,7 +84,7 @@ export default function CashRegister() {
     setOpeningNotes('');
   };
 
-  const handleCloseRegister = (data: {
+  const handleCloseRegister = async (data: {
     closing_amounts: Record<string, number>;
     closing_notes?: string;
     justification?: string;
@@ -92,10 +94,12 @@ export default function CashRegister() {
     if (data.justification) {
       notes = `Justificativa: ${data.justification}${notes ? ` | ${notes}` : ''}`;
     }
-    closeRegister({
+    await closeRegister({
       closing_amount: totalCounted,
       closing_notes: notes || undefined,
     });
+    setShowClosingScreen(false);
+    setShowSuccessDialog(true);
   };
 
   const handleAddMovement = () => {
