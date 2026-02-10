@@ -315,6 +315,11 @@ export default function WhatsApp() {
 
       if (response.error) {
         console.error(`[WhatsApp] ❌ Erro na resposta:`, response.error);
+        // Detectar erro do servidor Evolution
+        const errData = response.error?.context || response.error;
+        if (errData?.error === 'evolution_server_error') {
+          throw new Error('Servidor da Evolution API indisponível. Verifique se o serviço está online.');
+        }
         throw new Error(response.error.message || 'Erro ao verificar status');
       }
 
@@ -399,8 +404,13 @@ export default function WhatsApp() {
 
       console.log(`[WhatsApp] ✅ Instância já existe: ${sessionName}`);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`[WhatsApp] ❌ Erro ao verificar/criar instância ${sessionName}:`, error);
+      // Detectar erro do servidor Evolution
+      const errorContext = error?.context;
+      if (errorContext?.error === 'evolution_server_error' || error?.message?.includes('evolution_server_error')) {
+        throw new Error('Servidor da Evolution API está com problemas internos. Verifique se o serviço está online.');
+      }
       throw error;
     }
   };
@@ -500,15 +510,17 @@ export default function WhatsApp() {
         console.error(`[WhatsApp] ❌ QR Code não disponível na resposta`);
         throw new Error('QR Code não disponível');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[WhatsApp] ❌ Erro ao conectar:', error);
       
       const errorMessage = error instanceof Error ? error.message : "Não foi possível gerar o QR Code.";
-      console.error(`[WhatsApp] 💬 Mensagem de erro: ${errorMessage}`);
+      const isServerError = errorMessage.includes('Evolution API') || errorMessage.includes('evolution_server_error');
       
       toast({
-        title: "Erro ao gerar QR Code",
-        description: errorMessage,
+        title: isServerError ? "Servidor Evolution indisponível" : "Erro ao gerar QR Code",
+        description: isServerError 
+          ? "O servidor da Evolution API está fora do ar ou com problemas internos. Reinicie o serviço e tente novamente."
+          : errorMessage,
         variant: "destructive",
       });
     }
