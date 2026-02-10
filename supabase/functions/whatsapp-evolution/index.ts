@@ -5,6 +5,48 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const EVOLUTION_BASE_URL = 'https://evo.anafood.vip';
+
+function handleEvolutionServerError(status: number, errorBody: string) {
+  console.error(`[Evolution] 🔥 Server error ${status}:`, errorBody.substring(0, 500));
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: 'evolution_server_error',
+      message: status === 502
+        ? 'Servidor da Evolution API indisponível (502). Verifique se o serviço está online.'
+        : 'Erro interno na Evolution API (500). O banco de dados pode estar com problemas.',
+      statusCode: status,
+    }),
+    { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+async function fetchEvolution(url: string, apiKey: string, options: RequestInit = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'apikey': apiKey,
+      ...(options.headers || {}),
+    },
+  });
+
+  // Handle 500/502 specifically
+  if (response.status === 500 || response.status === 502) {
+    const errorBody = await response.text();
+    return { response, serverError: true, errorBody, data: null };
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  return { response, serverError: false, errorBody: '', data };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -26,19 +68,16 @@ serve(async (req) => {
     if (action === 'status') {
       console.log('[Evolution] 🔍 Verificando status da instância:', instanceName);
 
-      const response = await fetch(`https://evo.anafood.vip/instance/connectionState/${instanceName}`, {
-        method: 'GET',
-        headers: {
-          'apikey': EVOLUTION_API_KEY,
-        },
-      });
+      const { response, serverError, errorBody, data } = await fetchEvolution(
+        `${EVOLUTION_BASE_URL}/instance/connectionState/${instanceName}`,
+        EVOLUTION_API_KEY
+      );
 
-      const data = await response.json();
-      
+      if (serverError) return handleEvolutionServerError(response.status, errorBody);
+
       if (!response.ok) {
         console.error('[Evolution] ❌ Erro ao verificar status:', response.status, data);
         
-        // Se a instância não existe (404), retornar erro específico
         if (response.status === 404) {
           return new Response(
             JSON.stringify({ 
@@ -47,10 +86,7 @@ serve(async (req) => {
               message: `A instância "${instanceName}" não existe na Evolution API`,
               details: data
             }),
-            { 
-              status: 404,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
         
@@ -58,7 +94,6 @@ serve(async (req) => {
       }
 
       console.log('[Evolution] ✅ Status da instância:', data);
-
       return new Response(
         JSON.stringify({ success: true, data }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -69,19 +104,16 @@ serve(async (req) => {
     if (action === 'connect') {
       console.log('[Evolution] 📲 Obtendo QR Code para:', instanceName);
 
-      const response = await fetch(`https://evo.anafood.vip/instance/connect/${instanceName}`, {
-        method: 'GET',
-        headers: {
-          'apikey': EVOLUTION_API_KEY,
-        },
-      });
+      const { response, serverError, errorBody, data } = await fetchEvolution(
+        `${EVOLUTION_BASE_URL}/instance/connect/${instanceName}`,
+        EVOLUTION_API_KEY
+      );
 
-      const data = await response.json();
-      
+      if (serverError) return handleEvolutionServerError(response.status, errorBody);
+
       if (!response.ok) {
         console.error('[Evolution] ❌ Erro ao obter QR Code:', response.status, data);
         
-        // Se a instância não existe (404), retornar erro específico
         if (response.status === 404) {
           return new Response(
             JSON.stringify({ 
@@ -90,10 +122,7 @@ serve(async (req) => {
               message: `A instância "${instanceName}" não existe. Tente criá-la primeiro.`,
               details: data
             }),
-            { 
-              status: 404,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
         
@@ -101,7 +130,6 @@ serve(async (req) => {
       }
 
       console.log('[Evolution] ✅ QR Code obtido com sucesso');
-
       return new Response(
         JSON.stringify({ success: true, data }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -112,19 +140,17 @@ serve(async (req) => {
     if (action === 'delete') {
       console.log('[Evolution] 🗑️ Deletando instância:', instanceName);
 
-      const response = await fetch(`https://evo.anafood.vip/instance/delete/${instanceName}`, {
-        method: 'DELETE',
-        headers: {
-          'apikey': EVOLUTION_API_KEY,
-        },
-      });
+      const { response, serverError, errorBody, data } = await fetchEvolution(
+        `${EVOLUTION_BASE_URL}/instance/delete/${instanceName}`,
+        EVOLUTION_API_KEY,
+        { method: 'DELETE' }
+      );
 
-      const data = await response.json();
-      
+      if (serverError) return handleEvolutionServerError(response.status, errorBody);
+
       if (!response.ok) {
         console.error('[Evolution] ❌ Erro ao deletar instância:', response.status, data);
         
-        // Se a instância não existe, considerar como sucesso
         if (response.status === 404) {
           console.log('[Evolution] ℹ️ Instância não existe, considerando como deletada');
           return new Response(
@@ -137,7 +163,6 @@ serve(async (req) => {
       }
 
       console.log('[Evolution] ✅ Instância deletada com sucesso');
-
       return new Response(
         JSON.stringify({ success: true, data }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -147,29 +172,30 @@ serve(async (req) => {
     // Criar nova instância
     console.log('[Evolution] 🆕 Criando nova instância:', { sessionName, agentName });
 
-    const response = await fetch('https://evo.anafood.vip/instance/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': EVOLUTION_API_KEY,
-      },
-      body: JSON.stringify({
-        instanceName: sessionName,
-        token: EVOLUTION_API_KEY,
-        qrcode: true,
-        integration: 'WHATSAPP-BAILEYS',
-        rejectCall: false,
-        msgCall: '',
-        groupsIgnore: true,
-        alwaysOnline: false,
-        readMessages: false,
-        readStatus: false,
-        syncFullHistory: false
-      }),
-    });
+    const { response, serverError, errorBody, data } = await fetchEvolution(
+      `${EVOLUTION_BASE_URL}/instance/create`,
+      EVOLUTION_API_KEY,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instanceName: sessionName,
+          token: EVOLUTION_API_KEY,
+          qrcode: true,
+          integration: 'WHATSAPP-BAILEYS',
+          rejectCall: false,
+          msgCall: '',
+          groupsIgnore: true,
+          alwaysOnline: false,
+          readMessages: false,
+          readStatus: false,
+          syncFullHistory: false
+        }),
+      }
+    );
 
-    const data = await response.json();
-    
+    if (serverError) return handleEvolutionServerError(response.status, errorBody);
+
     if (!response.ok) {
       console.error('[Evolution] ❌ Erro ao criar instância:', response.status, data);
       throw new Error(`Evolution API error: ${JSON.stringify(data)}`);
@@ -183,25 +209,25 @@ serve(async (req) => {
       
       const webhookUrl = `https://n8n.anafood.vip/webhook/${sessionName}`;
       
-      const webhookResponse = await fetch(`https://evo.anafood.vip/webhook/set/${sessionName}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': EVOLUTION_API_KEY,
-        },
-        body: JSON.stringify({
-          url: webhookUrl,
-          webhook_by_events: false,
-          webhook_base64: true,
-          events: ['MESSAGES_UPSERT']
-        }),
-      });
+      const webhookResult = await fetchEvolution(
+        `${EVOLUTION_BASE_URL}/webhook/set/${sessionName}`,
+        EVOLUTION_API_KEY,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: webhookUrl,
+            webhook_by_events: false,
+            webhook_base64: true,
+            events: ['MESSAGES_UPSERT']
+          }),
+        }
+      );
 
-      if (webhookResponse.ok) {
+      if (webhookResult.response.ok) {
         console.log('[Evolution] ✅ Webhook configurado com sucesso para:', sessionName);
       } else {
-        const webhookError = await webhookResponse.json();
-        console.error('[Evolution] ⚠️ Erro ao configurar webhook:', webhookError);
+        console.error('[Evolution] ⚠️ Erro ao configurar webhook:', webhookResult.data);
       }
     } catch (webhookError) {
       console.error('[Evolution] ⚠️ Falha ao configurar webhook (não crítico):', webhookError);
@@ -224,9 +250,7 @@ serve(async (req) => {
             'apikey': SUPABASE_SERVICE_ROLE_KEY,
             'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
           },
-          body: JSON.stringify({
-            webhook_url: webhookUrl
-          }),
+          body: JSON.stringify({ webhook_url: webhookUrl }),
         });
 
         if (updateResponse.ok) {
@@ -246,9 +270,7 @@ serve(async (req) => {
         data,
         message: 'Sessão criada e configurada com sucesso'
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('[Evolution] ❌ Erro no whatsapp-evolution:', error);
