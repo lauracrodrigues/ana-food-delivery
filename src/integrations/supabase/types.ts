@@ -2209,6 +2209,42 @@ export type Database = {
           },
         ]
       }
+      whatsapp_agent_control: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          id: string
+          is_paused: boolean | null
+          paused_at: string | null
+          paused_by: string | null
+          phone: string | null
+          session_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          id?: string
+          is_paused?: boolean | null
+          paused_at?: string | null
+          paused_by?: string | null
+          phone?: string | null
+          session_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          is_paused?: boolean | null
+          paused_at?: string | null
+          paused_by?: string | null
+          phone?: string | null
+          session_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       whatsapp_config: {
         Row: {
           agent_name: string | null
