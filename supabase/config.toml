@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.api-settings]
 verify_jwt = false
+
+[functions.whatsapp-chat]
+verify_jwt = true

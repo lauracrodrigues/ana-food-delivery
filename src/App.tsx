@@ -38,6 +38,7 @@ const POS = lazy(() => import("./pages/POS"));
 const Tables = lazy(() => import("./pages/Tables"));
 const CashRegister = lazy(() => import("./pages/CashRegister"));
 const CashRegisterHistory = lazy(() => import("./pages/CashRegisterHistory"));
+const WhatsAppChat = lazy(() => import("./pages/WhatsAppChat"));
 
 const queryClient = new QueryClient();
 
@@ -101,6 +102,7 @@ const App = () => (
               <Route path="/mesas" element={<Tables />} />
               <Route path="/caixa" element={<CashRegister />} />
               <Route path="/caixa/historico" element={<CashRegisterHistory />} />
+              <Route path="/whatsapp-chat" element={<WhatsAppChat />} />
               
               {/* Protected admin-only routes */}
               <Route path="/users" element={

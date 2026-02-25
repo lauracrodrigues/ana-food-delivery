@@ -110,8 +110,11 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
   },
   {
     title: "WhatsApp",
-    url: "/whatsapp",
     icon: MessageSquare,
+    subItems: [
+      { title: "Conversas", url: "/whatsapp-chat", icon: MessageSquare },
+      { title: "Configurações", url: "/whatsapp", icon: Settings },
+    ],
   },
   {
     title: "Configurações",
