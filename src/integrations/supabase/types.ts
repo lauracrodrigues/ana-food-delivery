@@ -1200,6 +1200,7 @@ export type Database = {
           name: string | null
           phone: string | null
           processed: boolean | null
+          role: string | null
           session_id: string | null
           timestamp: string | null
         }
@@ -1213,6 +1214,7 @@ export type Database = {
           name?: string | null
           phone?: string | null
           processed?: boolean | null
+          role?: string | null
           session_id?: string | null
           timestamp?: string | null
         }
@@ -1226,6 +1228,7 @@ export type Database = {
           name?: string | null
           phone?: string | null
           processed?: boolean | null
+          role?: string | null
           session_id?: string | null
           timestamp?: string | null
         }
