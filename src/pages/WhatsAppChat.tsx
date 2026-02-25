@@ -50,7 +50,14 @@ export default function WhatsAppChat() {
 
       const chats = Array.isArray(data.data) ? data.data : [];
       return chats
-        .filter((c: any) => c.id?.endsWith("@s.whatsapp.net"))
+        .filter((c: any) => {
+          const jid = c.id || c.remoteJid || "";
+          return jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid");
+        })
+        .filter((c: any) => {
+          const jid = c.id || c.remoteJid || "";
+          return jid !== "status@broadcast" && jid !== "0@s.whatsapp.net";
+        })
         .map((c: any) => ({
           id: c.id,
           remoteJid: c.id,
