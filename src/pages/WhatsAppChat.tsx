@@ -27,7 +27,8 @@ export default function WhatsAppChat() {
         .from("whatsapp_config" as any)
         .select("*")
         .eq("company_id", companyId!)
-        .eq("status", "connected")
+        .eq("config_type", "session")
+        .eq("is_active", true)
         .limit(1)
         .single();
       return data as any;
