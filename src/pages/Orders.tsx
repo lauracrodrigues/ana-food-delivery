@@ -131,14 +131,14 @@ export default function Orders() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header compacto fixo no topo */}
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-background/95 backdrop-blur-sm flex-shrink-0">
-        <div>
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-background/95 backdrop-blur-sm flex-shrink-0 overflow-x-auto">
+        <div className="shrink-0 mr-4">
           <h1 className="text-base font-semibold leading-tight">Gestão de Pedidos</h1>
           {subdomain && (
             <p className="text-xs text-muted-foreground">{subdomain}.anafood.vip</p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant={storeOpen ? "default" : "destructive"}
             size="sm"
@@ -187,7 +187,6 @@ export default function Orders() {
             variant="outline"
             size="sm"
             onClick={() => setShowManualOrder(true)}
-            disabled={!companyId}
           >
             <PlusCircle className="w-4 h-4 mr-2" />
             Pedido Manual
@@ -200,14 +199,12 @@ export default function Orders() {
         <OrdersKanban />
       </div>
 
-      {/* Sidebar pedido manual */}
-      {companyId && (
-        <ManualOrderSidebar
-          open={showManualOrder}
-          onClose={() => setShowManualOrder(false)}
-          companyId={companyId}
-        />
-      )}
+      {/* Sidebar pedido manual — sempre montado, espera companyId */}
+      <ManualOrderSidebar
+        open={showManualOrder}
+        onClose={() => setShowManualOrder(false)}
+        companyId={companyId ?? ""}
+      />
     </div>
   );
 }
