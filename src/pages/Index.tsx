@@ -31,11 +31,32 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import PublicMenuBySubdomain from "./PublicMenuBySubdomain";
+import { resetPalette } from "@/hooks/use-color-palette";
+
+interface Plan {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  features: string[];
+  max_orders_per_month: number | null;
+}
 
 const Index = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubdomain, setIsSubdomain] = useState(false);
+  const [plans, setPlans] = useState<Plan[]>([]);
+
+  // Home page não deve herdar paleta do admin
+  useEffect(() => { resetPalette(); }, []);
+
+  useEffect(() => {
+    fetch("/billing/plans")
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setPlans(data))
+      .catch(() => {});
+  }, []);
 
   // Check if user is already logged in and redirect to dashboard
   useEffect(() => {
@@ -140,27 +161,6 @@ const Index = () => {
     { icon: ShoppingBag, name: "Qualquer Delivery" },
   ];
 
-  const testimonials = [
-    {
-      name: "João",
-      business: "Hamburgueria Artesanal",
-      content: "Depois que implementamos o Ana Food, nossos erros nos pedidos acabaram e o atendimento ficou muito mais rápido. Simplesmente sensacional.",
-      rating: 5,
-    },
-    {
-      name: "Ana",
-      business: "Pizzaria da Vila",
-      content: "O som igual do iFood faz toda diferença. Nunca mais perdemos um pedido por distração.",
-      rating: 5,
-    },
-    {
-      name: "Marcos",
-      business: "Marmitaria Sabor Caseiro",
-      content: "A integração com WhatsApp funciona muito bem. Sem complicações.",
-      rating: 5,
-    },
-  ];
-
   const comparison = [
     {
       feature: "Gerenciamento de WhatsApp nativo via Evolution API",
@@ -239,9 +239,6 @@ const Index = () => {
               <button onClick={() => handleNavigation("#funcionalidades")} className="text-muted-foreground hover:text-primary transition-colors">
                 Funcionalidades
               </button>
-              <button onClick={() => handleNavigation("#depoimentos")} className="text-muted-foreground hover:text-primary transition-colors">
-                Depoimentos
-              </button>
             </nav>
 
             {/* Desktop Auth Buttons */}
@@ -271,9 +268,6 @@ const Index = () => {
                 </button>
                 <button onClick={() => handleNavigation("#funcionalidades")} className="text-left text-muted-foreground hover:text-primary">
                   Funcionalidades
-                </button>
-                <button onClick={() => handleNavigation("#depoimentos")} className="text-left text-muted-foreground hover:text-primary">
-                  Depoimentos
                 </button>
                 <div className="flex flex-col gap-2 pt-4 border-t">
                   <Link to="/login">
@@ -492,147 +486,57 @@ const Index = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Plano Básico */}
-            <Card className="relative hover:shadow-lg transition-shadow">
-              <CardHeader className="text-center">
-                <div className="w-16 h-16 bg-info/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Star className="h-8 w-8 text-info" />
-                </div>
-                <CardTitle className="text-2xl font-bold">Básico</CardTitle>
-                <CardDescription>Ideal para pequenos restaurantes</CardDescription>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold">R$ 49</span>
-                  <span className="text-muted-foreground">/mês</span>
-                </div>
-                <Badge className="mt-2 bg-success/10 text-success">7 dias grátis</Badge>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Até 100 pedidos/mês</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>1 usuário</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Cardápio digital</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Relatórios básicos</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Suporte por email</span>
-                  </li>
-                </ul>
-                <Link to="/cadastro">
-                  <Button className="w-full mt-6">Escolher Plano</Button>
-                </Link>
-              </CardContent>
-            </Card>
+            {plans.map((plan, index) => {
+              const isPopular = index === 1;
+              const icons = [
+                <Star className="h-8 w-8 text-info" />,
+                <div className="text-2xl">👑</div>,
+                <Zap className="h-8 w-8 text-accent" />,
+              ];
+              const bgColors = ["bg-info/10", "bg-primary/10", "bg-accent/10"];
 
-            {/* Plano Profissional */}
-            <Card className="relative border-2 border-primary hover:shadow-lg transition-shadow">
-              <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground">
-                Mais Popular
-              </Badge>
-              <CardHeader className="text-center">
-                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <div className="text-2xl">👑</div>
-                </div>
-                <CardTitle className="text-2xl font-bold">Profissional</CardTitle>
-                <CardDescription>Para restaurantes em crescimento</CardDescription>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold">R$ 99</span>
-                  <span className="text-muted-foreground">/mês</span>
-                </div>
-                <Badge className="mt-2 bg-success/10 text-success">7 dias grátis</Badge>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Pedidos ilimitados</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Até 5 usuários</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Cardápio digital avançado</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Relatórios completos</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Integração WhatsApp</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Suporte prioritário</span>
-                  </li>
-                </ul>
-                <Link to="/cadastro">
-                  <Button className="w-full mt-6 bg-gradient-primary hover:opacity-90">
-                    Escolher Plano
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Plano Empresarial */}
-            <Card className="relative hover:shadow-lg transition-shadow">
-              <CardHeader className="text-center">
-                <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Zap className="h-8 w-8 text-accent" />
-                </div>
-                <CardTitle className="text-2xl font-bold">Empresarial</CardTitle>
-                <CardDescription>Para redes e grandes operações</CardDescription>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold">R$ 199</span>
-                  <span className="text-muted-foreground">/mês</span>
-                </div>
-                <Badge className="mt-2 bg-success/10 text-success">7 dias grátis</Badge>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Tudo do Profissional</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Usuários ilimitados</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Multi-restaurantes</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>API personalizada</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Suporte 24/7</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-success" />
-                    <span>Gerente de conta dedicado</span>
-                  </li>
-                </ul>
-                <Link to="/cadastro">
-                  <Button className="w-full mt-6">Escolher Plano</Button>
-                </Link>
-              </CardContent>
-            </Card>
+              return (
+                <Card
+                  key={plan.id}
+                  className={`relative hover:shadow-lg transition-shadow ${isPopular ? "border-2 border-primary" : ""}`}
+                >
+                  {isPopular && (
+                    <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground">
+                      Mais Popular
+                    </Badge>
+                  )}
+                  <CardHeader className="text-center">
+                    <div className={`w-16 h-16 ${bgColors[index] || bgColors[0]} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
+                      {icons[index] || icons[0]}
+                    </div>
+                    <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
+                    <CardDescription>{plan.description}</CardDescription>
+                    <div className="mt-4">
+                      <span className="text-4xl font-bold">
+                        R$ {plan.price % 1 === 0 ? plan.price.toFixed(0) : plan.price.toFixed(2).replace(".", ",")}
+                      </span>
+                      <span className="text-muted-foreground">/mês</span>
+                    </div>
+                    <Badge className="mt-2 bg-success/10 text-success">30 dias grátis</Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3">
+                      {plan.features.map((feature, fi) => (
+                        <li key={fi} className="flex items-center gap-2">
+                          <Check className="h-5 w-5 text-success shrink-0" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Link to="/cadastro">
+                      <Button className={`w-full mt-6 ${isPopular ? "bg-gradient-primary hover:opacity-90" : ""}`}>
+                        Escolher Plano
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           <div className="text-center mt-12">
@@ -653,36 +557,6 @@ const Index = () => {
                 Começar teste grátis
               </Button>
             </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section id="depoimentos" className="py-20 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <Badge className="mb-4 bg-warning/10 text-warning">Depoimentos</Badge>
-            <h2 className="text-3xl lg:text-5xl font-bold mb-6">
-              O que Nossos Clientes Dizem
-            </h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="text-center shadow-md hover:shadow-lg transition-shadow">
-                <CardContent className="pt-6">
-                  <div className="flex justify-center mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="h-5 w-5 text-warning fill-current" />
-                    ))}
-                  </div>
-                  <p className="text-muted-foreground mb-6 italic">"{testimonial.content}"</p>
-                  <div>
-                    <p className="font-semibold">{testimonial.name}</p>
-                    <p className="text-sm text-muted-foreground">{testimonial.business}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
           </div>
         </div>
       </section>
@@ -769,18 +643,23 @@ const Index = () => {
               </ul>
             </div>
             
-            {/* Support */}
+            {/* Legal */}
             <div>
-              <h3 className="font-semibold mb-4">Suporte</h3>
+              <h3 className="font-semibold mb-4">Legal</h3>
               <ul className="space-y-2 text-muted-foreground">
                 <li>
-                  <a href="#" className="hover:text-primary transition-colors">
-                    WhatsApp
+                  <a href="/termos" className="hover:text-primary transition-colors">
+                    Termos de Uso
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-primary transition-colors">
-                    Central de Ajuda
+                  <a href="/privacidade" className="hover:text-primary transition-colors">
+                    Política de Privacidade
+                  </a>
+                </li>
+                <li>
+                  <a href="https://wa.me/5562992271019" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+                    WhatsApp Suporte
                   </a>
                 </li>
               </ul>
@@ -806,7 +685,7 @@ const Index = () => {
             </div>
           </div>
           <div className="border-t mt-12 pt-8 text-center text-muted-foreground">
-            <p>&copy; 2024 Ana Food. Todos os direitos reservados.</p>
+            <p>&copy; {new Date().getFullYear()} Ana Food. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>

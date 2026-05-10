@@ -49,7 +49,7 @@ export default function Login() {
       .eq('id', userId)
       .single();
 
-    if (profile?.role === 'master_admin') {
+    if (profile?.role === 'super_admin' || profile?.role === 'master_admin') {
       navigate('/admin');
     } else {
       navigate('/dashboard');

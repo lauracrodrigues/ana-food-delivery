@@ -121,6 +121,7 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
     icon: Settings,
     subItems: [
       { title: "Perfil da Empresa", url: "/company-profile", icon: Building2 },
+      { title: "Assinatura", url: "/billing", icon: CreditCard },
       { title: "Gerais", url: "/settings", icon: Settings },
     ],
   },

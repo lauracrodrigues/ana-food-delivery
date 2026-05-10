@@ -70,11 +70,14 @@ export function OrdersKanban() {
       
       console.log("Fetching orders via API for company:", companyId);
       const response: any = await apiClient.getOrders(companyId);
-      
-      return (response.data as Order[]).map(order => ({
-        ...order,
-        status: normalizeStatus(order.status) as any
-      }));
+
+      // Filtra pedidos arquivados (>24h concluídos/cancelados)
+      return (response.data as Order[])
+        .filter(order => order.status !== 'archived')
+        .map(order => ({
+          ...order,
+          status: normalizeStatus(order.status) as any
+        }));
     },
     enabled: !!companyId,
     refetchInterval: false,
@@ -171,27 +174,34 @@ export function OrdersKanban() {
           if (payload.eventType === 'INSERT') {
             const newOrder = payload.new as Order;
             console.log('🆕 Novo pedido recebido:', newOrder.order_number);
-            
+
             stopNotificationSound();
-            
-            if (settings.soundEnabled && audioPreloaded) {
+
+            if (settings.soundEnabled) {
               const soundUrl = settings.notificationSound || '/sounds/default-notification.mp3';
               const audio = new Audio(soundUrl);
               audio.loop = true;
               audio.volume = 0.7;
-              
+
               const playPromise = audio.play();
               if (playPromise !== undefined) {
                 playPromise
                   .then(() => {
                     console.log('✅ Som tocando:', soundUrl);
                     setCurrentAudio(audio);
+                    setAudioPreloaded(true);
                   })
                   .catch(e => {
-                    console.error('❌ Erro ao tocar som:', e);
+                    // Browser bloqueou autoplay — pede clique e toca no próximo
+                    console.warn('⚠️ Autoplay bloqueado, aguardando clique:', e.message);
+                    const playOnClick = () => {
+                      audio.play().then(() => { setCurrentAudio(audio); setAudioPreloaded(true); }).catch(() => {});
+                    };
+                    document.addEventListener('click', playOnClick, { once: true });
                     toast({
-                      title: "🔇 Som desabilitado",
-                      description: "Clique em qualquer lugar para habilitar notificações sonoras",
+                      title: "🔔 NOVO PEDIDO — clique para ativar som",
+                      description: `Pedido #${newOrder.order_number} aguardando. Clique em qualquer lugar para ouvir a campainha.`,
+                      duration: 30000,
                     });
                   });
               }
@@ -618,19 +628,37 @@ export function OrdersKanban() {
   }
 
   return (
-    <div className="space-y-4">
-      <KanbanHeader
-        settings={settings}
-        onSettingsChange={handleSettingsChange}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        showFilters={showFilters}
-        onToggleFilters={() => setShowFilters(!showFilters)}
-        selectedOrdersCount={selectedOrders.size}
-        onBulkStatusChange={handleBulkStatusChange}
-      />
+    <div className="flex flex-col h-full overflow-hidden px-4 pt-2">
+      {/* Banner campainha — some após ativação */}
+      {settings.soundEnabled && !audioPreloaded && (
+        <button
+          onClick={() => {
+            const a = new Audio(settings.notificationSound || '/sounds/default-notification.mp3');
+            a.volume = 0.01;
+            a.play().then(() => { a.pause(); setAudioPreloaded(true); }).catch(() => setAudioPreloaded(true));
+          }}
+          className="flex-shrink-0 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-300 text-amber-800 rounded-md py-2 px-4 text-sm font-medium hover:bg-amber-100 transition-colors animate-pulse mb-2"
+        >
+          🔔 Clique aqui para ativar a campainha de novos pedidos
+        </button>
+      )}
 
-      <div className="flex gap-4 overflow-x-auto pb-4 min-h-[500px]">
+      {/* Header sticky — controles do kanban */}
+      <div className="flex-shrink-0">
+        <KanbanHeader
+          settings={settings}
+          onSettingsChange={handleSettingsChange}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          showFilters={showFilters}
+          onToggleFilters={() => setShowFilters(!showFilters)}
+          selectedOrdersCount={selectedOrders.size}
+          onBulkStatusChange={handleBulkStatusChange}
+        />
+      </div>
+
+      {/* Colunas: scroll horizontal, cada coluna scroll vertical independente */}
+      <div className="flex-1 min-h-0 flex gap-4 overflow-x-auto pt-3 pb-2">
         {STATUS_COLUMNS
           .filter((column) => {
             if (column.id === "pending" && settings.autoAccept) return false;

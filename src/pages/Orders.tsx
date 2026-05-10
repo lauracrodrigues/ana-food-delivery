@@ -1,38 +1,36 @@
+// v2.2.0 — fullScreen kanban + botões robô/msgs status + pedido manual
 import { OrdersKanban } from "@/components/orders/OrdersKanban";
+import { ManualOrderSidebar } from "@/components/orders/ManualOrderSidebar";
 import { Button } from "@/components/ui/button";
-import { Store, Menu } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Store, Bot, MessageSquare, Clock, PlusCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 export default function Orders() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [storeOpen, setStoreOpen] = useState(true);
+  const [robotEnabled, setRobotEnabled] = useState(true);
+  const [statusMessagesEnabled, setStatusMessagesEnabled] = useState(true);
   const [companyName, setCompanyName] = useState("");
   const [subdomain, setSubdomain] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [showManualOrder, setShowManualOrder] = useState(false);
 
-  // Load company info
   const { data: companyData } = useQuery({
     queryKey: ["company-info"],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        return null;
-      }
+      if (!user) return null;
 
-      // Get profile info
       const { data: profile } = await supabase
         .from('profiles')
         .select('role, company_id')
         .eq('id', user.id)
         .single();
 
-      // Get company info
       const { data: company } = await supabase
         .from('companies')
         .select('*')
@@ -44,99 +42,172 @@ export default function Orders() {
         setSubdomain(company.subdomain);
         setCompanyId(company.id);
       }
-
       return company;
     },
   });
 
-  // Load store settings
   const { data: storeSettings } = useQuery({
     queryKey: ["store-settings", companyId],
     queryFn: async () => {
       if (!companyId) return null;
-      
       const { data } = await supabase
         .from('store_settings')
         .select('*')
         .eq('company_id', companyId)
         .single();
-      
-      if (data) {
-        setStoreOpen(data.store_open || false);
-      }
-      
+      if (data) setStoreOpen(data.store_open || false);
       return data;
     },
     enabled: !!companyId,
   });
 
+  // Query settings WhatsApp (robô + mensagens status)
+  const { data: whatsappSettings } = useQuery({
+    queryKey: ["whatsapp-settings", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const res = await fetch(`/v1/settings/${companyId}/whatsapp`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!companyId,
+    onSuccess: (data) => {
+      if (data) {
+        setRobotEnabled(data.robot_enabled !== false);
+        setStatusMessagesEnabled(data.status_messages_enabled !== false);
+      }
+    },
+  });
+
+  // Mutation toggle WhatsApp settings
+  const toggleWhatsappMutation = useMutation({
+    mutationFn: async (updates: {robot_enabled?: boolean; status_messages_enabled?: boolean}) => {
+      if (!companyId) throw new Error('Company ID not found');
+      const res = await fetch(`/v1/settings/${companyId}/whatsapp`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(updates)
+      });
+      if (!res.ok) throw new Error('Failed to update settings');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-settings", companyId] });
+      toast({
+        title: "Configuração atualizada",
+        description: "As configurações do WhatsApp foram atualizadas com sucesso.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar as configurações.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleToggleStore = async () => {
     if (!companyId) return;
-    
     try {
       const newStatus = !storeOpen;
       const { error } = await supabase
         .from('store_settings')
         .update({ store_open: newStatus })
         .eq('company_id', companyId);
-
       if (error) throw error;
-
       setStoreOpen(newStatus);
       toast({
         title: newStatus ? "Loja Aberta" : "Loja Fechada",
-        description: newStatus 
+        description: newStatus
           ? "Sua loja está agora aberta e recebendo pedidos."
           : "Sua loja está fechada e não receberá novos pedidos.",
       });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível alterar o status da loja.",
-        variant: "destructive",
-      });
+    } catch {
+      toast({ title: "Erro", description: "Não foi possível alterar o status da loja.", variant: "destructive" });
     }
   };
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header */}
-      <header className="bg-card/50 backdrop-blur border-b border-border sticky top-0 z-10">
-        <div className="px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger>
-                <Menu className="h-5 w-5" />
-              </SidebarTrigger>
-              <div>
-                <h1 className="text-xl font-bold">Gestão de Pedidos</h1>
-                <p className="text-xs text-muted-foreground">
-                  {subdomain ? `${subdomain}.anafood.vip` : "Configure seu domínio"}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <Button
-                variant={storeOpen ? "default" : "destructive"}
-                size="sm"
-                onClick={handleToggleStore}
-              >
-                <Store className="w-4 h-4 mr-2" />
-                {storeOpen ? "Loja Aberta" : "Loja Fechada"}
-              </Button>
-            </div>
-          </div>
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Header compacto fixo no topo */}
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-background/95 backdrop-blur-sm flex-shrink-0">
+        <div>
+          <h1 className="text-base font-semibold leading-tight">Gestão de Pedidos</h1>
+          {subdomain && (
+            <p className="text-xs text-muted-foreground">{subdomain}.anafood.vip</p>
+          )}
         </div>
-      </header>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={storeOpen ? "default" : "destructive"}
+            size="sm"
+            onClick={handleToggleStore}
+          >
+            <Store className="w-4 h-4 mr-2" />
+            {storeOpen ? "Loja Aberta" : "Loja Fechada"}
+          </Button>
 
-      {/* Orders Kanban */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full p-6">
-          <OrdersKanban />
+          <Button
+            variant={robotEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              const newValue = !robotEnabled;
+              setRobotEnabled(newValue);
+              toggleWhatsappMutation.mutate({robot_enabled: newValue});
+            }}
+          >
+            <Bot className="w-4 h-4 mr-2" />
+            Robô {robotEnabled ? "Ativo" : "Inativo"}
+          </Button>
+
+          <Button
+            variant={statusMessagesEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              const newValue = !statusMessagesEnabled;
+              setStatusMessagesEnabled(newValue);
+              toggleWhatsappMutation.mutate({status_messages_enabled: newValue});
+            }}
+          >
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Msgs {statusMessagesEnabled ? "ON" : "OFF"}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.location.href = '/settings#horarios'}
+          >
+            <Clock className="w-4 h-4 mr-2" />
+            Horários
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowManualOrder(true)}
+            disabled={!companyId}
+          >
+            <PlusCircle className="w-4 h-4 mr-2" />
+            Pedido Manual
+          </Button>
         </div>
       </div>
+
+      {/* Kanban ocupa tudo que sobra */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <OrdersKanban />
+      </div>
+
+      {/* Sidebar pedido manual */}
+      {companyId && (
+        <ManualOrderSidebar
+          open={showManualOrder}
+          onClose={() => setShowManualOrder(false)}
+          companyId={companyId}
+        />
+      )}
     </div>
   );
 }

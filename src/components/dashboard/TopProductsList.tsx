@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -11,7 +12,7 @@ interface TopProductsListProps {
   products: TopProduct[];
 }
 
-export function TopProductsList({ products }: TopProductsListProps) {
+export const TopProductsList = memo(function TopProductsList({ products }: TopProductsListProps) {
   return (
     <Card>
       <CardHeader>
@@ -35,4 +36,4 @@ export function TopProductsList({ products }: TopProductsListProps) {
       </CardContent>
     </Card>
   );
-}
+});

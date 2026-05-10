@@ -57,6 +57,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { TenantUsersTab } from "@/components/admin/TenantUsersTab";
 
 interface Tenant {
   id: string;
@@ -344,13 +345,14 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     sessionStorage.removeItem('admin_return');
+    await supabase.auth.signOut();
     toast({
       title: "Logout realizado",
       description: "Você foi desconectado com sucesso.",
     });
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   const getStatusBadge = (tenant: Tenant) => {
@@ -836,19 +838,7 @@ export default function AdminDashboard() {
                 </TabsContent>
 
                 <TabsContent value="users" className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">Usuários da Loja</h4>
-                    <Button 
-                      size="sm"
-                      onClick={() => setShowUserModal(true)}
-                    >
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Adicionar
-                    </Button>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Funcionalidade em desenvolvimento
-                  </div>
+                  <TenantUsersTab companyId={selectedTenant.id} />
                 </TabsContent>
 
                 <TabsContent value="integrations" className="space-y-4">

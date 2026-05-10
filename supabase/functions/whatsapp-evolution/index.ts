@@ -207,7 +207,7 @@ serve(async (req) => {
     try {
       console.log('[Evolution] ⚙️ Configurando webhook para instância:', sessionName);
       
-      const webhookUrl = `https://n8n.anafood.vip/webhook/${sessionName}`;
+      const webhookUrl = `https://api.anafood.vip/webhook/${sessionName}`;
       
       const webhookResult = await fetchEvolution(
         `${EVOLUTION_BASE_URL}/webhook/set/${sessionName}`,
@@ -241,7 +241,7 @@ serve(async (req) => {
       if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
         console.log('[Evolution] 💾 Atualizando webhook_url no Supabase para:', sessionName);
         
-        const webhookUrl = `https://n8n.anafood.vip/webhook/${sessionName}`;
+        const webhookUrl = `https://api.anafood.vip/webhook/${sessionName}`;
         
         const updateResponse = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_config?session_name=eq.${sessionName}&config_type=eq.session`, {
           method: 'PATCH',

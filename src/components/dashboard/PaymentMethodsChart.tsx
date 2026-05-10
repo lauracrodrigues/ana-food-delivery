@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
@@ -11,7 +12,7 @@ interface PaymentMethodsChartProps {
   data: PaymentMethod[];
 }
 
-export function PaymentMethodsChart({ data }: PaymentMethodsChartProps) {
+export const PaymentMethodsChart = memo(function PaymentMethodsChart({ data }: PaymentMethodsChartProps) {
   return (
     <Card>
       <CardHeader>
@@ -52,4 +53,4 @@ export function PaymentMethodsChart({ data }: PaymentMethodsChartProps) {
       </CardContent>
     </Card>
   );
-}
+});

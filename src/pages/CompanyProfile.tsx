@@ -1,169 +1,141 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+// v2.1.0 — Adicionada seção de Banners do Cardápio com templates e configuração de links
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Loader2, ArrowLeft } from "lucide-react";
+import {
+  Building2, Loader2, Phone, Mail, MapPin, Globe, User, Utensils, Copy, Check, ExternalLink
+} from "lucide-react";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { CompanyLogoUpload } from "@/components/company/CompanyLogoUpload";
-import { AddressSearchWithMap } from "@/components/company/AddressSearchWithMap";
+import { CompanyBannerUpload } from "@/components/company/CompanyBannerUpload";
+import { MenuBannersAdmin } from "@/components/company/MenuBannersAdmin";
+import { ImageIcon } from "lucide-react";
 import { masks } from "@/lib/masks";
 
-const deliverySegments = [
-  "Restaurantes",
-  "Pizzarias",
-  "Hamburguerias",
-  "Marmitarias",
-  "Comida japonesa",
-  "Açaiterias",
-  "Lanchonetes",
-  "Padarias",
-  "Docerias",
-  "Sorveterias",
-  "Pastelarias",
-  "Churrascarias",
-  "Comida árabe",
-  "Comida fitness",
-  "Comida mexicana",
+const AddressSearchWithMap = lazy(() =>
+  import("@/components/company/AddressSearchWithMap").then(m => ({ default: m.AddressSearchWithMap }))
+);
+
+const SEGMENTS = [
+  "Restaurantes", "Pizzarias", "Hamburguerias", "Marmitarias",
+  "Comida japonesa", "Açaiterias", "Lanchonetes", "Padarias",
+  "Docerias", "Sorveterias", "Pastelarias", "Churrascarias",
+  "Comida árabe", "Comida fitness", "Comida mexicana", "Outros",
 ];
+
+interface AddressData {
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento?: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+interface FormData {
+  name: string;
+  fantasy_name: string;
+  cnpj: string;
+  phone: string;
+  whatsapp: string;
+  email: string;
+  description: string;
+  segment: string;
+  logo_url: string;
+  banner_url: string;
+  subdomain: string;
+  address: AddressData;
+}
+
+const EMPTY_FORM: FormData = {
+  name: '', fantasy_name: '', cnpj: '', phone: '', whatsapp: '',
+  email: '', description: '', segment: '', logo_url: '', banner_url: '',
+  subdomain: '',
+  address: { cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '' },
+};
 
 export default function CompanyProfile() {
   const { toast } = useToast();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [formData, setFormData] = useState<{
-    name: string;
-    fantasy_name: string;
-    cnpj: string;
-    phone: string;
-    whatsapp: string;
-    email: string;
-    description: string;
-    segment: string;
-    logo_url: string;
-    subdomain: string;
-    address: {
-      cep: string;
-      logradouro: string;
-      numero: string;
-      complemento?: string;
-      bairro: string;
-      cidade: string;
-      estado: string;
-      latitude?: number;
-      longitude?: number;
-    };
-  }>({
-    name: '',
-    fantasy_name: '',
-    cnpj: '',
-    phone: '',
-    whatsapp: '',
-    email: '',
-    description: '',
-    segment: '',
-    logo_url: '',
-    subdomain: '',
-    address: {
-      cep: '',
-      logradouro: '',
-      numero: '',
-      complemento: '',
-      bairro: '',
-      cidade: '',
-      estado: '',
-      latitude: undefined,
-      longitude: undefined,
-    },
-  });
+  const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
+  const [copied, setCopied] = useState(false);
 
-  // Get user profile and company
+  // Perfil do usuário → company_id
   const { data: profile } = useQuery({
     queryKey: ["profile"],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not found");
-
+      if (!user) throw new Error("Não autenticado");
       const { data, error } = await supabase
         .from("profiles")
         .select("company_id")
         .eq("id", user.id)
         .single();
-
       if (error) throw error;
       return data;
     },
   });
 
+  // Dados da empresa
   const { data: company, isLoading } = useQuery({
     queryKey: ["company", profile?.company_id],
     queryFn: async () => {
-      if (!profile?.company_id) return null;
-
       const { data, error } = await supabase
         .from("companies")
         .select("*")
-        .eq("id", profile.company_id)
+        .eq("id", profile!.company_id!)
         .single();
-
-      if (error) {
-        console.error('Erro ao carregar empresa:', error);
-        throw error;
-      }
-      
-      console.log('Empresa carregada:', data);
+      if (error) throw error;
       return data;
     },
     enabled: !!profile?.company_id,
-    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+    staleTime: 1000 * 60 * 5,
   });
 
+  // Popula form quando empresa carrega
   useEffect(() => {
-    if (company) {
-      const addressData = company.address as any || {};
-      
-      console.log('Carregando dados da empresa:', {
-        company,
-        addressData,
-        latitude: company.latitude,
-        longitude: company.longitude
-      });
-      
-      setFormData({
-        name: company.name || '',
-        fantasy_name: company.fantasy_name || '',
-        cnpj: company.cnpj || '',
-        phone: company.phone || '',
-        whatsapp: company.whatsapp || '',
-        email: company.email || '',
-        description: company.description || '',
-        segment: company.segment || '',
-        logo_url: company.logo_url || '',
-        subdomain: company.subdomain || '',
-        address: {
-          cep: addressData.cep || addressData.zip_code || '',
-          logradouro: addressData.logradouro || addressData.street || '',
-          numero: addressData.numero || addressData.number || '',
-          complemento: addressData.complemento || '',
-          bairro: addressData.bairro || addressData.neighborhood || '',
-          cidade: addressData.cidade || addressData.city || '',
-          estado: addressData.estado || addressData.state || '',
-          latitude: company.latitude ? Number(company.latitude) : undefined,
-          longitude: company.longitude ? Number(company.longitude) : undefined,
-        },
-      });
-    }
+    if (!company) return;
+    const addr = (company.address as any) || {};
+    setFormData({
+      name: company.name || '',
+      fantasy_name: company.fantasy_name || '',
+      cnpj: company.cnpj || '',
+      phone: company.phone || '',
+      whatsapp: company.whatsapp || '',
+      email: company.email || '',
+      description: company.description || '',
+      segment: company.segment || '',
+      logo_url: company.logo_url || '',
+      banner_url: company.banner_url || '',
+      subdomain: company.subdomain || '',
+      address: {
+        cep: addr.cep || addr.zip_code || '',
+        logradouro: addr.logradouro || addr.street || '',
+        numero: addr.numero || addr.number || '',
+        complemento: addr.complemento || '',
+        bairro: addr.bairro || addr.neighborhood || '',
+        cidade: addr.cidade || addr.city || '',
+        estado: addr.estado || addr.state || '',
+        latitude: company.latitude ? Number(company.latitude) : undefined,
+        longitude: company.longitude ? Number(company.longitude) : undefined,
+      },
+    });
   }, [company]);
 
   const updateMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      if (!profile?.company_id) throw new Error("Company ID not found");
-
+    mutationFn: async (data: FormData) => {
+      if (!profile?.company_id) throw new Error("Empresa não encontrada");
       const { error } = await supabase
         .from("companies")
         .update({
@@ -176,6 +148,7 @@ export default function CompanyProfile() {
           description: data.description,
           segment: data.segment,
           logo_url: data.logo_url,
+          banner_url: data.banner_url,
           address: {
             cep: data.address.cep,
             logradouro: data.address.logradouro,
@@ -189,260 +162,319 @@ export default function CompanyProfile() {
           longitude: data.address.longitude,
         })
         .eq("id", profile.company_id);
-
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company"] });
-      toast({
-        title: "Sucesso",
-        description: "Informações da empresa atualizadas com sucesso",
-      });
+      toast({ title: "Perfil atualizado com sucesso" });
     },
-    onError: (error) => {
-      console.error('Error updating company:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao atualizar informações da empresa",
-        variant: "destructive",
-      });
+    onError: () => {
+      toast({ title: "Erro ao salvar", variant: "destructive" });
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateMutation.mutate(formData);
+  const set = (field: keyof FormData, value: string) =>
+    setFormData(prev => ({ ...prev, [field]: value }));
+
+  const menuUrl = formData.subdomain ? `https://${formData.subdomain}.anafood.vip` : null;
+
+  const copyUrl = () => {
+    if (!menuUrl) return;
+    navigator.clipboard.writeText(menuUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  if (isLoading) {
+  if (!profile || isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="py-4 sm:py-6 max-w-6xl mx-auto">
-      <div className="mb-4 sm:mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => navigate(-1)}
-          className="mb-3 sm:mb-4"
-          size="sm"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Voltar
-        </Button>
+    <PageLayout title="Perfil da Empresa" subtitle="Informações do seu estabelecimento">
+      <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate(formData); }} className="max-w-3xl space-y-6">
 
-        <div className="flex items-start gap-3">
-          <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-primary flex-shrink-0 mt-1" />
-          <div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Perfil da Empresa</h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1">
-              Gerencie as informações completas da sua empresa
-            </p>
-          </div>
-        </div>
-      </div>
+        {/* ── 1. IDENTIDADE VISUAL ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              Identidade Visual
+            </CardTitle>
+            <CardDescription>Logo e banner do seu estabelecimento</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Banner */}
+            {profile?.company_id && (
+              <div>
+                <Label className="mb-2 block">Banner</Label>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Imagem exibida no topo do cardápio (recomendado 1200×400px)
+                </p>
+                <CompanyBannerUpload
+                  companyId={profile.company_id}
+                  currentBannerUrl={formData.banner_url}
+                  companyName={formData.fantasy_name || formData.name || 'Empresa'}
+                  onBannerUpdate={(url) => set('banner_url', url)}
+                />
+              </div>
+            )}
 
-      <form onSubmit={handleSubmit}>
-        <div className="space-y-6">
-          {/* Logo */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Logo da Empresa</CardTitle>
-              <CardDescription>
-                Faça upload do logo que representa sua empresa
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {profile?.company_id && (
+            {/* Logo */}
+            {profile?.company_id && (
+              <div>
+                <Label className="mb-2 block">Logo</Label>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Exibido sobre o banner e no cabeçalho do cardápio (recomendado 300×300px)
+                </p>
                 <CompanyLogoUpload
                   companyId={profile.company_id}
                   currentLogoUrl={formData.logo_url}
-                  companyName={formData.name || formData.fantasy_name || 'Empresa'}
-                  onLogoUpdate={(url) => setFormData({ ...formData, logo_url: url })}
+                  companyName={formData.fantasy_name || formData.name || 'Empresa'}
+                  onLogoUpdate={(url) => set('logo_url', url)}
                 />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Informações Básicas */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações Básicas</CardTitle>
-              <CardDescription>
-                Dados essenciais da empresa
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Razão Social *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Nome da Empresa LTDA"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="fantasy_name">Nome Fantasia</Label>
-                  <Input
-                    id="fantasy_name"
-                    value={formData.fantasy_name}
-                    onChange={(e) => setFormData({ ...formData, fantasy_name: e.target.value })}
-                    placeholder="Nome comercial"
-                  />
-                </div>
               </div>
+            )}
+          </CardContent>
+        </Card>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="cnpj">CNPJ</Label>
-                  <Input
-                    id="cnpj"
-                    value={formData.cnpj}
-                    onChange={(e) => {
-                      const masked = masks.cnpj(e.target.value);
-                      setFormData({ ...formData, cnpj: masked });
-                    }}
-                    placeholder="00.000.000/0000-00"
-                    maxLength={18}
-                  />
-                </div>
+        {/* ── 2. DADOS DO ESTABELECIMENTO ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Utensils className="h-5 w-5 text-primary" />
+              Dados do Estabelecimento
+            </CardTitle>
+            <CardDescription>Nome, segmento e descrição exibidos no cardápio</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="fantasy_name">Nome do estabelecimento *</Label>
+              <Input
+                id="fantasy_name"
+                value={formData.fantasy_name}
+                onChange={(e) => set('fantasy_name', e.target.value)}
+                placeholder="Ex: Pizzaria do João"
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Nome exibido para os clientes no cardápio
+              </p>
+            </div>
 
-                <div>
-                  <Label htmlFor="phone">Telefone</Label>
+            <div>
+              <Label htmlFor="segment">Categoria *</Label>
+              <Select value={formData.segment} onValueChange={(v) => set('segment', v)}>
+                <SelectTrigger id="segment">
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SEGMENTS.map(s => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="description">
+                Descrição
+                <span className="text-muted-foreground font-normal ml-2">
+                  ({formData.description.length}/200)
+                </span>
+              </Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => set('description', e.target.value.slice(0, 200))}
+                placeholder="Ex: Marmitas caseiras fresquinhas todo dia, entregamos em até 40 minutos."
+                rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── 3. DADOS LEGAIS ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" />
+              Dados Legais
+            </CardTitle>
+            <CardDescription>Razão social e CNPJ (uso interno)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="name">Razão Social</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => set('name', e.target.value)}
+                placeholder="Nome da Empresa LTDA"
+              />
+            </div>
+            <div>
+              <Label htmlFor="cnpj">CNPJ / CPF</Label>
+              <Input
+                id="cnpj"
+                value={formData.cnpj}
+                onChange={(e) => set('cnpj', masks.cnpj(e.target.value))}
+                placeholder="00.000.000/0000-00"
+                maxLength={18}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── 4. CONTATO ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Phone className="h-5 w-5 text-primary" />
+              Contato
+            </CardTitle>
+            <CardDescription>Canais de atendimento ao cliente</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="phone">Telefone</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="phone"
+                    className="pl-9"
                     value={formData.phone}
-                    onChange={(e) => {
-                      const masked = masks.phone(e.target.value);
-                      setFormData({ ...formData, phone: masked });
-                    }}
+                    onChange={(e) => set('phone', masks.phone(e.target.value))}
                     placeholder="(00) 0000-0000"
                   />
                 </div>
-
-                <div>
-                  <Label htmlFor="whatsapp">WhatsApp</Label>
+              </div>
+              <div>
+                <Label htmlFor="whatsapp">WhatsApp</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="whatsapp"
+                    className="pl-9"
                     value={formData.whatsapp}
-                    onChange={(e) => {
-                      const masked = masks.phone(e.target.value);
-                      setFormData({ ...formData, whatsapp: masked });
-                    }}
+                    onChange={(e) => set('whatsapp', masks.phone(e.target.value))}
                     placeholder="(00) 00000-0000"
                   />
                 </div>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="contato@empresa.com.br"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="subdomain">Subdomínio</Label>
-                  <Input
-                    id="subdomain"
-                    value={formData.subdomain}
-                    onChange={(e) => setFormData({ ...formData, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                    placeholder="minha-empresa"
-                    disabled
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Seu endereço: {formData.subdomain || 'minha-empresa'}.lovable.app
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="segment">Segmento *</Label>
-                <Select
-                  value={formData.segment}
-                  onValueChange={(value) => setFormData({ ...formData, segment: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o segmento" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {deliverySegments.map((segment) => (
-                      <SelectItem key={segment} value={segment}>
-                        {segment}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="description">Descrição da Empresa</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Conte mais sobre sua empresa..."
-                  rows={4}
+            </div>
+            <div>
+              <Label htmlFor="email">E-mail de contato</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  className="pl-9"
+                  value={formData.email}
+                  onChange={(e) => set('email', e.target.value)}
+                  placeholder="contato@empresa.com.br"
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Endereço e Localização */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Endereço e Localização</CardTitle>
-              <CardDescription>
-                Localização física da empresa para cálculo de entrega
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+        {/* ── 5. ENDEREÇO ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-primary" />
+              Endereço
+            </CardTitle>
+            <CardDescription>Localização para cálculo de taxa de entrega e exibição no cardápio</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Suspense fallback={<div className="h-[300px] bg-muted animate-pulse rounded-lg" />}>
               <AddressSearchWithMap
                 address={formData.address}
-                onChange={(updatedAddress) => {
-                  // Preserva TODAS as informações da empresa, atualizando apenas o endereço
-                  setFormData(prev => ({
-                    ...prev,
-                    address: updatedAddress
-                  }));
-                }}
+                onChange={(addr) => setFormData(prev => ({ ...prev, address: addr }))}
               />
-            </CardContent>
-          </Card>
+            </Suspense>
+          </CardContent>
+        </Card>
 
-          {/* Botão de Salvar */}
-          <div className="flex justify-end sticky bottom-0 bg-background py-4 border-t border-border mt-6 -mx-4 px-4 sm:mx-0 sm:px-0 sm:border-0 sm:static">
-            <Button
-              type="submit"
-              size="lg"
-              disabled={updateMutation.isPending}
-              className="w-full sm:w-auto"
-            >
+        {/* ── 6. LINK DO CARDÁPIO ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-primary" />
+              Link do Cardápio
+            </CardTitle>
+            <CardDescription>Endereço público do seu cardápio digital</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {menuUrl ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-2 bg-muted rounded-md px-3 py-2 text-sm font-mono">
+                    <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="truncate">{menuUrl}</span>
+                  </div>
+                  <Button type="button" size="icon" variant="outline" onClick={copyUrl} title="Copiar link">
+                    {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    onClick={() => window.open(menuUrl, '_blank')}
+                    title="Abrir cardápio"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">Subdomínio</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {formData.subdomain}.anafood.vip — não editável após criação
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Subdomínio não configurado.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── 7. BANNERS DO CARDÁPIO ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-primary" />
+              Banners do Cardápio
+            </CardTitle>
+            <CardDescription>
+              Banners exibidos no topo do cardápio digital. Use para promover ofertas, frete grátis ou novidades.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {profile?.company_id && (
+              <MenuBannersAdmin companyId={profile.company_id} />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── SALVAR ── */}
+        <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t border-border -mx-4 sm:-mx-6 px-4 sm:px-6 py-4">
+          <div className="max-w-3xl flex justify-end">
+            <Button type="submit" size="lg" disabled={updateMutation.isPending} className="w-full sm:w-auto min-w-[160px]">
               {updateMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                'Salvar Alterações'
-              )}
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</>
+              ) : "Salvar Alterações"}
             </Button>
           </div>
         </div>
       </form>
-    </div>
+    </PageLayout>
   );
 }

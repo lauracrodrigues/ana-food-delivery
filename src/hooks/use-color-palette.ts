@@ -1,3 +1,4 @@
+// v1.1.0 — Paleta isolada ao dashboard; rotas públicas usam resetPalette()
 import { useEffect, useState } from "react";
 
 export type ColorPalette = "purple" | "blue" | "green" | "orange" | "pink";
@@ -56,16 +57,31 @@ const palettes: Record<ColorPalette, PaletteColors> = {
 
 const STORAGE_KEY = "anafood-color-palette";
 
+// Propriedades CSS que a paleta sobrescreve
+const PALETTE_PROPS = [
+  "--primary",
+  "--accent",
+  "--ring",
+  "--gradient-primary",
+  "--gradient-accent",
+  "--shadow-glow",
+] as const;
+
 function applyPalette(paletteKey: ColorPalette) {
   const colors = palettes[paletteKey];
   const root = document.documentElement;
-
   root.style.setProperty("--primary", colors.primary);
   root.style.setProperty("--accent", colors.accent);
   root.style.setProperty("--ring", colors.ring);
   root.style.setProperty("--gradient-primary", colors.gradientPrimary);
   root.style.setProperty("--gradient-accent", colors.gradientAccent);
   root.style.setProperty("--shadow-glow", colors.shadowGlow);
+}
+
+// Remove inline overrides → CSS do stylesheet volta a valer (isolamento de rotas públicas)
+export function resetPalette() {
+  const root = document.documentElement;
+  PALETTE_PROPS.forEach((prop) => root.style.removeProperty(prop));
 }
 
 export function useColorPalette() {
@@ -86,7 +102,7 @@ export function useColorPalette() {
   };
 }
 
-// Aplicar paleta salva ao carregar a aplicação
+// Chamado pelo DashboardLayout para restaurar paleta do admin
 export function initializeColorPalette() {
   const saved = localStorage.getItem(STORAGE_KEY);
   const palette = (saved as ColorPalette) || "purple";

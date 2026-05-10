@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch";
 import { Edit2, Trash2, Plus, Save, X, CreditCard } from "lucide-react";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface PaymentMethod {
@@ -177,12 +178,7 @@ const PaymentMethods = () => {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center gap-2 mb-6">
-        <CreditCard className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Formas de Pagamento</h1>
-      </div>
-
+    <PageLayout title="Formas de Pagamento">
       {/* Add new payment method */}
       <Card>
         <CardHeader>
@@ -308,7 +304,7 @@ const PaymentMethods = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageLayout>
   );
 };
 

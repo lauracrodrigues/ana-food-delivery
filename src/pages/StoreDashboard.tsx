@@ -1,14 +1,12 @@
 import { useState, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { 
-  ShoppingBag, 
+import {
+  ShoppingBag,
   TrendingUp,
   DollarSign,
   Clock,
   Store,
-  Menu,
   CalendarIcon,
-  Users
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -19,8 +17,8 @@ import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { TopProductsList } from "@/components/dashboard/TopProductsList";
 import { PaymentMethodsChart } from "@/components/dashboard/PaymentMethodsChart";
 import { TopCustomersList } from "@/components/dashboard/TopCustomersList";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -65,8 +63,8 @@ export default function StoreDashboard() {
         .eq('id', user.id)
         .single();
 
-      // Se for master_admin, redireciona para o painel admin
-      if (profile?.role === 'master_admin') {
+      // Se for super_admin/master_admin, redireciona para o painel admin
+      if (profile?.role === 'super_admin' || profile?.role === 'master_admin') {
         navigate('/admin');
         return null;
       }
@@ -171,43 +169,108 @@ export default function StoreDashboard() {
     };
   }, [filteredOrders]);
 
-  // Revenue data for chart
+  // Receita por dia — dados reais dos pedidos filtrados
   const revenueData = useMemo(() => {
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - i));
-      return {
-        date: date.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' }),
-        revenue: Math.random() * 2000 + 500, // Mock data
-      };
-    });
-    return last7Days;
-  }, []);
+    if (!filteredOrders || filteredOrders.length === 0) {
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - (6 - i));
+        return {
+          date: date.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' }),
+          revenue: 0,
+        };
+      });
+      return last7Days;
+    }
 
-  // Payment methods data
-  const paymentMethodsData = [
-    { name: 'Dinheiro', value: 45, color: 'hsl(var(--success))' },
-    { name: 'Cartão', value: 30, color: 'hsl(var(--primary))' },
-    { name: 'PIX', value: 25, color: 'hsl(var(--warning))' },
-  ];
+    const revenueByDay: Record<string, number> = {};
+    for (const order of filteredOrders) {
+      if (order.status === 'cancelled') continue;
+      const d = new Date(order.created_at);
+      const key = d.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' });
+      revenueByDay[key] = (revenueByDay[key] || 0) + Number(order.total || 0);
+    }
 
-  // Top products data
-  const topProducts = [
-    { name: 'Pizza Margherita', sales: 45, revenue: 1350 },
-    { name: 'Hambúrguer Artesanal', sales: 38, revenue: 950 },
-    { name: 'Açaí 500ml', sales: 32, revenue: 640 },
-    { name: 'Refrigerante 2L', sales: 28, revenue: 224 },
-    { name: 'Batata Frita', sales: 25, revenue: 375 },
-  ];
+    if (showTodayOnly) {
+      const today = new Date();
+      const key = today.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' });
+      return [{ date: key, revenue: revenueByDay[key] || 0 }];
+    }
 
-  // Top customers data
-  const topCustomers = [
-    { name: 'João Silva', orders: 28, totalSpent: 1850 },
-    { name: 'Maria Santos', orders: 22, totalSpent: 1420 },
-    { name: 'Pedro Oliveira', orders: 18, totalSpent: 1190 },
-    { name: 'Ana Costa', orders: 15, totalSpent: 890 },
-    { name: 'Carlos Pereira', orders: 12, totalSpent: 720 },
-  ];
+    const days: { date: string; revenue: number }[] = [];
+    const start = startDate ? new Date(startDate) : new Date();
+    const end = endDate ? new Date(endDate) : new Date();
+    const diff = Math.min(Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1, 90);
+    for (let i = 0; i < diff; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      const key = d.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' });
+      days.push({ date: key, revenue: revenueByDay[key] || 0 });
+    }
+    return days;
+  }, [filteredOrders, showTodayOnly, startDate, endDate]);
+
+  // Formas de pagamento — dados reais
+  const paymentMethodsData = useMemo(() => {
+    if (!filteredOrders || filteredOrders.length === 0) return [];
+    const colors: Record<string, string> = {
+      dinheiro: 'hsl(var(--success))',
+      pix: 'hsl(var(--warning))',
+      credito: 'hsl(var(--primary))',
+      debito: 'hsl(142, 76%, 36%)',
+    };
+    const counts: Record<string, number> = {};
+    for (const order of filteredOrders) {
+      const method = (order.payment_method || 'outro').toLowerCase();
+      counts[method] = (counts[method] || 0) + 1;
+    }
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, value]) => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        value,
+        color: colors[name] || 'hsl(var(--muted-foreground))',
+      }));
+  }, [filteredOrders]);
+
+  // Produtos mais vendidos — dados reais
+  const topProducts = useMemo(() => {
+    if (!filteredOrders || filteredOrders.length === 0) return [];
+    const productMap: Record<string, { quantity: number; revenue: number }> = {};
+    for (const order of filteredOrders) {
+      if (order.status === 'cancelled') continue;
+      const items = order.items as Array<{ name?: string; quantity?: number; price?: number }> | null;
+      if (!items) continue;
+      for (const item of items) {
+        const name = item.name || 'Sem nome';
+        const qty = Number(item.quantity || 1);
+        const price = Number(item.price || 0);
+        if (!productMap[name]) productMap[name] = { quantity: 0, revenue: 0 };
+        productMap[name].quantity += qty;
+        productMap[name].revenue += price * qty;
+      }
+    }
+    return Object.entries(productMap)
+      .sort((a, b) => b[1].quantity - a[1].quantity)
+      .slice(0, 5)
+      .map(([name, data]) => ({ name, quantity: data.quantity, revenue: data.revenue }));
+  }, [filteredOrders]);
+
+  // Clientes que mais compram — dados reais
+  const topCustomers = useMemo(() => {
+    if (!filteredOrders || filteredOrders.length === 0) return [];
+    const customerMap: Record<string, { orders: number; totalSpent: number }> = {};
+    for (const order of filteredOrders) {
+      const name = order.customer_name || order.customer_phone || 'Anônimo';
+      if (!customerMap[name]) customerMap[name] = { orders: 0, totalSpent: 0 };
+      customerMap[name].orders += 1;
+      customerMap[name].totalSpent += Number(order.total || 0);
+    }
+    return Object.entries(customerMap)
+      .sort((a, b) => b[1].orders - a[1].orders)
+      .slice(0, 5)
+      .map(([name, data]) => ({ name, orders: data.orders, totalSpent: data.totalSpent }));
+  }, [filteredOrders]);
 
   const handleToggleStore = async () => {
     if (!companyId) return;
@@ -262,129 +325,117 @@ export default function StoreDashboard() {
   };
 
 
-  return (
-    <div className="flex flex-col h-screen">
-      {/* Header */}
-      <header className="bg-card/50 backdrop-blur border-b border-border sticky top-0 z-10">
-        <div className="px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger>
-                <Menu className="h-5 w-5" />
-              </SidebarTrigger>
-              <div>
-                <h1 className="text-xl font-bold">Dashboard</h1>
-                <p className="text-xs text-muted-foreground">
-                  {subdomain ? `${subdomain}.anafood.vip` : "Configure seu domínio"}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {/* Date Filter */}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Checkbox 
-                    id="today-only"
-                    checked={showTodayOnly}
-                    onCheckedChange={(checked) => setShowTodayOnly(checked as boolean)}
-                  />
-                  <Label htmlFor="today-only" className="text-sm font-medium cursor-pointer">
-                    Apenas Hoje
-                  </Label>
-                </div>
-                
-                {!showTodayOnly && (
-                  <div className="flex items-center gap-2">
-                    <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-[120px] justify-start">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {startDate ? format(startDate, "dd/MM/yyyy") : "Data inicial"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={startDate}
-                          onSelect={(date) => {
-                            setStartDate(date);
-                            setDatePopoverOpen(false);
-                            // Auto open end date picker
-                            setTimeout(() => {
-                              endDateRef.current?.click();
-                            }, 100);
-                          }}
-                          locale={ptBR}
-                          className="pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    
-                    <span className="text-sm text-muted-foreground">até</span>
-                    
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button ref={endDateRef} variant="outline" size="sm" className="w-[120px] justify-start">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {endDate ? format(endDate, "dd/MM/yyyy") : "Data final"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={endDate}
-                          onSelect={(date) => {
-                            setEndDate(date);
-                          }}
-                          locale={ptBR}
-                          className="pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                )}
-              </div>
-              
-              {/* Store Status Button */}
-              <Button
-                variant={storeOpen ? "default" : "destructive"}
-                size="sm"
-                onClick={handleToggleStore}
-              >
-                <Store className="w-4 h-4 mr-2" />
-                {storeOpen ? "Loja Aberta" : "Loja Fechada"}
+  const headerActions = (
+    <>
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="today-only"
+          checked={showTodayOnly}
+          onCheckedChange={(checked) => setShowTodayOnly(checked as boolean)}
+        />
+        <Label htmlFor="today-only" className="text-sm font-medium cursor-pointer">
+          Apenas Hoje
+        </Label>
+      </div>
+      {!showTodayOnly && (
+        <div className="flex items-center gap-2">
+          <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="w-[120px] justify-start">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {startDate ? format(startDate, "dd/MM/yyyy") : "Início"}
               </Button>
-            </div>
-          </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={startDate}
+                onSelect={(date) => {
+                  setStartDate(date);
+                  setDatePopoverOpen(false);
+                  setTimeout(() => endDateRef.current?.click(), 100);
+                }}
+                locale={ptBR}
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+          <span className="text-sm text-muted-foreground">até</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button ref={endDateRef} variant="outline" size="sm" className="w-[120px] justify-start">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {endDate ? format(endDate, "dd/MM/yyyy") : "Fim"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={endDate}
+                onSelect={setEndDate}
+                locale={ptBR}
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
         </div>
-      </header>
+      )}
+      <Button
+        variant={storeOpen ? "default" : "destructive"}
+        size="sm"
+        onClick={handleToggleStore}
+      >
+        <Store className="w-4 h-4 mr-2" />
+        {storeOpen ? "Loja Aberta" : "Loja Fechada"}
+      </Button>
+    </>
+  );
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-auto p-6">
-        <div className="space-y-6">
+  // Company not linked to profile — show helpful message
+  if (companyData === null && !companyId) {
+    return (
+      <PageLayout title="Dashboard" fullHeight>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+          <Store className="w-12 h-12 text-muted-foreground" />
+          <h2 className="text-xl font-semibold">Loja não configurada</h2>
+          <p className="text-muted-foreground max-w-sm">
+            Sua conta não está vinculada a nenhuma loja. Entre em contato com o administrador do sistema.
+          </p>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  return (
+    <PageLayout
+      title="Dashboard"
+      subtitle={subdomain ? `${subdomain}.anafood.vip` : "Configure seu domínio"}
+      actions={headerActions}
+      fullHeight
+    >
+      <div className="space-y-6">
+          {/* Onboarding Checklist */}
+          {companyId && <OnboardingChecklist companyId={companyId} />}
+
           {/* Metrics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricsCard
               title={showTodayOnly ? "Pedidos Hoje" : "Total de Pedidos"}
               value={metrics.totalOrders}
               icon={ShoppingBag}
-              trend={showTodayOnly ? { value: 12, isPositive: true } : undefined}
-              subtitle={showTodayOnly ? "vs. ontem" : "no período"}
+              subtitle={showTodayOnly ? "hoje" : "no período"}
             />
             <MetricsCard
               title="Faturamento"
               value={`R$ ${metrics.totalRevenue.toFixed(2)}`}
               icon={DollarSign}
-              trend={showTodayOnly ? { value: 8, isPositive: true } : undefined}
-              subtitle={showTodayOnly ? "vs. ontem" : "no período"}
+              subtitle={showTodayOnly ? "hoje" : "no período"}
             />
             <MetricsCard
               title="Ticket Médio"
               value={`R$ ${metrics.averageTicket.toFixed(2)}`}
               icon={TrendingUp}
-              trend={showTodayOnly ? { value: 5, isPositive: true } : undefined}
-              subtitle={showTodayOnly ? "vs. média" : "no período"}
+              subtitle={showTodayOnly ? "hoje" : "no período"}
             />
             <MetricsCard
               title="Pedidos Pendentes"
@@ -406,11 +457,10 @@ export default function StoreDashboard() {
 
           {/* Bottom Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <TopProductsList products={topProducts.map(p => ({ name: p.name, quantity: p.sales, revenue: p.revenue }))} />
+            <TopProductsList products={topProducts.map(p => ({ name: p.name, quantity: p.quantity, revenue: p.revenue }))} />
             <TopCustomersList customers={topCustomers} />
           </div>
         </div>
-      </div>
-    </div>
+    </PageLayout>
   );
 }

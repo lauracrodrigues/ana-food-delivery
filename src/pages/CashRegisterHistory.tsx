@@ -49,6 +49,7 @@ import { ptBR } from 'date-fns/locale';
 import { CashRegister } from '@/types/pdv';
 import { CashRegisterSummaryView } from '@/components/pdv/CashRegisterSummaryView';
 import { useNavigate } from 'react-router-dom';
+import { PageLayout } from "@/components/layout/PageLayout";
 
 export default function CashRegisterHistory() {
   const { companyId } = useCompanyId();
@@ -134,20 +135,15 @@ export default function CashRegisterHistory() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
+    <PageLayout
+      title="Histórico de Caixas"
+      subtitle="Consulte fechamentos anteriores"
+      actions={
         <Button variant="ghost" size="icon" onClick={() => navigate('/caixa')}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <div className="flex-1">
-          <h1 className="text-xl md:text-2xl font-bold">Histórico de Caixas</h1>
-          <p className="text-sm text-muted-foreground">
-            Consulte fechamentos anteriores
-          </p>
-        </div>
-      </div>
-
+      }
+    >
       {/* Filters */}
       <Card>
         <CardHeader className="py-3">
@@ -356,6 +352,6 @@ export default function CashRegisterHistory() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageLayout>
   );
 }

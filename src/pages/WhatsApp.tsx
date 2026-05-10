@@ -3,9 +3,12 @@ import QRCode from "qrcode";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare, Plus, AlertCircle } from "lucide-react";
+import { MessageSquare, Plus, Clock, Bot } from "lucide-react";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppSessionList } from "@/components/whatsapp/WhatsAppSessionList";
 import { WhatsAppTestMessage } from "@/components/whatsapp/WhatsAppTestMessage";
@@ -69,6 +72,41 @@ export default function WhatsApp() {
     loadCompany();
   }, []);
 
+  // Load bot timing settings from store_settings
+  const { data: botSettings, isLoading: loadingBotSettings } = useQuery({
+    queryKey: ["bot-settings", companyId],
+    queryFn: async () => {
+      if (!companyId) return { debounce_ms: 10000, typing_debounce_ms: 3000, followup_minutes: 10, cancel_minutes: 20 };
+      const { data } = await supabase
+        .from("store_settings")
+        .select("debounce_ms, typing_debounce_ms, followup_minutes, cancel_minutes")
+        .eq("company_id", companyId)
+        .single();
+      return {
+        debounce_ms: data?.debounce_ms ?? 10000,
+        typing_debounce_ms: data?.typing_debounce_ms ?? 3000,
+        followup_minutes: data?.followup_minutes ?? 10,
+        cancel_minutes: data?.cancel_minutes ?? 20,
+      };
+    },
+    enabled: !!companyId,
+  });
+
+  const updateBotSettingsMutation = useMutation({
+    mutationFn: async (values: Partial<{ debounce_ms: number; typing_debounce_ms: number; followup_minutes: number; cancel_minutes: number }>) => {
+      if (!companyId) throw new Error("No company");
+      const { error } = await supabase
+        .from("store_settings")
+        .upsert({ company_id: companyId, ...values }, { onConflict: "company_id" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bot-settings", companyId] });
+      toast({ title: "Salvo", description: "Configurações atualizadas." });
+    },
+    onError: () => toast({ title: "Erro", description: "Não foi possível salvar.", variant: "destructive" }),
+  });
+
   // Load WhatsApp sessions with optimized caching
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ["whatsapp-sessions", companyId],
@@ -94,6 +132,16 @@ export default function WhatsApp() {
     staleTime: 30000, // Cache por 30s
     gcTime: 60000, // Manter em cache por 1min
   });
+
+  // Auto-check status de todas sessões ao carregar — sem toast, silencioso
+  const autoCheckedRef = useRef(false);
+  useEffect(() => {
+    if (!sessions.length || autoCheckedRef.current) return;
+    autoCheckedRef.current = true;
+    sessions.forEach(s => {
+      checkConnectionStatus(s.session_name, true);
+    });
+  }, [sessions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Add/Update mutation
   const saveMutation = useMutation({
@@ -526,41 +574,30 @@ export default function WhatsApp() {
     }
   };
 
-  // Remover verificação em background - status será verificado apenas manualmente
+  // Botão "Nova Sessão" visível só se não há sessão ativa
+  const hasActiveSession = sessions.some(s => s.is_active);
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      {/* Aviso sobre limite de verificações */}
-      <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 mt-0.5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                Limite de verificações de status
-              </p>
-              <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                Para evitar sobrecarga na API, as verificações de status têm um intervalo mínimo de 10 segundos entre cada chamada.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
+    <PageLayout title="WhatsApp" subtitle="Configurações de integração">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Configurações WhatsApp</h1>
         </div>
-        <Button onClick={handleOpenAddDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Sessão
-        </Button>
+        {!hasActiveSession && (
+          <Button onClick={handleOpenAddDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Sessão
+          </Button>
+        )}
       </div>
 
       <Tabs defaultValue="sessions" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="sessions">Sessões</TabsTrigger>
+          <TabsTrigger value="bot">
+            <Bot className="h-4 w-4 mr-1" />
+            Bot
+          </TabsTrigger>
           <TabsTrigger value="test">Teste de Envio</TabsTrigger>
           <TabsTrigger value="status">Mensagens de Status</TabsTrigger>
         </TabsList>
@@ -576,6 +613,129 @@ export default function WhatsApp() {
             onConnect={handleConnect}
             onCheckStatus={checkConnectionStatus}
           />
+        </TabsContent>
+
+        <TabsContent value="bot">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Timings de Resposta
+                </CardTitle>
+                <CardDescription>
+                  Controle os tempos de debounce e indicador "digitando"
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label>Typing Debounce — aguardar antes de mostrar "digitando"</Label>
+                  <Select
+                    value={String(botSettings?.typing_debounce_ms ?? 3000)}
+                    onValueChange={(v) => updateBotSettingsMutation.mutate({ typing_debounce_ms: parseInt(v) })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending}
+                  >
+                    <SelectTrigger className="w-72">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1000">1 segundo</SelectItem>
+                      <SelectItem value="2000">2 segundos</SelectItem>
+                      <SelectItem value="3000">3 segundos — padrão</SelectItem>
+                      <SelectItem value="5000">5 segundos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Tempo de silêncio antes de disparar o indicador "digitando". Se cliente enviar outra msg, timer reseta.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Debounce de Mensagens — buffer de acúmulo</Label>
+                  <Select
+                    value={String(botSettings?.debounce_ms ?? 10000)}
+                    onValueChange={(v) => updateBotSettingsMutation.mutate({ debounce_ms: parseInt(v) })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending}
+                  >
+                    <SelectTrigger className="w-72">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3000">3 segundos — resposta rápida</SelectItem>
+                      <SelectItem value="5000">5 segundos</SelectItem>
+                      <SelectItem value="8000">8 segundos</SelectItem>
+                      <SelectItem value="10000">10 segundos — padrão</SelectItem>
+                      <SelectItem value="15000">15 segundos — clientes que digitam devagar</SelectItem>
+                      <SelectItem value="20000">20 segundos</SelectItem>
+                      <SelectItem value="30000">30 segundos — máximo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Tempo que aguarda por mais mensagens antes de processar tudo junto.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Followup & Cancelamento
+                </CardTitle>
+                <CardDescription>
+                  Controle lembretes e cancelamento automático por inatividade
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label>Lembrete de Followup (minutos)</Label>
+                  <Select
+                    value={String(botSettings?.followup_minutes ?? 10)}
+                    onValueChange={(v) => updateBotSettingsMutation.mutate({ followup_minutes: parseInt(v) })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending}
+                  >
+                    <SelectTrigger className="w-72">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5 minutos</SelectItem>
+                      <SelectItem value="10">10 minutos — padrão</SelectItem>
+                      <SelectItem value="15">15 minutos</SelectItem>
+                      <SelectItem value="20">20 minutos</SelectItem>
+                      <SelectItem value="30">30 minutos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Após X minutos sem resposta, envia mensagem "Oi! Ainda está por aí?"
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Cancelamento Automático (minutos)</Label>
+                  <Select
+                    value={String(botSettings?.cancel_minutes ?? 20)}
+                    onValueChange={(v) => updateBotSettingsMutation.mutate({ cancel_minutes: parseInt(v) })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending}
+                  >
+                    <SelectTrigger className="w-72">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="15">15 minutos</SelectItem>
+                      <SelectItem value="20">20 minutos — padrão</SelectItem>
+                      <SelectItem value="30">30 minutos</SelectItem>
+                      <SelectItem value="45">45 minutos</SelectItem>
+                      <SelectItem value="60">60 minutos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Após X minutos sem resposta, cancela atendimento e reseta sessão.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="test">
@@ -627,6 +787,6 @@ export default function WhatsApp() {
         onClose={() => setQrCodeDialog({ open: false, qrCode: '', sessionName: '' })}
         onRefresh={handleConnect}
       />
-    </div>
+    </PageLayout>
   );
 }

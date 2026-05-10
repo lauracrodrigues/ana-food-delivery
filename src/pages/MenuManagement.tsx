@@ -8,6 +8,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, ExternalLink } from "lucide-react";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { CompanyLogoUpload } from "@/components/company/CompanyLogoUpload";
 import { CompanyBannerUpload } from "@/components/company/CompanyBannerUpload";
 
@@ -108,16 +109,7 @@ export default function MenuManagement() {
   const menuLink = subdomain ? `https://${subdomain}.anafood.vip` : "Aguardando subdomínio...";
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Cardápio Digital</h1>
-          <p className="text-muted-foreground">
-            Gerencie as configurações do seu cardápio online
-          </p>
-        </div>
-      </div>
-
+    <PageLayout title="Cardápio Digital" subtitle="Gerencie as configurações do seu cardápio online">
       {/* Link do Cardápio */}
       <Card>
         <CardHeader>
@@ -283,6 +275,6 @@ export default function MenuManagement() {
           {updateCompany.isPending ? "Salvando..." : "Salvar Configurações"}
         </Button>
       </div>
-    </div>
+    </PageLayout>
   );
 }

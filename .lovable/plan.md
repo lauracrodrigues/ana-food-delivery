@@ -65,7 +65,7 @@ Layout responsivo com dois paineis:
 - Atualizar sidebar em `AppSidebar.tsx`: mudar item "WhatsApp" para submenu com "Configuracoes" (`/whatsapp`) e "Conversas" (`/whatsapp-chat`)
 
 ### 6. Real-time (Supabase Realtime)
-- Subscribe na tabela `msg_history` para receber novas mensagens em tempo real (quando o webhook do n8n insere mensagens la)
+- Subscribe na tabela `msg_history` para receber novas mensagens em tempo real (quando o webhook do api.anafood.vip insere mensagens la)
 - Atualizar a lista de conversas e mensagens automaticamente
 
 ## Detalhes Tecnicos
@@ -88,7 +88,7 @@ action = 'sendText':
 
 ### Controle do Agente
 - Ao pausar: inserir/atualizar registro em `whatsapp_agent_control` com `is_paused = true`
-- O fluxo n8n/webhook deve consultar essa tabela antes de processar mensagens automaticamente
+- O fluxo api.anafood.vip/webhook deve consultar essa tabela antes de processar mensagens automaticamente
 - Pausa global: registro com `phone = NULL` (aplica a toda a sessao)
 - Pausa individual: registro com `phone = '5511...'`
 

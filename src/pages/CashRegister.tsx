@@ -47,6 +47,7 @@ import { ptBR } from 'date-fns/locale';
 import { CashRegisterClosing } from '@/components/pdv/CashRegisterClosing';
 import { CashRegisterSuccessDialog } from '@/components/pdv/CashRegisterSuccessDialog';
 import { useNavigate } from 'react-router-dom';
+import { PageLayout } from "@/components/layout/PageLayout";
 
 export default function CashRegister() {
   const navigate = useNavigate();
@@ -220,18 +221,10 @@ export default function CashRegister() {
 
   // Register open state
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Wallet className="w-6 h-6" />
-          <div>
-            <h1 className="text-2xl font-bold">Caixa</h1>
-            <p className="text-sm text-muted-foreground">
-              Aberto em {activeRegister?.opened_at ? format(new Date(activeRegister.opened_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : ''}
-            </p>
-          </div>
-        </div>
+    <PageLayout
+      title="Caixa"
+      subtitle={activeRegister?.opened_at ? `Aberto em ${format(new Date(activeRegister.opened_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}` : undefined}
+      actions={
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => navigate('/caixa/historico')}>
             <History className="w-4 h-4 mr-1" />
@@ -242,8 +235,8 @@ export default function CashRegister() {
             Aberto
           </Badge>
         </div>
-      </div>
-
+      }
+    >
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -487,6 +480,6 @@ export default function CashRegister() {
         open={showSuccessDialog}
         onOpenChange={setShowSuccessDialog}
       />
-    </div>
+    </PageLayout>
   );
 }

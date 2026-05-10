@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState } from "react";
 import { Loader2, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const companyInfoSchema = z.object({
   companyName: z.string()
@@ -139,21 +140,29 @@ export function CompanyInfoStep({ onNext, initialData }: CompanyInfoStepProps) {
     }
 
     setIsCheckingSubdomain(true);
-    // Simular verificação de subdomínio
-    setTimeout(() => {
-      const isAvailable = Math.random() > 0.3; // 70% chance de estar disponível
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('subdomain', subdomain.toLowerCase())
+        .maybeSingle();
+
+      const isAvailable = !data && !error;
       setSubdomainStatus(isAvailable ? 'available' : 'taken');
-      setIsCheckingSubdomain(false);
-      
+
       if (!isAvailable) {
-        form.setError('subdomain', { 
-          type: 'manual', 
-          message: 'Este subdomínio já está em uso' 
+        form.setError('subdomain', {
+          type: 'manual',
+          message: 'Este subdomínio já está em uso'
         });
       } else {
         form.clearErrors('subdomain');
       }
-    }, 1000);
+    } catch {
+      setSubdomainStatus(null);
+    } finally {
+      setIsCheckingSubdomain(false);
+    }
   };
 
   const onSubmit = (data: CompanyInfoData) => {

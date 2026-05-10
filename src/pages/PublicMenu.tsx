@@ -8,6 +8,7 @@ import { MenuProducts } from "@/components/menu/MenuProducts";
 import { MenuCart } from "@/components/menu/MenuCart";
 import { MenuCheckout } from "@/components/menu/MenuCheckout";
 import { Loader2 } from "lucide-react";
+import { resetPalette, initializeColorPalette } from "@/hooks/use-color-palette";
 
 interface Company {
   id: string;
@@ -45,8 +46,13 @@ interface CartItem {
   observations?: string;
 }
 
-export default function PublicMenu() {
-  const { subdomain } = useParams();
+interface PublicMenuProps {
+  subdomainOverride?: string;
+}
+
+export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) {
+  const params = useParams();
+  const subdomain = subdomainOverride || params.subdomain;
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -56,10 +62,25 @@ export default function PublicMenu() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
-  
+  const [banners, setBanners] = useState<{ id: string; image_url: string; link_type: string | null; link_value: string | null }[]>([]);
+  const [activeBanner, setActiveBanner] = useState(0);
+
   // Table identification from QR code
   const tableNumber = searchParams.get('mesa');
   const [tableInfo, setTableInfo] = useState<{ id: string; table_number: string } | null>(null);
+
+  // Garante que a paleta do admin não vaze para o menu público
+  useEffect(() => {
+    resetPalette();
+    return () => initializeColorPalette();
+  }, []);
+
+  // Auto-rotação dos banners a cada 5s
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const t = setInterval(() => setActiveBanner(i => (i + 1) % banners.length), 5000);
+    return () => clearInterval(t);
+  }, [banners.length]);
 
   useEffect(() => {
     loadMenuData();
@@ -121,6 +142,15 @@ export default function PublicMenu() {
         .order('name');
 
       setProducts(productsData || []);
+
+      // Buscar banners ativos
+      const { data: bannersData } = await supabase
+        .from('menu_banners')
+        .select('id, image_url, link_type, link_value')
+        .eq('company_id', companyData.id)
+        .eq('is_active', true)
+        .order('display_order');
+      setBanners(bannersData || []);
     } catch (error) {
       console.error('Error loading menu:', error);
       toast({
@@ -201,10 +231,23 @@ export default function PublicMenu() {
     );
   }
 
+  const handleBannerClick = (banner: typeof banners[0]) => {
+    if (!banner.link_type || banner.link_type === "none") return;
+    if (banner.link_type === "url" && banner.link_value) {
+      window.open(banner.link_value, "_blank");
+    } else if (banner.link_type === "whatsapp" && banner.link_value) {
+      window.open(`https://wa.me/${banner.link_value.replace(/\D/g, "")}`, "_blank");
+    } else if (banner.link_type === "category" && banner.link_value) {
+      const cat = categories.find(c => c.id === banner.link_value || c.name === banner.link_value);
+      if (cat) setSelectedCategory(cat.id);
+    }
+    // product link type handled elsewhere
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <MenuHeader company={company} />
-      
+
       {/* Table identification banner */}
       {tableInfo && (
         <div className="bg-primary text-primary-foreground py-2 px-4 text-center">
@@ -212,7 +255,40 @@ export default function PublicMenu() {
           <span className="ml-2 text-sm opacity-80">Pedido via QR Code</span>
         </div>
       )}
-      
+
+      {/* Banners do cardápio */}
+      {banners.length > 0 && (
+        <div className="relative w-full overflow-hidden">
+          <div className="relative aspect-[3/1] max-h-48">
+            {banners.map((banner, idx) => (
+              <div
+                key={banner.id}
+                className={`absolute inset-0 transition-opacity duration-500 ${idx === activeBanner ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+              >
+                <img
+                  src={banner.image_url}
+                  alt="Banner promocional"
+                  className={`w-full h-full object-cover ${banner.link_type && banner.link_type !== "none" ? "cursor-pointer" : ""}`}
+                  onClick={() => handleBannerClick(banner)}
+                />
+              </div>
+            ))}
+          </div>
+          {/* Indicadores (dots) */}
+          {banners.length > 1 && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+              {banners.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveBanner(idx)}
+                  className={`w-2 h-2 rounded-full transition-all ${idx === activeBanner ? "bg-white scale-125" : "bg-white/50"}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -255,6 +331,16 @@ export default function PublicMenu() {
           }}
         />
       )}
+
+      {/* Discreet admin access footer */}
+      <footer className="mt-12 py-4 text-center border-t border-border">
+        <a
+          href="/login"
+          className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+        >
+          Área do lojista
+        </a>
+      </footer>
     </div>
   );
 }

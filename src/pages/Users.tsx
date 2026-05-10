@@ -95,54 +95,28 @@ export default function Users() {
     },
   });
 
-  // Fetch company users
+  // Fetch company users — v1.1.0: usa RPC com SECURITY DEFINER (sem auth.admin.listUsers)
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["company-users", profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
 
-      // Get all user_roles for this company
-      const { data: userRoles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id, role")
-        .eq("company_id", profile.company_id);
-
-      if (rolesError) throw rolesError;
-
-      if (!userRoles || userRoles.length === 0) return [];
-
-      // Get profile information for these users
-      const userIds = userRoles.map(ur => ur.user_id);
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Get auth users for email
-      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) {
-        console.error("Error fetching auth users:", authError);
-        // Continue without email data if admin access is not available
-      }
-
-      // Combine data
-      const combinedUsers: User[] = userRoles.map(ur => {
-        const profile = profiles?.find((p: any) => p.id === ur.user_id);
-        const authUser = authUsers?.find((u: any) => u.id === ur.user_id);
-        
-        return {
-          id: ur.user_id,
-          email: authUser?.email || "Email não disponível",
-          full_name: profile?.full_name || null,
-          role: ur.role as "company_admin" | "company_staff",
-          created_at: authUser?.created_at || new Date().toISOString(),
-        };
+      const { data, error } = await supabase.rpc("get_company_users", {
+        _company_id: profile.company_id,
       });
 
-      return combinedUsers;
+      if (error) {
+        console.error("Erro ao buscar usuários:", error);
+        throw error;
+      }
+
+      return (data || []).map((u: any) => ({
+        id: u.user_id,
+        email: u.email || "Email não disponível",
+        full_name: u.full_name || null,
+        role: u.role as "company_admin" | "company_staff",
+        created_at: u.created_at || new Date().toISOString(),
+      })) as User[];
     },
     enabled: !!profile?.company_id,
   });

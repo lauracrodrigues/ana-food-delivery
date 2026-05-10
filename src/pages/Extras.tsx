@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Edit, Trash2 } from "lucide-react";
+import { PageLayout } from "@/components/layout/PageLayout";
 
 interface Extra {
   id: string;
@@ -199,18 +200,17 @@ export function Extras() {
   };
 
   return (
-    <div className="container mx-auto p-6">
+    <PageLayout
+      title="Adicionais"
+      actions={
+        <Button onClick={() => handleOpenModal()}>
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Adicional
+        </Button>
+      }
+    >
       <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl font-bold">Adicionais</CardTitle>
-            <Button onClick={() => handleOpenModal()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Adicional
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="mb-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -356,6 +356,6 @@ export function Extras() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageLayout>
   );
 }

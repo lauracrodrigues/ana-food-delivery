@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users } from "lucide-react";
@@ -12,7 +13,7 @@ interface TopCustomersListProps {
   customers: TopCustomer[];
 }
 
-export function TopCustomersList({ customers }: TopCustomersListProps) {
+export const TopCustomersList = memo(function TopCustomersList({ customers }: TopCustomersListProps) {
   return (
     <Card>
       <CardHeader>
@@ -39,4 +40,4 @@ export function TopCustomersList({ customers }: TopCustomersListProps) {
       </CardContent>
     </Card>
   );
-}
+});

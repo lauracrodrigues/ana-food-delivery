@@ -10,10 +10,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { masks } from "@/lib/masks";
-import { 
-  Store, 
-  Truck, 
-  Clock, 
+import {
+  Store,
+  Truck,
+  Clock,
   Volume2,
   RefreshCw,
   Palette,
@@ -22,17 +22,19 @@ import {
   Hash,
   RotateCcw,
   Grid3X3,
+  MessageSquare,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { qzPrinter } from "@/lib/qz-tray";
 import { useTheme } from "@/components/theme-provider";
 import { useColorPalette, type ColorPalette } from "@/hooks/use-color-palette";
 import { PrintLayoutConfig } from "@/components/settings/print-layout/PrintLayoutConfig";
 import { TablesSettings } from "@/components/settings/TablesSettings";
+import { BusinessHoursConfig } from "@/components/settings/BusinessHoursConfig";
 
 interface StoreSettings {
   id?: string;
@@ -43,6 +45,7 @@ interface StoreSettings {
   delivery_time: number;
   pickup_time: number;
   alert_time: number;
+  debounce_ms: number;
   printer_settings?: any;
   visible_columns?: any;
   order_numbering_mode?: string;
@@ -104,6 +107,7 @@ export function Settings() {
         delivery_time: 30,
         pickup_time: 45,
         alert_time: 60,
+        debounce_ms: 10000,
         order_numbering_mode: 'sequential',
         order_numbering_reset_time: '00:00',
       } as StoreSettings;
@@ -267,33 +271,21 @@ export function Settings() {
   };
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header */}
-      <header className="bg-card/50 backdrop-blur border-b border-border sticky top-0 z-10">
-        <div className="px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger className="lg:hidden" />
-              <div>
-                <h1 className="text-xl font-bold">Configurações</h1>
-                <p className="text-xs text-muted-foreground">
-                  Gerencie as configurações do sistema
-                </p>
-              </div>
-            </div>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
-
-      {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
+    <PageLayout
+      title="Configurações"
+      subtitle="Gerencie as configurações do sistema"
+    >
+      <div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-4xl">
+          <TabsList className="grid grid-cols-5 w-full max-w-4xl">
             <TabsTrigger value="general">Geral</TabsTrigger>
             <TabsTrigger value="tables">
               <Grid3X3 className="h-4 w-4 mr-1" />
               Mesas
+            </TabsTrigger>
+            <TabsTrigger value="hours">
+              <Clock className="h-4 w-4 mr-1" />
+              Horários
             </TabsTrigger>
             <TabsTrigger value="appearance">Aparência</TabsTrigger>
             <TabsTrigger value="print">Impressão</TabsTrigger>
@@ -622,6 +614,21 @@ export function Settings() {
             <TablesSettings />
           </TabsContent>
 
+          {/* Business Hours Settings */}
+          <TabsContent value="hours" className="space-y-6">
+            {profile?.company_id ? (
+              <BusinessHoursConfig companyId={profile.company_id} />
+            ) : (
+              <Card>
+                <CardContent className="py-10">
+                  <p className="text-center text-muted-foreground">
+                    Carregando configurações...
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
           {/* Print Settings */}
           <TabsContent value="print" className="space-y-6">
             {profile?.company_id ? (
@@ -639,6 +646,6 @@ export function Settings() {
 
         </Tabs>
       </div>
-    </div>
+    </PageLayout>
   );
 }

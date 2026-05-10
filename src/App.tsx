@@ -3,17 +3,19 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CacheProvider } from "@/contexts/CacheContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
 
 // Eagerly load critical components
 import Index from "./pages/Index";
-import Login from "./pages/Login";
 import Menu from "./pages/Menu";
+
+const Login = lazy(() => import("./pages/Login"));
 
 // Lazy load non-critical routes
 const Registration = lazy(() => import("./pages/Registration"));
@@ -39,8 +41,38 @@ const Tables = lazy(() => import("./pages/Tables"));
 const CashRegister = lazy(() => import("./pages/CashRegister"));
 const CashRegisterHistory = lazy(() => import("./pages/CashRegisterHistory"));
 const WhatsAppChat = lazy(() => import("./pages/WhatsAppChat"));
+const Billing = lazy(() => import("./pages/Billing"));
+const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const KanbanPreviewA = lazy(() => import("./pages/KanbanPreviewA"));
+const KanbanPreviewB = lazy(() => import("./pages/KanbanPreviewB"));
+const KanbanPreviewC = lazy(() => import("./pages/KanbanPreviewC"));
 
-const queryClient = new QueryClient();
+// v1.0.0 — Detecta subdomain pra renderizar PublicMenu direto na raiz
+function getSubdomain(): string | null {
+  if (typeof window === "undefined") return null;
+  const host = window.location.hostname;
+  // Skip localhost / IP
+  if (host === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return null;
+  const parts = host.split(".");
+  // anafood.vip = 2 parts, pizzaria.anafood.vip = 3 parts
+  if (parts.length < 3) return null;
+  const sub = parts[0];
+  // Skip www e subdomains de sistema
+  if (["www", "api", "evo", "admin"].includes(sub)) return null;
+  return sub;
+}
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 10,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 // Loading fallback component for page content only
 const PageLoadingFallback = () => (
@@ -65,28 +97,57 @@ const DashboardLayoutWrapper = () => (
   </DashboardLayout>
 );
 
-const App = () => (
+// Layout fullScreen para Kanban (sem padding, h-screen, overflow-hidden)
+const KanbanLayoutWrapper = () => (
+  <DashboardLayout fullScreen>
+    <Suspense fallback={<PageLoadingFallback />}>
+      <Outlet />
+    </Suspense>
+  </DashboardLayout>
+);
+
+const App = () => {
+  const subdomain = getSubdomain();
+  return (
+  <ErrorBoundary>
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="light" storageKey="anafood-theme">
-      <CacheProvider defaultTTL={3600} enableLogs={true}>
+      <CacheProvider defaultTTL={3600} enableLogs={false}>
         <TooltipProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
             <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
+            {/* Subdomain ativo: rota raiz renderiza menu público direto */}
+            <Route path="/" element={
+              subdomain ? (
+                <Suspense fallback={<FullLoadingFallback />}>
+                  <PublicMenu subdomainOverride={subdomain} />
+                </Suspense>
+              ) : <Index />
+            } />
+            <Route path="/login" element={<Suspense fallback={<FullLoadingFallback />}><Login /></Suspense>} />
             <Route path="/cadastro" element={
               <Suspense fallback={<FullLoadingFallback />}>
                 <Registration />
               </Suspense>
             } />
             
+            {/* Admin SaaS — sem sidebar do cliente */}
+            <Route path="/admin" element={
+              <Suspense fallback={<FullLoadingFallback />}>
+                <AdminDashboard />
+              </Suspense>
+            } />
+
+            {/* Kanban fullScreen — sem padding, sem rodapé */}
+            <Route element={<KanbanLayoutWrapper />}>
+              <Route path="/orders" element={<Orders />} />
+            </Route>
+
             {/* Dashboard routes with persistent layout */}
             <Route element={<DashboardLayoutWrapper />}>
-              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/dashboard" element={<StoreDashboard />} />
-              <Route path="/orders" element={<Orders />} />
               <Route path="/customers" element={<Customers />} />
               <Route path="/products" element={<Products />} />
               <Route path="/categories" element={<Categories />} />
@@ -103,6 +164,7 @@ const App = () => (
               <Route path="/caixa" element={<CashRegister />} />
               <Route path="/caixa/historico" element={<CashRegisterHistory />} />
               <Route path="/whatsapp-chat" element={<WhatsAppChat />} />
+              <Route path="/billing" element={<Billing />} />
               
               {/* Protected admin-only routes */}
               <Route path="/users" element={
@@ -112,6 +174,18 @@ const App = () => (
               } />
             </Route>
 
+            {/* Previews de layout Kanban — sem auth, acesso direto */}
+            <Route path="/kanban-preview/a" element={<Suspense fallback={<FullLoadingFallback />}><KanbanPreviewA /></Suspense>} />
+            <Route path="/kanban-preview/b" element={<Suspense fallback={<FullLoadingFallback />}><KanbanPreviewB /></Suspense>} />
+            <Route path="/kanban-preview/c" element={<Suspense fallback={<FullLoadingFallback />}><KanbanPreviewC /></Suspense>} />
+
+            <Route path="/termos" element={<Suspense fallback={<FullLoadingFallback />}><Terms /></Suspense>} />
+            <Route path="/privacidade" element={<Suspense fallback={<FullLoadingFallback />}><Privacy /></Suspense>} />
+            <Route path="/checkout/success" element={
+              <Suspense fallback={<FullLoadingFallback />}>
+                <CheckoutSuccess />
+              </Suspense>
+            } />
             <Route path="/auth/callback" element={
               <Suspense fallback={<FullLoadingFallback />}>
                 <AuthCallback />
@@ -133,6 +207,8 @@ const App = () => (
       </CacheProvider>
     </ThemeProvider>
   </QueryClientProvider>
-);
+  </ErrorBoundary>
+  );
+};
 
 export default App;

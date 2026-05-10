@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, useRef, useEffect } from 'react';
 
 interface CacheEntry<T> {
   data: T;
@@ -28,7 +28,6 @@ export function CacheProvider({
   enableLogs = process.env.NODE_ENV === 'development'
 }: CacheProviderProps) {
   const cacheRef = useRef<Map<string, CacheEntry<any>>>(new Map());
-  const [, forceUpdate] = useState({});
 
   const log = useCallback((message: string, ...args: any[]) => {
     if (enableLogs) {
@@ -74,7 +73,6 @@ export function CacheProvider({
       cacheRef.current.clear();
       log('Clear All');
     }
-    forceUpdate({});
   }, [log]);
 
   const isValid = useCallback((key: string): boolean => {

@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Edit, Trash2 } from "lucide-react";
+import { PageLayout } from "@/components/layout/PageLayout";
 
 interface Product {
   id: string;
@@ -228,18 +229,17 @@ export function Products() {
   };
 
   return (
-    <div className="p-6">
+    <PageLayout
+      title="Produtos"
+      actions={
+        <Button onClick={() => handleOpenModal()}>
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Produto
+        </Button>
+      }
+    >
       <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl font-bold">Produtos</CardTitle>
-            <Button onClick={() => handleOpenModal()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Produto
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="mb-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -403,6 +403,6 @@ export function Products() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageLayout>
   );
 }

@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trash2, Edit, Plus, MapPin, Map } from "lucide-react";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -268,38 +269,31 @@ export function DeliveryFees() {
   };
 
   return (
-    <div className="p-6">
+    <PageLayout
+      title="Taxas de Entrega"
+      subtitle="Configure as taxas de entrega por zona ou raio de distância"
+      actions={
+        <Button onClick={() => setShowModal(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nova Taxa
+        </Button>
+      }
+    >
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
-              <CardTitle className="flex items-center gap-2 mb-2">
-                <MapPin className="h-5 w-5" />
-                Taxas de Entrega
-              </CardTitle>
-              <CardDescription>
-                Configure as taxas de entrega por zona ou raio de distância
-              </CardDescription>
-              
-              {/* Seletor de Modo */}
-              <Tabs value={deliveryMode} onValueChange={(v) => handleDeliveryModeChange(v as 'zones' | 'radius')} className="mt-4">
-                <TabsList>
-                  <TabsTrigger value="zones" className="gap-2">
-                    <Map className="h-4 w-4" />
-                    Por Zonas/Bairros
-                  </TabsTrigger>
-                  <TabsTrigger value="radius" className="gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Por Raio (km)
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-            <Button onClick={() => setShowModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Taxa
-            </Button>
-          </div>
+          {/* Seletor de Modo */}
+          <Tabs value={deliveryMode} onValueChange={(v) => handleDeliveryModeChange(v as 'zones' | 'radius')}>
+            <TabsList>
+              <TabsTrigger value="zones" className="gap-2">
+                <Map className="h-4 w-4" />
+                Por Zonas/Bairros
+              </TabsTrigger>
+              <TabsTrigger value="radius" className="gap-2">
+                <MapPin className="h-4 w-4" />
+                Por Raio (km)
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -456,6 +450,6 @@ export function DeliveryFees() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageLayout>
   );
 }

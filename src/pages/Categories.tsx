@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Edit, Trash2 } from "lucide-react";
+import { PageLayout } from "@/components/layout/PageLayout";
 
 interface Category {
   id: string;
@@ -201,18 +202,17 @@ export function Categories() {
   );
 
   return (
-    <div className="container mx-auto p-6">
+    <PageLayout
+      title="Categorias"
+      actions={
+        <Button onClick={() => handleOpenModal()}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nova Categoria
+        </Button>
+      }
+    >
       <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl font-bold">Categorias</CardTitle>
-            <Button onClick={() => handleOpenModal()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Categoria
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="mb-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -332,6 +332,6 @@ export function Categories() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageLayout>
   );
 }

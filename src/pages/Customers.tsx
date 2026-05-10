@@ -13,9 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/use-user-role";
-import { Search, Plus, Edit, Trash2, Phone, Mail, MapPin, Calendar, ShoppingBag, Home, Building2 } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Phone, Mail, MapPin, Calendar, ShoppingBag, Home, Building2, History } from "lucide-react";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { CustomerOrderHistory } from "@/components/customers/CustomerOrderHistory";
 
 interface CustomerAddress {
   label: string;
@@ -110,6 +112,7 @@ export function Customers() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -324,20 +327,17 @@ export function Customers() {
   );
 
   return (
-    <div className="p-6">
+    <PageLayout
+      title="Clientes"
+      actions={isAdmin ? (
+        <Button onClick={() => handleOpenModal()}>
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Cliente
+        </Button>
+      ) : undefined}
+    >
       <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl font-bold">Clientes</CardTitle>
-            {isAdmin && (
-              <Button onClick={() => handleOpenModal()}>
-                <Plus className="mr-2 h-4 w-4" />
-                Novo Cliente
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="mb-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -425,6 +425,14 @@ export function Customers() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setHistoryCustomer(customer)}
+                        title="Ver histórico de pedidos"
+                      >
+                        <History className="h-4 w-4" />
+                      </Button>
                       {isAdmin ? (
                         <>
                           <Button
@@ -448,11 +456,7 @@ export function Customers() {
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          Sem permissão
-                        </span>
-                      )}
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -461,6 +465,17 @@ export function Customers() {
           )}
         </CardContent>
       </Card>
+
+      {/* Sidebar histórico de pedidos */}
+      {historyCustomer && profile?.company_id && (
+        <CustomerOrderHistory
+          open={!!historyCustomer}
+          onClose={() => setHistoryCustomer(null)}
+          customerName={historyCustomer.name}
+          customerPhone={historyCustomer.phone}
+          companyId={profile.company_id}
+        />
+      )}
 
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="sm:max-w-[500px] md:max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -754,6 +769,6 @@ export function Customers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageLayout>
   );
 }

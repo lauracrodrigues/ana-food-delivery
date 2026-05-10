@@ -5,6 +5,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-company-key',
 };
 
+// Debounce de notificações WhatsApp — 10s delay antes de enviar
+const _notificationTimers = new Map<string, number>();
+const NOTIFICATION_DELAY_MS = 10000;
+
 interface OrderRequest {
   action: 'list' | 'update_status' | 'delete' | 'create';
   order_id?: string;
@@ -231,17 +235,30 @@ Deno.serve(async (req: Request) => {
 
         if (error) throw error;
 
-        // Chamar orders-status para enviar notificação WhatsApp
-        try {
-          console.log(`📱 Chamando orders-status para pedido ${body.order_id}`);
-          const supabaseAuth = createClient(supabaseUrl, supabaseKey);
-          await supabaseAuth.functions.invoke('orders-status', {
-            body: { order_id: body.order_id, status: body.status }
-          });
-          console.log('✅ orders-status chamado com sucesso');
-        } catch (statusError) {
-          console.error('⚠️ Erro ao enviar notificação WhatsApp:', statusError);
+        // Debounce de 10s antes de enviar WhatsApp — cancela timer anterior se existir
+        const timerKey = body.order_id;
+        const existingTimer = _notificationTimers.get(timerKey);
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+          console.log(`⏱️ Timer anterior cancelado para pedido ${body.order_id}`);
         }
+
+        const timer = setTimeout(async () => {
+          _notificationTimers.delete(timerKey);
+          try {
+            console.log(`📱 Chamando orders-status para pedido ${body.order_id} (após 10s debounce)`);
+            const supabaseAuth = createClient(supabaseUrl, supabaseKey);
+            await supabaseAuth.functions.invoke('orders-status', {
+              body: { order_id: body.order_id, status: body.status }
+            });
+            console.log('✅ orders-status chamado com sucesso');
+          } catch (statusError) {
+            console.error('⚠️ Erro ao enviar notificação WhatsApp:', statusError);
+          }
+        }, NOTIFICATION_DELAY_MS);
+
+        _notificationTimers.set(timerKey, timer as any);
+        console.log(`⏱️ Timer de 10s agendado para pedido ${body.order_id}`);
 
         return new Response(
           JSON.stringify({ data }),

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { resetPalette, initializeColorPalette } from "@/hooks/use-color-palette";
 import { MenuHeader } from "@/components/menu/MenuHeader";
 import { MenuCategories } from "@/components/menu/MenuCategories";
 import { MenuProducts } from "@/components/menu/MenuProducts";
@@ -53,6 +54,11 @@ export default function PublicMenuBySubdomain() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
+
+  useEffect(() => {
+    resetPalette();
+    return () => initializeColorPalette();
+  }, []);
 
   useEffect(() => {
     loadMenuData();

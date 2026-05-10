@@ -1,3 +1,4 @@
+// v2.0.0 — User management com suporte a super_admin + actions list/reset_password/toggle_block
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -11,46 +12,36 @@ interface CreateUserRequest {
   fullName: string;
   role: 'company_admin' | 'company_staff';
   companyId: string;
-  permissions?: {
-    canManageProducts?: boolean;
-    canManageOrders?: boolean;
-    canManageCustomers?: boolean;
-    canViewReports?: boolean;
-    canManageSettings?: boolean;
-  };
+  password?: string;
 }
 
 interface UpdateUserRequest {
   userId: string;
   fullName?: string;
   role?: 'company_admin' | 'company_staff';
-  permissions?: {
-    canManageProducts?: boolean;
-    canManageOrders?: boolean;
-    canManageCustomers?: boolean;
-    canViewReports?: boolean;
-    canManageSettings?: boolean;
-  };
 }
 
-interface DeleteUserRequest {
+interface ResetPasswordRequest {
   userId: string;
-  currentUserId: string;
+  newPassword?: string;
+  sendEmail?: boolean;
+}
+
+interface ToggleBlockRequest {
+  userId: string;
+  block: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Create Supabase client with service role key
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get authenticated user from request
     const authHeader = req.headers.get('Authorization')!;
     const supabaseClient = createClient(
       supabaseUrl,
@@ -66,14 +57,17 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Verify user is company admin
-    const { data: userRole, error: roleError } = await supabaseClient
-      .from('user_roles')
+    // Verifica role do usuário (super_admin OR company_admin)
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
       .select('role, company_id')
-      .eq('user_id', user.id)
+      .eq('id', user.id)
       .single();
 
-    if (roleError || !userRole || userRole.role !== 'company_admin') {
+    const isSuperAdmin = profile?.role === 'super_admin';
+    const isCompanyAdmin = profile?.role === 'company_admin';
+
+    if (!isSuperAdmin && !isCompanyAdmin) {
       return new Response(
         JSON.stringify({ error: 'Apenas administradores podem gerenciar usuários' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -83,230 +77,245 @@ const handler = async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
 
+    // Helper: valida acesso ao company alvo
+    const canAccessCompany = (companyId: string) =>
+      isSuperAdmin || profile?.company_id === companyId;
+
+    // ──────────────── LIST ────────────────
+    if (action === 'list') {
+      const companyId = url.searchParams.get('company_id') || profile?.company_id;
+      if (!companyId) {
+        return new Response(JSON.stringify({ error: 'company_id required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      if (!canAccessCompany(companyId)) {
+        return new Response(JSON.stringify({ error: 'Acesso negado' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const { data: roles } = await supabaseAdmin
+        .from('user_roles')
+        .select('user_id, role')
+        .eq('company_id', companyId);
+
+      if (!roles || roles.length === 0) {
+        return new Response(JSON.stringify({ users: [] }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const userIds = roles.map(r => r.user_id);
+      const { data: profiles } = await supabaseAdmin
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+
+      // Buscar emails do auth.users
+      const users = await Promise.all(
+        roles.map(async (r) => {
+          const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(r.user_id);
+          const p = profiles?.find(pr => pr.id === r.user_id);
+          return {
+            id: r.user_id,
+            email: authUser?.user?.email || null,
+            full_name: p?.full_name || null,
+            role: r.role,
+            blocked: !!authUser?.user?.banned_until && new Date(authUser.user.banned_until) > new Date(),
+            created_at: authUser?.user?.created_at,
+            last_sign_in_at: authUser?.user?.last_sign_in_at,
+          };
+        })
+      );
+
+      return new Response(JSON.stringify({ users }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // ──────────────── CREATE ────────────────
     if (action === 'create') {
-      // CREATE USER
-      const { email, fullName, role, companyId, permissions }: CreateUserRequest = await req.json();
+      const { email, fullName, role, companyId, password }: CreateUserRequest = await req.json();
 
-      // Validate that admin is creating user for their own company
-      if (companyId !== userRole.company_id) {
-        return new Response(
-          JSON.stringify({ error: 'Você só pode criar usuários para sua própria empresa' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (!canAccessCompany(companyId)) {
+        return new Response(JSON.stringify({ error: 'Acesso negado para esta empresa' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      // Check if email already exists
-      const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-      const emailExists = existingUsers?.users?.some(u => u.email === email);
-      
-      if (emailExists) {
-        return new Response(
-          JSON.stringify({ error: 'Este email já está cadastrado no sistema' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      const finalPassword = password || (Math.random().toString(36).slice(-12) + 'Aa1!');
 
-      // Generate temporary password
-      const tempPassword = Math.random().toString(36).slice(-12) + 'Aa1!';
-
-      // Create auth user with email confirmation required
       const { data: newUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email,
-        password: tempPassword,
-        email_confirm: false, // User must confirm email
-        user_metadata: {
-          full_name: fullName,
-        }
+        password: finalPassword,
+        email_confirm: true,
+        user_metadata: { full_name: fullName }
       });
 
-      if (authError) {
-        console.error('Auth error:', authError);
-        return new Response(
-          JSON.stringify({ error: `Erro ao criar usuário: ${authError.message}` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (authError || !newUser.user) {
+        return new Response(JSON.stringify({ error: authError?.message || 'Falha ao criar usuário' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      if (!newUser.user) {
-        return new Response(
-          JSON.stringify({ error: 'Falha ao criar usuário' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      // Trigger handle_new_user já cria profile/role default. Atualizar com dados corretos.
+      await new Promise(r => setTimeout(r, 500));
 
-      // Wait for trigger to create profile
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Update profile with company_id and full_name
-      const { error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .update({ 
-          company_id: companyId,
-          full_name: fullName
-        })
+      await supabaseAdmin.from('profiles')
+        .update({ company_id: companyId, full_name: fullName })
         .eq('id', newUser.user.id);
 
-      if (profileError) {
-        console.error('Profile error:', profileError);
-        // Rollback: delete user
-        await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
-        return new Response(
-          JSON.stringify({ error: `Erro ao criar perfil: ${profileError.message}` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Create user role
-      const { error: roleError } = await supabaseAdmin
-        .from('user_roles')
-        .insert({
+      await supabaseAdmin.from('user_roles')
+        .upsert({
           user_id: newUser.user.id,
           company_id: companyId,
-          role: role,
+          role,
           created_by: user.id
-        });
+        }, { onConflict: 'user_id,role,company_id' });
 
-      if (roleError) {
-        console.error('Role error:', roleError);
-        // Rollback: delete user
-        await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
-        return new Response(
-          JSON.stringify({ error: `Erro ao criar role: ${roleError.message}` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      return new Response(JSON.stringify({
+        success: true,
+        userId: newUser.user.id,
+        tempPassword: password ? undefined : finalPassword,
+        message: password ? 'Usuário criado' : 'Usuário criado. Senha temporária retornada.'
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
-      // Send password reset email (since user needs to confirm and set password)
-      const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-        redirectTo: `${req.headers.get('origin')}/auth/callback`
-      });
-
-      if (resetError) {
-        console.error('Reset password error:', resetError);
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Usuário criado com sucesso! Um email de confirmação foi enviado.',
-          userId: newUser.user.id
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-
-    } else if (action === 'update') {
-      // UPDATE USER
+    // ──────────────── UPDATE ────────────────
+    if (action === 'update') {
       const { userId, fullName, role }: UpdateUserRequest = await req.json();
 
-      // Get user's company to verify admin can update
-      const { data: targetUserRole } = await supabaseClient
-        .from('user_roles')
-        .select('company_id')
-        .eq('user_id', userId)
-        .single();
+      const { data: targetRole } = await supabaseAdmin
+        .from('user_roles').select('company_id').eq('user_id', userId).single();
 
-      if (!targetUserRole || targetUserRole.company_id !== userRole.company_id) {
-        return new Response(
-          JSON.stringify({ error: 'Você só pode atualizar usuários da sua empresa' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (!targetRole || !canAccessCompany(targetRole.company_id)) {
+        return new Response(JSON.stringify({ error: 'Acesso negado' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      // Update profile if fullName provided
       if (fullName) {
-        const { error: profileError } = await supabaseAdmin
-          .from('profiles')
-          .update({ full_name: fullName })
-          .eq('id', userId);
-
-        if (profileError) {
-          return new Response(
-            JSON.stringify({ error: `Erro ao atualizar perfil: ${profileError.message}` }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
+        await supabaseAdmin.from('profiles').update({ full_name: fullName }).eq('id', userId);
       }
-
-      // Update role if provided
       if (role) {
-        const { error: roleError } = await supabaseAdmin
-          .from('user_roles')
-          .update({ role })
-          .eq('user_id', userId)
-          .eq('company_id', userRole.company_id);
-
-        if (roleError) {
-          return new Response(
-            JSON.stringify({ error: `Erro ao atualizar role: ${roleError.message}` }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
+        await supabaseAdmin.from('user_roles')
+          .update({ role }).eq('user_id', userId).eq('company_id', targetRole.company_id);
       }
 
-      return new Response(
-        JSON.stringify({ success: true, message: 'Usuário atualizado com sucesso' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-
-    } else if (action === 'delete') {
-      // DELETE USER
-      const { userId, currentUserId }: DeleteUserRequest = await req.json();
-
-      // Prevent self-deletion
-      if (userId === currentUserId) {
-        return new Response(
-          JSON.stringify({ error: 'Você não pode excluir sua própria conta' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Verify user belongs to admin's company
-      const { data: targetUserRole } = await supabaseClient
-        .from('user_roles')
-        .select('company_id')
-        .eq('user_id', userId)
-        .single();
-
-      if (!targetUserRole || targetUserRole.company_id !== userRole.company_id) {
-        return new Response(
-          JSON.stringify({ error: 'Você só pode excluir usuários da sua empresa' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Delete user (cascade will delete profile and user_roles)
-      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-
-      if (deleteError) {
-        return new Response(
-          JSON.stringify({ error: `Erro ao excluir usuário: ${deleteError.message}` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({ success: true, message: 'Usuário excluído com sucesso' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-
-    } else {
-      return new Response(
-        JSON.stringify({ error: 'Ação inválida' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
+    // ──────────────── RESET PASSWORD ────────────────
+    if (action === 'reset_password') {
+      const { userId, newPassword, sendEmail }: ResetPasswordRequest = await req.json();
+
+      const { data: targetRole } = await supabaseAdmin
+        .from('user_roles').select('company_id').eq('user_id', userId).single();
+
+      if (!targetRole || !canAccessCompany(targetRole.company_id)) {
+        return new Response(JSON.stringify({ error: 'Acesso negado' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const { data: targetUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+      if (!targetUser?.user?.email) {
+        return new Response(JSON.stringify({ error: 'Usuário não encontrado' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // Opção 1: senha fornecida — set direto
+      if (newPassword) {
+        const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { password: newPassword });
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        return new Response(JSON.stringify({ success: true, message: 'Senha alterada' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // Opção 2: enviar email de reset
+      if (sendEmail) {
+        const { error } = await supabaseAdmin.auth.resetPasswordForEmail(targetUser.user.email, {
+          redirectTo: `${req.headers.get('origin')}/auth/callback`
+        });
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        return new Response(JSON.stringify({ success: true, message: 'Email de reset enviado' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      return new Response(JSON.stringify({ error: 'newPassword ou sendEmail obrigatório' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // ──────────────── TOGGLE BLOCK ────────────────
+    if (action === 'toggle_block') {
+      const { userId, block }: ToggleBlockRequest = await req.json();
+
+      if (userId === user.id) {
+        return new Response(JSON.stringify({ error: 'Não pode bloquear sua própria conta' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const { data: targetRole } = await supabaseAdmin
+        .from('user_roles').select('company_id').eq('user_id', userId).single();
+
+      if (!targetRole || !canAccessCompany(targetRole.company_id)) {
+        return new Response(JSON.stringify({ error: 'Acesso negado' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // Bloqueia por 100 anos = efetivamente permanente
+      const banDuration = block ? '876000h' : 'none';
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        ban_duration: banDuration
+      } as any);
+
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: block ? 'Usuário bloqueado' : 'Usuário desbloqueado'
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // ──────────────── DELETE ────────────────
+    if (action === 'delete') {
+      const { userId } = await req.json();
+
+      if (userId === user.id) {
+        return new Response(JSON.stringify({ error: 'Não pode excluir sua própria conta' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const { data: targetRole } = await supabaseAdmin
+        .from('user_roles').select('company_id').eq('user_id', userId).single();
+
+      if (!targetRole || !canAccessCompany(targetRole.company_id)) {
+        return new Response(JSON.stringify({ error: 'Acesso negado' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      return new Response(JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    return new Response(JSON.stringify({ error: 'Ação inválida' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error: any) {
     console.error('Error in user-management:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Erro ao processar requisição' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 };
