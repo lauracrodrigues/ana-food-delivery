@@ -9,7 +9,7 @@ import { CacheProvider } from "@/contexts/CacheContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { Loader2 } from "lucide-react";
+import { SplashScreen, InlineLoader } from "@/components/ui/SplashScreen";
 
 // Eagerly load critical components
 import Index from "./pages/Index";
@@ -74,19 +74,11 @@ const queryClient = new QueryClient({
   },
 });
 
-// Loading fallback component for page content only
-const PageLoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-[50vh]">
-    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-  </div>
-);
+// Loading inline para conteúdo de página (dentro do layout)
+const PageLoadingFallback = () => <InlineLoader />;
 
-// Full screen loading for initial load
-const FullLoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-  </div>
-);
+// Splash screen fullscreen para carregamento inicial
+const FullLoadingFallback = () => <SplashScreen />;
 
 // Layout wrapper that keeps the DashboardLayout mounted
 const DashboardLayoutWrapper = () => (

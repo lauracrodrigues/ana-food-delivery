@@ -1,4 +1,4 @@
-// v1.1.0 — suporte a fullScreen (sem padding, overflow-hidden para kanban)
+// v1.2.0 — suporte a fullScreen + sidebar persiste estado via cookie
 import { ReactNode, useEffect } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
@@ -10,6 +10,14 @@ interface DashboardLayoutProps {
   fullScreen?: boolean;
 }
 
+// Lê cookie sidebar:state para restaurar posição ao recarregar
+function getSidebarDefaultOpen(): boolean {
+  if (typeof document === 'undefined') return false;
+  const cookie = document.cookie.split('; ').find(c => c.startsWith('sidebar:state='));
+  if (!cookie) return false;
+  return cookie.split('=')[1] === 'true';
+}
+
 export function DashboardLayout({ children, fullScreen }: DashboardLayoutProps) {
   useEffect(() => {
     initializeColorPalette();
@@ -17,7 +25,7 @@ export function DashboardLayout({ children, fullScreen }: DashboardLayoutProps) 
   }, []);
 
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider defaultOpen={getSidebarDefaultOpen()}>
       <div className={`relative flex w-full bg-background ${fullScreen ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
         <AppSidebar />
         <main className={`flex-1 transition-all duration-300 lg:ml-0 pt-16 lg:pt-0 ${fullScreen ? 'overflow-hidden flex flex-col' : 'overflow-auto'}`}>
