@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Edit2, Trash2, Plus, Save, X, CreditCard } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { SkeletonTable } from "@/components/loading";
 
 interface PaymentMethod {
   id: string;
@@ -207,7 +208,7 @@ const PaymentMethods = () => {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p>Carregando...</p>
+            <SkeletonTable rows={5} cols={4} />
           ) : methods.length === 0 ? (
             <p className="text-muted-foreground">Nenhuma forma de pagamento cadastrada.</p>
           ) : (

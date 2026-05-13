@@ -19,6 +19,7 @@ import { CompanyBannerUpload } from "@/components/company/CompanyBannerUpload";
 import { MenuBannersAdmin } from "@/components/company/MenuBannersAdmin";
 import { ImageIcon } from "lucide-react";
 import { masks } from "@/lib/masks";
+import { SkeletonCard, SkeletonMetricsGrid } from "@/components/loading";
 
 const AddressSearchWithMap = lazy(() =>
   import("@/components/company/AddressSearchWithMap").then(m => ({ default: m.AddressSearchWithMap }))
@@ -187,8 +188,9 @@ export default function CompanyProfile() {
 
   if (!profile || isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="p-6 space-y-4">
+        <SkeletonCard className="h-24" />
+        <SkeletonMetricsGrid />
       </div>
     );
   }

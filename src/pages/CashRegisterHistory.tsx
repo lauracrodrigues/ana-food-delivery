@@ -50,6 +50,7 @@ import { CashRegister } from '@/types/pdv';
 import { CashRegisterSummaryView } from '@/components/pdv/CashRegisterSummaryView';
 import { useNavigate } from 'react-router-dom';
 import { PageLayout } from "@/components/layout/PageLayout";
+import { SkeletonTable } from "@/components/loading";
 
 export default function CashRegisterHistory() {
   const { companyId } = useCompanyId();
@@ -200,9 +201,7 @@ export default function CashRegisterHistory() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-            </div>
+            <SkeletonTable rows={6} cols={5} />
           ) : registers && registers.length > 0 ? (
             <>
               {/* Desktop Table */}

@@ -1,5 +1,5 @@
-// v1.1.0 — SW network-first para evitar chunk errors em deploys
-const CACHE_NAME = 'anafood-v2';
+// v1.2.0 — Limpa cache automaticamente a cada versão
+const CACHE_NAME = 'anafood-v3';
 
 self.addEventListener('install', () => {
   self.skipWaiting();

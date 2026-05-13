@@ -39,6 +39,7 @@ import { CashRegisterClosing } from '@/components/pdv/CashRegisterClosing';
 import { CashRegisterSuccessDialog } from '@/components/pdv/CashRegisterSuccessDialog';
 import { useNavigate } from 'react-router-dom';
 import { PageLayout } from "@/components/layout/PageLayout";
+import { SkeletonTable } from "@/components/loading";
 
 export default function CashRegister() {
   const navigate = useNavigate();
@@ -116,11 +117,7 @@ export default function CashRegister() {
     summary.opening_amount + summary.total_cash + summary.total_deposits - summary.total_withdrawals : 0;
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
+    return <div className="p-6"><SkeletonTable rows={6} cols={4} /></div>;
   }
 
   // Show closing screen

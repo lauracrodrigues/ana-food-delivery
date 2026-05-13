@@ -1,73 +1,69 @@
-# Welcome to your Lovable project
+# AnaFood — Plataforma SaaS para Restaurantes
 
-## Project info
+Sistema multi-tenant para delivery, balcão, mesa, WhatsApp e gestão de restaurantes.
 
-**URL**: https://lovable.dev/projects/986b9a1c-633d-4003-a1d6-4e93905a5dcf
+**Domínio**: anafood.vip  
+**Stack**: React + TypeScript + Supabase + Evolution API
 
-## How can I edit this code?
+## Documentação
 
-There are several ways of editing your application.
+- [System Overview](./SYSTEM_OVERVIEW.md) — visão geral da arquitetura
+- [Specs (OpenSpec)](./specs/README.md) — especificações de todas as features
+- [API Docs](./docs/API_DOCS.md) — endpoints e autenticação
+- [Deploy Guide](./docs/DEPLOY_GUIDE.md) — como fazer deploy
 
-**Use Lovable**
+## Context Engineering
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/986b9a1c-633d-4003-a1d6-4e93905a5dcf) and start prompting.
+- [Padrões de Arquitetura](./context/architecture_patterns.md)
+- [Padrões de Código](./context/coding_patterns.md)
+- [Regras de Negócio](./context/business_rules.md)
+- [Regras de Realtime](./context/realtime_rules.md)
+- [Regras de Segurança](./context/security_rules.md)
+- [Padrões Frontend](./context/frontend_patterns.md)
 
-Changes made via Lovable will be committed automatically to this repo.
+## Desenvolvimento Local
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+npm install
 npm run dev
+# Acessa: http://localhost:8080
 ```
 
-**Edit a file directly in GitHub**
+## Deploy Produção
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+npm run build
+# dist/ já é servido pelo nginx em anafood.vip (automático)
+```
 
-**Use GitHub Codespaces**
+## Edge Functions
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```bash
+supabase functions deploy --project-ref jgdyklzrxygvwuhlnbat
+```
 
-## What technologies are used for this project?
+## Supabase
 
-This project is built with:
+- **Project ref**: `jgdyklzrxygvwuhlnbat`
+- **URL**: `https://jgdyklzrxygvwuhlnbat.supabase.co`
+- **Migrations**: `supabase/migrations/`
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Workflow para Novas Features (OpenSpec)
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/986b9a1c-633d-4003-a1d6-4e93905a5dcf) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+```
+SPEC (proposal.md)
+  ↓
+ANÁLISE (impacto nos módulos existentes)
+  ↓
+DESIGN (design.md — arquitetura técnica)
+  ↓
+TASKS (tasks.md — checklist)
+  ↓
+IMPLEMENTAÇÃO
+  ↓
+TESTES
+  ↓
+VALIDAÇÃO
+  ↓
+UPDATE DOCS + UPDATE SPECS
+```

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Edit2, Trash2, QrCode, RefreshCw, MessageSquare, AlertCircle } from "lucide-react";
+import { SkeletonTable } from "@/components/loading";
 import { useToast } from "@/components/ui/use-toast";
 
 interface WhatsAppSession {
@@ -62,7 +63,7 @@ export function WhatsAppSessionList({
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <p>Carregando...</p>
+          <SkeletonTable rows={3} cols={5} />
         ) : sessions.length === 0 ? (
           <div className="text-center py-8">
             <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

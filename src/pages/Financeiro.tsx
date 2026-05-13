@@ -35,6 +35,7 @@ import {
   startOfMonth, endOfMonth, format, parseISO,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { SkeletonTable } from "@/components/loading";
 
 // ────────────────────────────────────────────────────────────
 // Tipos
@@ -762,7 +763,7 @@ function ContasAPagarTab() {
       <Card>
         <CardContent className="pt-4">
           {isLoading ? (
-            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            <SkeletonTable rows={6} cols={5} />
           ) : filtered.length === 0 ? (
             <p className="text-center text-muted-foreground py-10 text-sm">Nenhuma conta encontrada.</p>
           ) : (
@@ -955,7 +956,7 @@ function DespesasTab({ start, end, grossRevenue }: { start: Date; end: Date; gro
       <Card>
         <CardContent className="pt-4">
           {isLoading ? (
-            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            <SkeletonTable rows={6} cols={5} />
           ) : expenses.length === 0 ? (
             <p className="text-center text-muted-foreground py-10 text-sm">Nenhuma despesa registrada no período.</p>
           ) : (

@@ -190,6 +190,7 @@ Deno.serve(async (req: Request) => {
           .from('orders')
           .select('*')
           .eq('company_id', companyId)
+          .neq('status', 'awaiting_payment') // PIX MP não confirmado — oculto do kanban
           .order('created_at', { ascending: false });
         
         if (status) query = query.eq('status', status);

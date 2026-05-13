@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Edit, Trash2 } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { SkeletonTable } from "@/components/loading";
 
 interface Category {
   id: string;
@@ -226,7 +227,7 @@ export function Categories() {
           </div>
 
           {isLoading ? (
-            <div className="text-center py-8">Carregando...</div>
+            <SkeletonTable rows={6} cols={4} />
           ) : filteredCategories.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               {search ? "Nenhuma categoria encontrada." : "Nenhuma categoria cadastrada."}

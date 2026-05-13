@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Edit, Trash2 } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { SkeletonTable } from "@/components/loading";
 
 interface Extra {
   id: string;
@@ -224,7 +225,7 @@ export function Extras() {
           </div>
 
           {isLoading ? (
-            <div className="text-center py-8">Carregando...</div>
+            <SkeletonTable rows={6} cols={4} />
           ) : filteredExtras.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               {search ? "Nenhum adicional encontrado." : "Nenhum adicional cadastrado."}

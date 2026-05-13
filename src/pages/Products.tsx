@@ -21,6 +21,7 @@ import { PageLayout } from "@/components/layout/PageLayout";
 import { MenuImportDialog } from "@/components/products/MenuImportDialog";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { cn } from "@/lib/utils";
+import { SkeletonTable } from "@/components/loading";
 
 interface Category {
   id: string;
@@ -296,9 +297,7 @@ export function Products() {
           </ScrollArea>
 
           {isLoading ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            <SkeletonTable rows={8} cols={5} />
           ) : filtered.length === 0 ? (
             <p className="text-center text-muted-foreground py-10 text-sm">
               {search || filterCategory ? "Nenhum resultado para os filtros." : "Nenhum produto cadastrado."}

@@ -8,6 +8,7 @@ import { ChatMessages, ChatMessage } from "@/components/whatsapp-chat/ChatMessag
 import { ChatInput } from "@/components/whatsapp-chat/ChatInput";
 import { AgentControlBar } from "@/components/whatsapp-chat/AgentControlBar";
 import { MessageSquare } from "lucide-react";
+import { SkeletonChat } from "@/components/loading";
 
 function extractPhoneFromJid(jid: string) {
   return jid.replace(/@.*$/, "");
@@ -275,11 +276,7 @@ export default function WhatsAppChat() {
   }, [companyId, queryClient]);
 
   if (isLoadingCompany) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-64px)]">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
+    return <SkeletonChat />;
   }
 
   if (!session) {

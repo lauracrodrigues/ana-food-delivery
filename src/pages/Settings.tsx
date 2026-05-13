@@ -38,6 +38,7 @@ import { TablesSettings } from "@/components/settings/TablesSettings";
 import { BusinessHoursConfig } from "@/components/settings/BusinessHoursConfig";
 import { PaymentSettingsConfig } from "@/components/settings/PaymentSettingsConfig";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { SkeletonTable } from "@/components/loading";
 
 interface StoreSettings {
   id?: string;
@@ -698,9 +699,7 @@ export function Settings() {
             ) : (
               <Card>
                 <CardContent className="py-10">
-                  <p className="text-center text-muted-foreground">
-                    Carregando configurações...
-                  </p>
+                  <SkeletonTable rows={5} cols={3} />
                 </CardContent>
               </Card>
             )}
