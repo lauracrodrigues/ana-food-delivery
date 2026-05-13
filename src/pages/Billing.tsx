@@ -1,86 +1,75 @@
-// v1.0.0 — Página de Billing/Assinatura do tenant
+// v2.0.0 — Billing via Supabase direto (sem API externa)
 import { useState } from "react";
 import { formatCurrency } from "@/lib/currency-formatter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useCompanyId } from "@/hooks/useCompanyId";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
   CreditCard, Crown, Zap, Shield, AlertTriangle,
-  CheckCircle, Clock, ExternalLink, BarChart3, Package
+  CheckCircle, Clock, BarChart3, Package, MessageSquare,
 } from "lucide-react";
-
-const API_URL = import.meta.env.VITE_BILLING_API_URL ?? "";
 
 interface Plan {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   price: number;
-  features: string[];
+  features: string[] | null;
   max_products: number | null;
   max_orders_per_month: number | null;
-  stripe_price_id: string | null;
 }
 
-interface BillingStatus {
-  subscription_status: string;
-  plan: {
-    name: string;
-    price: number;
-    max_orders: number | null;
-  } | null;
-  quota: {
-    used: number;
-    limit: number;
-    percentual: number;
-    nearLimit: boolean;
-  };
+interface CompanyBilling {
+  plan_id: string | null;
+  subscription_status: string | null;
   trial_ends_at: string | null;
-  grace_ends_at: string | null;
+  plan: Plan | null;
 }
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: typeof CheckCircle }> = {
-  active: { label: "Ativo", variant: "default", icon: CheckCircle },
-  trial: { label: "Trial", variant: "secondary", icon: Clock },
-  grace: { label: "Período de Carência", variant: "outline", icon: AlertTriangle },
-  blocked: { label: "Bloqueado", variant: "destructive", icon: Shield },
-  cancelled: { label: "Cancelado", variant: "destructive", icon: Shield },
+  active:    { label: "Ativo",              variant: "default",     icon: CheckCircle },
+  trial:     { label: "Trial",              variant: "secondary",   icon: Clock },
+  grace:     { label: "Período de Carência",variant: "outline",     icon: AlertTriangle },
+  blocked:   { label: "Bloqueado",          variant: "destructive", icon: Shield },
+  cancelled: { label: "Cancelado",          variant: "destructive", icon: Shield },
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const config = STATUS_MAP[status] || STATUS_MAP.blocked;
-  const Icon = config.icon;
+function StatusBadge({ status }: { status: string | null }) {
+  const cfg = STATUS_MAP[status ?? ""] ?? STATUS_MAP.blocked;
+  const Icon = cfg.icon;
   return (
-    <Badge variant={config.variant} className="gap-1.5 px-3 py-1">
+    <Badge variant={cfg.variant} className="gap-1.5 px-3 py-1">
       <Icon className="h-3.5 w-3.5" />
-      {config.label}
+      {cfg.label}
     </Badge>
   );
 }
 
-function PlanCard({ plan, currentPlanName, onSelect, loading }: {
-  plan: Plan;
-  currentPlanName: string | null;
-  onSelect: (planId: string) => void;
-  loading: boolean;
-}) {
-  const isCurrent = plan.name === currentPlanName;
+function PlanCard({ plan, isCurrent }: { plan: Plan; isCurrent: boolean }) {
+  const { toast } = useToast();
   const isPopular = plan.name === "Profissional";
+  const features: string[] = Array.isArray(plan.features) ? plan.features : [];
+
+  const handleSelect = () => {
+    toast({
+      title: "Entre em contato",
+      description: "Para alterar seu plano, fale com o suporte pelo WhatsApp ou e-mail.",
+    });
+  };
 
   return (
     <Card className={`relative ${isCurrent ? "ring-2 ring-primary" : ""} ${isPopular ? "border-primary" : ""}`}>
-      {isPopular && (
+      {isPopular && !isCurrent && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <Badge className="gap-1">
-            <Zap className="h-3 w-3" /> Popular
-          </Badge>
+          <Badge className="gap-1"><Zap className="h-3 w-3" /> Popular</Badge>
         </div>
       )}
       {isCurrent && (
@@ -99,7 +88,19 @@ function PlanCard({ plan, currentPlanName, onSelect, loading }: {
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        {plan.features.map((f, i) => (
+        {plan.max_orders_per_month && (
+          <div className="flex items-center gap-2 text-sm">
+            <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+            <span>Até {plan.max_orders_per_month === 999999 ? "ilimitados" : plan.max_orders_per_month} pedidos/mês</span>
+          </div>
+        )}
+        {plan.max_products && (
+          <div className="flex items-center gap-2 text-sm">
+            <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+            <span>Até {plan.max_products === 999999 ? "ilimitados" : plan.max_products} produtos</span>
+          </div>
+        )}
+        {features.map((f, i) => (
           <div key={i} className="flex items-center gap-2 text-sm">
             <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
             <span>{f}</span>
@@ -110,10 +111,10 @@ function PlanCard({ plan, currentPlanName, onSelect, loading }: {
         <Button
           className="w-full"
           variant={isCurrent ? "outline" : isPopular ? "default" : "secondary"}
-          disabled={isCurrent || !plan.stripe_price_id || loading}
-          onClick={() => onSelect(plan.id)}
+          disabled={isCurrent}
+          onClick={handleSelect}
         >
-          {isCurrent ? "Plano Atual" : loading ? "Aguarde..." : "Assinar"}
+          {isCurrent ? "Plano Atual" : "Solicitar Plano"}
         </Button>
       </CardFooter>
     </Card>
@@ -122,111 +123,50 @@ function PlanCard({ plan, currentPlanName, onSelect, loading }: {
 
 export default function Billing() {
   const { companyId } = useCompanyId();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
-  const apiConfigured = !!API_URL;
-
-  const { data: status, isLoading: statusLoading } = useQuery<BillingStatus>({
-    queryKey: ["billing-status", companyId],
+  const { data: billing, isLoading: billingLoading } = useQuery<CompanyBilling | null>({
+    queryKey: ["company-billing", companyId],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/billing/status/${companyId}`);
-      if (!res.ok) throw new Error("Erro ao buscar status");
-      return res.json();
+      if (!companyId) return null;
+      const { data, error } = await supabase
+        .from("companies")
+        .select("plan_id, subscription_status, trial_ends_at, plan:plans(id,name,description,price,features,max_products,max_orders_per_month)")
+        .eq("id", companyId)
+        .single();
+      if (error) throw error;
+      return data as unknown as CompanyBilling;
     },
-    enabled: !!companyId && apiConfigured,
-    retry: 1,
+    enabled: !!companyId,
   });
 
-  const { data: plans, isLoading: plansLoading } = useQuery<Plan[]>({
+  const { data: plans = [], isLoading: plansLoading } = useQuery<Plan[]>({
     queryKey: ["billing-plans"],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/billing/plans`);
-      if (!res.ok) throw new Error("Erro ao buscar planos");
-      return res.json();
-    },
-    enabled: apiConfigured,
-    retry: 1,
-  });
-
-  const portalMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`${API_URL}/billing/portal`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company_id: companyId }),
-      });
-      if (!res.ok) throw new Error("Erro ao abrir portal");
-      return res.json();
-    },
-    onSuccess: (data) => {
-      if (data.url) window.open(data.url, "_blank");
-    },
-    onError: () => {
-      toast({ title: "Erro", description: "Não foi possível abrir o portal de pagamento.", variant: "destructive" });
+      const { data, error } = await supabase
+        .from("plans")
+        .select("*")
+        .order("price", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Plan[];
     },
   });
 
-  const handleCheckout = async (planId: string) => {
-    setCheckoutLoading(planId);
-    try {
-      const res = await fetch(`${API_URL}/billing/checkout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company_id: companyId, plan_id: planId }),
-      });
-      if (!res.ok) throw new Error("Erro ao criar checkout");
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-    } catch {
-      toast({ title: "Erro", description: "Não foi possível iniciar o pagamento.", variant: "destructive" });
-    } finally {
-      setCheckoutLoading(null);
-    }
-  };
-
-  const quotaPercent = status?.quota?.percentual ?? 0;
-  const daysLeft = status?.trial_ends_at
-    ? Math.max(0, Math.ceil((new Date(status.trial_ends_at).getTime() - Date.now()) / 86_400_000))
+  const status = billing?.subscription_status ?? null;
+  const currentPlanId = billing?.plan_id ?? null;
+  const trialEndsAt = billing?.trial_ends_at ?? null;
+  const daysLeft = trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86_400_000))
     : null;
 
-  if (!apiConfigured) {
-    return (
-      <PageLayout title="Assinatura" subtitle="Gerencie seu plano e pagamentos">
-        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-4">
-          <CreditCard className="w-12 h-12 text-muted-foreground" />
-          <h2 className="text-xl font-semibold">Módulo de assinatura</h2>
-          <p className="text-muted-foreground max-w-sm text-sm">
-            O sistema de billing ainda não está configurado neste ambiente.
-            Entre em contato com o suporte para ativar.
-          </p>
-        </div>
-      </PageLayout>
-    );
-  }
-
   return (
-    <PageLayout
-      title="Assinatura"
-      subtitle="Gerencie seu plano e pagamentos"
-      actions={
-        status?.subscription_status === "active" ? (
-          <Button variant="outline" size="sm" onClick={() => portalMutation.mutate()} disabled={portalMutation.isPending}>
-            <CreditCard className="h-4 w-4 mr-2" />
-            Portal de Pagamento
-            <ExternalLink className="h-3 w-3 ml-1" />
-          </Button>
-        ) : undefined
-      }
-    >
+    <PageLayout title="Assinatura" subtitle="Gerencie seu plano">
       <div className="space-y-6">
-        {/* Status Atual */}
-        {statusLoading ? (
+        {/* Status atual */}
+        {billingLoading ? (
           <div className="grid gap-4 md:grid-cols-3">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-32" />)}
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}
           </div>
-        ) : status ? (
+        ) : (
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
               <CardHeader className="pb-2">
@@ -237,70 +177,63 @@ export default function Billing() {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-2xl font-bold">{status.plan?.name || "Sem plano"}</p>
-                    {status.plan && (
-                      <p className="text-sm text-muted-foreground">{formatCurrency(status.plan.price)}/mês</p>
+                    <p className="text-2xl font-bold">{billing?.plan?.name ?? "Sem plano"}</p>
+                    {billing?.plan && (
+                      <p className="text-sm text-muted-foreground">{formatCurrency(billing.plan.price)}/mês</p>
                     )}
                   </div>
-                  <StatusBadge status={status.subscription_status} />
+                  <StatusBadge status={status} />
                 </div>
-                {daysLeft !== null && status.subscription_status === "trial" && (
+                {daysLeft !== null && status === "trial" && (
                   <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     {daysLeft} dias restantes no trial
                   </p>
                 )}
-                {status.grace_ends_at && status.subscription_status === "grace" && (
-                  <p className="text-xs text-red-600 mt-2 flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    Carência até {new Date(status.grace_ends_at).toLocaleDateString("pt-BR")}
-                  </p>
-                )}
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" /> Uso Mensal
+                  <Package className="h-4 w-4" /> Limite de Pedidos
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">
-                  {status.quota.used}
-                  <span className="text-base font-normal text-muted-foreground">
-                    /{status.quota.limit === 999999 ? "∞" : status.quota.limit}
-                  </span>
-                </p>
-                <p className="text-sm text-muted-foreground mb-2">pedidos este mês</p>
-                <Progress
-                  value={Math.min(quotaPercent, 100)}
-                  className={`h-2 ${quotaPercent >= 80 ? "[&>div]:bg-amber-500" : ""} ${quotaPercent >= 100 ? "[&>div]:bg-red-500" : ""}`}
-                />
-                {status.quota.nearLimit && (
-                  <p className="text-xs text-amber-600 mt-1">Próximo do limite ({Math.round(quotaPercent)}%)</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Package className="h-4 w-4" /> Limite de Produtos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">
-                  {status.plan?.max_orders ? status.plan.max_orders : "∞"}
+                  {billing?.plan?.max_orders_per_month === 999999 || !billing?.plan?.max_orders_per_month
+                    ? "∞"
+                    : billing.plan.max_orders_per_month}
                 </p>
                 <p className="text-sm text-muted-foreground">pedidos/mês no plano</p>
               </CardContent>
             </Card>
-          </div>
-        ) : null}
 
-        {/* Alerta se bloqueado */}
-        {status?.subscription_status === "blocked" && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" /> Suporte
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Para alterar plano ou dúvidas sobre cobrança, fale com o suporte.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => window.open("https://wa.me/5511999999999", "_blank")}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Falar com Suporte
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {status === "blocked" && (
           <Card className="border-destructive bg-destructive/5">
             <CardContent className="pt-6">
               <div className="flex items-start gap-3">
@@ -308,7 +241,7 @@ export default function Billing() {
                 <div>
                   <p className="font-semibold text-destructive">Conta Bloqueada</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Sua conta está suspensa por falha no pagamento. Assine um plano abaixo para reativar.
+                    Sua conta está suspensa. Entre em contato com o suporte para reativar.
                   </p>
                 </div>
               </div>
@@ -318,26 +251,26 @@ export default function Billing() {
 
         <Separator />
 
-        {/* Planos Disponíveis */}
+        {/* Planos */}
         <div>
           <h2 className="text-lg font-semibold mb-4">Planos Disponíveis</h2>
           {plansLoading ? (
             <div className="grid gap-6 md:grid-cols-3">
-              {[1, 2, 3].map(i => <Skeleton key={i} className="h-80" />)}
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-80 rounded-xl" />)}
             </div>
-          ) : plans ? (
+          ) : plans.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Nenhum plano disponível.</p>
+          ) : (
             <div className="grid gap-6 md:grid-cols-3">
               {plans.map(plan => (
                 <PlanCard
                   key={plan.id}
                   plan={plan}
-                  currentPlanName={status?.plan?.name || null}
-                  onSelect={handleCheckout}
-                  loading={checkoutLoading === plan.id}
+                  isCurrent={plan.id === currentPlanId}
                 />
               ))}
             </div>
-          ) : null}
+          )}
         </div>
       </div>
     </PageLayout>
