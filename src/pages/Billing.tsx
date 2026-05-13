@@ -16,7 +16,7 @@ import {
   CheckCircle, Clock, ExternalLink, BarChart3, Package
 } from "lucide-react";
 
-const API_URL = "";
+const API_URL = import.meta.env.VITE_BILLING_API_URL ?? "";
 
 interface Plan {
   id: string;
@@ -126,6 +126,8 @@ export default function Billing() {
   const queryClient = useQueryClient();
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
+  const apiConfigured = !!API_URL;
+
   const { data: status, isLoading: statusLoading } = useQuery<BillingStatus>({
     queryKey: ["billing-status", companyId],
     queryFn: async () => {
@@ -133,7 +135,8 @@ export default function Billing() {
       if (!res.ok) throw new Error("Erro ao buscar status");
       return res.json();
     },
-    enabled: !!companyId,
+    enabled: !!companyId && apiConfigured,
+    retry: 1,
   });
 
   const { data: plans, isLoading: plansLoading } = useQuery<Plan[]>({
@@ -143,6 +146,8 @@ export default function Billing() {
       if (!res.ok) throw new Error("Erro ao buscar planos");
       return res.json();
     },
+    enabled: apiConfigured,
+    retry: 1,
   });
 
   const portalMutation = useMutation({
@@ -185,6 +190,21 @@ export default function Billing() {
   const daysLeft = status?.trial_ends_at
     ? Math.max(0, Math.ceil((new Date(status.trial_ends_at).getTime() - Date.now()) / 86_400_000))
     : null;
+
+  if (!apiConfigured) {
+    return (
+      <PageLayout title="Assinatura" subtitle="Gerencie seu plano e pagamentos">
+        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-4">
+          <CreditCard className="w-12 h-12 text-muted-foreground" />
+          <h2 className="text-xl font-semibold">Módulo de assinatura</h2>
+          <p className="text-muted-foreground max-w-sm text-sm">
+            O sistema de billing ainda não está configurado neste ambiente.
+            Entre em contato com o suporte para ativar.
+          </p>
+        </div>
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout
