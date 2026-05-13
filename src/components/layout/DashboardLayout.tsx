@@ -34,7 +34,7 @@ export function DashboardLayout({ children, fullScreen }: DashboardLayoutProps) 
           {fullScreen ? (
             children
           ) : (
-            <div className="px-4 sm:px-6 lg:px-8">
+            <div className="px-4 sm:px-6 lg:px-8 content-fade-in">
               {children}
             </div>
           )}

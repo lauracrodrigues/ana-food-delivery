@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { Loader2 } from "lucide-react";
+import { SkeletonKanban } from "@/components/loading";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -886,14 +887,7 @@ export function OrdersKanban() {
     );
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="w-8 h-8 animate-spin" />
-        <span className="ml-3 text-lg">Carregando pedidos...</span>
-      </div>
-    );
-  }
+  if (isLoading) return <SkeletonKanban />;
 
   return (
     <div className="flex flex-col h-full overflow-hidden px-4 pt-2">

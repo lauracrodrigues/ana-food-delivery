@@ -33,6 +33,7 @@ import { ptBR } from "date-fns/locale";
 import { CustomerOrderHistory } from "@/components/customers/CustomerOrderHistory";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { cn } from "@/lib/utils";
+import { SkeletonTable } from "@/components/loading";
 
 // ────────────────────────────────────────────────────────────
 // Tipos
@@ -612,7 +613,7 @@ export function Customers() {
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            <SkeletonTable rows={8} cols={6} />
           ) : filtered.length === 0 ? (
             <p className="text-center text-muted-foreground py-10 text-sm">
               {search ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado.'}

@@ -23,6 +23,7 @@ import { PaymentMethodsChart } from "@/components/dashboard/PaymentMethodsChart"
 import { TopCustomersList } from "@/components/dashboard/TopCustomersList";
 import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { SkeletonDashboard } from "@/components/loading";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -106,7 +107,7 @@ export default function StoreDashboard() {
     if (storeSettings) setStoreOpen(storeSettings.store_open || false);
   }, [storeSettings]);
 
-  const { data: filteredOrders } = useDateRangeOrders({ companyId, showTodayOnly, startDate, endDate });
+  const { data: filteredOrders, isLoading: ordersLoading } = useDateRangeOrders({ companyId, showTodayOnly, startDate, endDate });
 
   const { metrics, revenueData, paymentMethodsData, topProducts, topCustomers } = useDashboardMetrics({
     filteredOrders,
@@ -260,6 +261,14 @@ export default function StoreDashboard() {
           {/* Onboarding Checklist */}
           {companyId && <OnboardingChecklist companyId={companyId} />}
 
+          {/* Skeleton enquanto primeiro carregamento */}
+          {ordersLoading && !filteredOrders ? (
+            <SkeletonDashboard />
+          ) : null}
+
+          {/* Conteúdo real — fade-in quando pronto */}
+          {!ordersLoading || filteredOrders ? (
+            <>
           {/* Metrics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricsCard
@@ -303,6 +312,8 @@ export default function StoreDashboard() {
             <TopProductsList products={topProducts.map(p => ({ name: p.name, quantity: p.quantity, revenue: p.revenue }))} />
             <TopCustomersList customers={topCustomers} />
           </div>
+          </>
+          ) : null}
         </div>
     </PageLayout>
   );

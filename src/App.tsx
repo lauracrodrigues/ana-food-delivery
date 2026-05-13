@@ -10,7 +10,8 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ProtectedRoute, AdminRoute, ClientRoute } from "@/components/auth/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
-import { SplashScreen, InlineLoader } from "@/components/ui/SplashScreen";
+import { SplashScreen } from "@/components/ui/SplashScreen";
+import { GlobalLoader, PageLoader } from "@/components/loading";
 
 // Eagerly load critical components
 import Index from "./pages/Index";
@@ -80,8 +81,8 @@ const queryClient = new QueryClient({
   },
 });
 
-// Loading inline para conteúdo de página (dentro do layout)
-const PageLoadingFallback = () => <InlineLoader />;
+// Skeleton-based loader para lazy routes dentro do layout
+const PageLoadingFallback = () => <PageLoader />;
 
 // Splash screen fullscreen para carregamento inicial
 const FullLoadingFallback = () => <SplashScreen />;
@@ -132,6 +133,7 @@ const App = () => {
     <ThemeProvider defaultTheme="light">
       <CacheProvider defaultTTL={3600} enableLogs={false}>
         <TooltipProvider>
+          <GlobalLoader />
           <Toaster />
           <Sonner />
           <BrowserRouter>
