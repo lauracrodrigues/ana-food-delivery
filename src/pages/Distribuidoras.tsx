@@ -1,4 +1,4 @@
-// v1.0.0 — Distribuidoras: fornecedores + pedidos de compra + recebimento com baixa automática no estoque
+// v1.1.0 — Fornecedores: movido para Cadastros, renomeado
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -618,7 +618,7 @@ function PedidosTab() {
 
 export default function Distribuidoras() {
   return (
-    <PageLayout title="Distribuidoras" subtitle="Fornecedores e pedidos de compra">
+    <PageLayout title="Fornecedores" subtitle="Cadastro de fornecedores e pedidos de compra">
       <Tabs defaultValue="pedidos">
         <TabsList>
           <TabsTrigger value="pedidos">

@@ -104,11 +104,6 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
     icon: TrendingUp,
   },
   {
-    title: "Distribuidoras",
-    url: "/distribuidoras",
-    icon: Truck,
-  },
-  {
     title: "Pedidos",
     url: "/orders",
     icon: ShoppingBag,
@@ -124,6 +119,7 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
     subItems: [
       { title: "Produtos", url: "/products", icon: Package },
       { title: "Categorias", url: "/categories", icon: Tag },
+      { title: "Fornecedores", url: "/distribuidoras", icon: Truck },
 ...(isAdmin ? [{ title: "Usuários", url: "/users", icon: Users }] : []),
       { title: "Clientes", url: "/customers", icon: Users },
       { title: "Entregadores", url: "/entregadores", icon: MotoIcon },

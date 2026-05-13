@@ -1,4 +1,4 @@
-// v2.0.0 — Billing via Supabase direto (sem API externa)
+// v2.1.0 — Billing com contagem real de pedidos do mês
 import { useState } from "react";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { useQuery } from "@tanstack/react-query";
@@ -139,6 +139,24 @@ export default function Billing() {
     enabled: !!companyId,
   });
 
+  // Contagem de pedidos do mês atual
+  const { data: ordersUsed = 0 } = useQuery<number>({
+    queryKey: ["billing-orders-used", companyId],
+    queryFn: async () => {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      const { count, error } = await supabase
+        .from("orders")
+        .select("*", { count: "exact", head: true })
+        .eq("company_id", companyId!)
+        .gte("created_at", startOfMonth.toISOString());
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!companyId,
+  });
+
   const { data: plans = [], isLoading: plansLoading } = useQuery<Plan[]>({
     queryKey: ["billing-plans"],
     queryFn: async () => {
@@ -196,16 +214,37 @@ export default function Billing() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Package className="h-4 w-4" /> Limite de Pedidos
+                  <Package className="h-4 w-4" /> Uso Mensal de Pedidos
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">
-                  {billing?.plan?.max_orders_per_month === 999999 || !billing?.plan?.max_orders_per_month
-                    ? "∞"
-                    : billing.plan.max_orders_per_month}
-                </p>
-                <p className="text-sm text-muted-foreground">pedidos/mês no plano</p>
+                {(() => {
+                  const limit = billing?.plan?.max_orders_per_month ?? null;
+                  const unlimited = limit === 999999 || limit === null;
+                  const pct = unlimited ? 0 : Math.min(100, Math.round((ordersUsed / limit!) * 100));
+                  const nearLimit = !unlimited && pct >= 80;
+                  return (
+                    <>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-bold">{ordersUsed}</span>
+                        <span className="text-muted-foreground text-sm">
+                          / {unlimited ? "∞" : limit} pedidos
+                        </span>
+                      </div>
+                      {!unlimited && (
+                        <>
+                          <Progress value={pct} className={`mt-2 h-2 ${nearLimit ? "[&>div]:bg-amber-500" : ""}`} />
+                          <p className={`text-xs mt-1 ${nearLimit ? "text-amber-600" : "text-muted-foreground"}`}>
+                            {nearLimit ? `⚠ ${pct}% do limite usado` : `${pct}% usado este mês`}
+                          </p>
+                        </>
+                      )}
+                      {unlimited && (
+                        <p className="text-xs text-muted-foreground mt-1">pedidos ilimitados</p>
+                      )}
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
 
