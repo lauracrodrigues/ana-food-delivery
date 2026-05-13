@@ -1,20 +1,19 @@
-// v2.2.0 — fullScreen kanban + botões robô/msgs status + pedido manual
+// v2.5.0 — remove estado companyName nunca lido
 import { OrdersKanban } from "@/components/orders/OrdersKanban";
 import { ManualOrderSidebar } from "@/components/orders/ManualOrderSidebar";
 import { Button } from "@/components/ui/button";
-import { Store, Bot, MessageSquare, Clock, PlusCircle } from "lucide-react";
+import { Store, Bot, Clock, PlusCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useStoreSettings } from "@/hooks/useStoreSettings";
 
 export default function Orders() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [storeOpen, setStoreOpen] = useState(true);
   const [robotEnabled, setRobotEnabled] = useState(true);
-  const [statusMessagesEnabled, setStatusMessagesEnabled] = useState(true);
-  const [companyName, setCompanyName] = useState("");
   const [subdomain, setSubdomain] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [showManualOrder, setShowManualOrder] = useState(false);
@@ -38,7 +37,6 @@ export default function Orders() {
         .single();
 
       if (company) {
-        setCompanyName(company.fantasy_name || company.name);
         setSubdomain(company.subdomain);
         setCompanyId(company.id);
       }
@@ -46,22 +44,12 @@ export default function Orders() {
     },
   });
 
-  const { data: storeSettings } = useQuery({
-    queryKey: ["store-settings", companyId],
-    queryFn: async () => {
-      if (!companyId) return null;
-      const { data } = await supabase
-        .from('store_settings')
-        .select('*')
-        .eq('company_id', companyId)
-        .single();
-      if (data) setStoreOpen(data.store_open || false);
-      return data;
-    },
-    enabled: !!companyId,
-  });
+  const { settings: storeSettings } = useStoreSettings();
+  useEffect(() => {
+    if (storeSettings?.store_open !== undefined) setStoreOpen(storeSettings.store_open);
+  }, [storeSettings]);
 
-  // Query settings WhatsApp (robô + mensagens status)
+  // Query settings WhatsApp (só robô — msgs status movido para /whatsapp settings)
   const { data: whatsappSettings } = useQuery({
     queryKey: ["whatsapp-settings", companyId],
     queryFn: async () => {
@@ -71,39 +59,29 @@ export default function Orders() {
       return res.json();
     },
     enabled: !!companyId,
-    onSuccess: (data) => {
-      if (data) {
-        setRobotEnabled(data.robot_enabled !== false);
-        setStatusMessagesEnabled(data.status_messages_enabled !== false);
-      }
+    onSuccess: (data: any) => {
+      if (data) setRobotEnabled(data.robot_enabled !== false);
     },
   });
 
-  // Mutation toggle WhatsApp settings
+  // Mutation toggle robô
   const toggleWhatsappMutation = useMutation({
-    mutationFn: async (updates: {robot_enabled?: boolean; status_messages_enabled?: boolean}) => {
+    mutationFn: async (updates: { robot_enabled?: boolean }) => {
       if (!companyId) throw new Error('Company ID not found');
       const res = await fetch(`/v1/settings/${companyId}/whatsapp`, {
         method: 'PATCH',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(updates)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
       });
       if (!res.ok) throw new Error('Failed to update settings');
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-settings", companyId] });
-      toast({
-        title: "Configuração atualizada",
-        description: "As configurações do WhatsApp foram atualizadas com sucesso.",
-      });
+      toast({ title: "Configuração atualizada" });
     },
     onError: () => {
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar as configurações.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Não foi possível atualizar.", variant: "destructive" });
     },
   });
 
@@ -159,19 +137,6 @@ export default function Orders() {
           >
             <Bot className="w-4 h-4 mr-2" />
             Robô {robotEnabled ? "Ativo" : "Inativo"}
-          </Button>
-
-          <Button
-            variant={statusMessagesEnabled ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              const newValue = !statusMessagesEnabled;
-              setStatusMessagesEnabled(newValue);
-              toggleWhatsappMutation.mutate({status_messages_enabled: newValue});
-            }}
-          >
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Msgs {statusMessagesEnabled ? "ON" : "OFF"}
           </Button>
 
           <Button

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { formatCurrency } from "@/lib/currency-formatter";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,12 +77,11 @@ export function DeliveryFees() {
     enabled: !!profile?.company_id,
   });
 
-  // Update local delivery mode when company data loads
-  useState(() => {
+  useEffect(() => {
     if (company?.delivery_mode) {
       setDeliveryMode(company.delivery_mode as 'zones' | 'radius');
     }
-  });
+  }, [company?.delivery_mode]);
 
   // Fetch delivery fees
   const { data: fees = [], isLoading } = useQuery({
@@ -318,7 +318,7 @@ export function DeliveryFees() {
                 {fees.map((fee) => (
                   <TableRow key={fee.id}>
                     <TableCell className="font-medium">{fee.zone_name}</TableCell>
-                    <TableCell>R$ {fee.delivery_fee.toFixed(2)}</TableCell>
+                    <TableCell>{formatCurrency(fee.delivery_fee)}</TableCell>
                     <TableCell>
                       {fee.min_order_value ? `R$ ${fee.min_order_value.toFixed(2)}` : "-"}
                     </TableCell>

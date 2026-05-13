@@ -102,6 +102,11 @@ export function CompanyInfoStep({ onNext, initialData }: CompanyInfoStepProps) {
       }
     } catch (error) {
       console.error('Erro ao buscar CNPJ:', error);
+      toast({
+        title: "Não foi possível buscar o CNPJ",
+        description: "Verifique o número e tente novamente.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoadingCNPJ(false);
     }
@@ -128,6 +133,11 @@ export function CompanyInfoStep({ onNext, initialData }: CompanyInfoStepProps) {
       }
     } catch (error) {
       console.error('Erro ao buscar CEP:', error);
+      toast({
+        title: "Não foi possível buscar o CEP",
+        description: "Verifique o número e tente novamente.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoadingCEP(false);
     }

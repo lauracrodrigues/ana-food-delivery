@@ -1,7 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Printer, Phone, MapPin, XCircle, Clock, Package, Truck } from "lucide-react";
+import { Printer, Phone, MapPin, XCircle, Clock, Package, Truck, ArrowLeftRight } from "lucide-react";
+import { formatCurrency } from "@/lib/currency-formatter";
 import { Order } from "./types";
 
 interface OrderDetailsDialogProps {
@@ -11,6 +12,7 @@ interface OrderDetailsDialogProps {
   onPrint: (order: Order, isReprint: boolean) => void;
   onCancel: () => void;
   onOpenWhatsApp: (phone: string, orderNumber: string) => void;
+  onChangeType?: (orderId: string, newType: "delivery" | "pickup") => void;
   isPrinting: boolean;
 }
 
@@ -21,6 +23,7 @@ export function OrderDetailsDialog({
   onPrint,
   onCancel,
   onOpenWhatsApp,
+  onChangeType,
   isPrinting,
 }: OrderDetailsDialogProps) {
   if (!order) return null;
@@ -39,7 +42,7 @@ export function OrderDetailsDialog({
 
         <div className="space-y-4">
           {/* Order Info */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {order.type === "delivery" ? (
               <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 text-sm">
                 <Truck className="w-4 h-4" />
@@ -55,6 +58,19 @@ export function OrderDetailsDialog({
               <Clock className="w-4 h-4" />
               {new Date(order.created_at).toLocaleString('pt-BR')}
             </div>
+
+            {/* Botão trocar tipo — só em pedidos ativos */}
+            {onChangeType && order.status !== "cancelled" && order.status !== "completed" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-auto h-7 text-xs gap-1.5 border-dashed"
+                onClick={() => onChangeType(order.id, order.type === "delivery" ? "pickup" : "delivery")}
+              >
+                <ArrowLeftRight className="w-3.5 h-3.5" />
+                Mudar para {order.type === "delivery" ? "Retirada" : "Entrega"}
+              </Button>
+            )}
           </div>
 
           <Separator />
@@ -95,7 +111,7 @@ export function OrderDetailsDialog({
                     )}
                   </div>
                   <p className="font-medium">
-                    R$ {((item.price || 0) * (item.quantity || 0)).toFixed(2)}
+                    {formatCurrency((item.price || 0) * (item.quantity || 0))}
                   </p>
                 </div>
               ))}
@@ -108,17 +124,17 @@ export function OrderDetailsDialog({
           <div className="space-y-1">
             <div className="flex justify-between text-sm">
               <span>Subtotal:</span>
-              <span>R$ {total.toFixed(2)}</span>
+              <span>{formatCurrency(total)}</span>
             </div>
             {order.delivery_fee && order.delivery_fee > 0 && (
               <div className="flex justify-between text-sm">
                 <span>Taxa de entrega:</span>
-                <span>R$ {order.delivery_fee.toFixed(2)}</span>
+                <span>{formatCurrency(order.delivery_fee)}</span>
               </div>
             )}
             <div className="flex justify-between font-bold text-lg pt-2 border-t">
               <span>Total:</span>
-              <span>R$ {totalWithDelivery.toFixed(2)}</span>
+              <span>{formatCurrency(totalWithDelivery)}</span>
             </div>
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>Pagamento:</span>

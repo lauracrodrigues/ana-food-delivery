@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { formatCurrency } from "@/lib/currency-formatter";
 
 interface RevenueChartProps {
   data: Array<{
@@ -41,7 +42,7 @@ export const RevenueChart = memo(function RevenueChart({ data }: RevenueChartPro
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '8px'
               }}
-              formatter={(value: number) => [`R$ ${value.toFixed(2)}`, 'Faturamento']}
+              formatter={(value: number) => [formatCurrency(value), 'Faturamento']}
             />
             <Area
               type="monotone"

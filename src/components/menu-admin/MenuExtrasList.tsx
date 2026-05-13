@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/currency-formatter";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -220,7 +221,7 @@ export function MenuExtrasList({ companyId }: MenuExtrasListProps) {
                   {extra.description || "-"}
                 </TableCell>
                 <TableCell className="text-right">
-                  R$ {extra.price.toFixed(2)}
+                  {formatCurrency(extra.price)}
                 </TableCell>
                 <TableCell className="text-center">
                   <Switch

@@ -44,6 +44,8 @@ export function MenuHeader({ company }: MenuHeaderProps) {
             src={company.banner_url}
             alt={company.fantasy_name || company.name}
             className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
           />
         </div>
       )}
@@ -57,6 +59,8 @@ export function MenuHeader({ company }: MenuHeaderProps) {
               src={company.logo_url}
               alt={company.fantasy_name || company.name}
               className="w-20 h-20 object-contain rounded-lg border border-border bg-background"
+              loading="lazy"
+              decoding="async"
             />
           )}
 

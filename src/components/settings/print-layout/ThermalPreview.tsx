@@ -28,19 +28,7 @@ export function ThermalPreview({
     company_cnpj: companyData?.cnpj || undefined,
   };
 
-  console.log('👁️ ThermalPreview renderizando:', {
-    order_number: order.order_number,
-    customer_name: order.customer_name,
-    items_count: order.items?.length,
-    chars_per_line: config.chars_per_line,
-    margin_left: config.margin_left,
-    margin_right: config.margin_right,
-  });
-
-  // USAR FORMATADOR ÚNICO (single source of truth)
   const lines = formatReceipt(order, config, companyData);
-  
-  console.log('📺 Preview gerou', lines.length, 'linhas');
 
   // Helper para aplicar classes CSS baseadas na formatação
   const getLineClasses = (line: FormattedLine): string => {
@@ -95,7 +83,7 @@ export function ThermalPreview({
         <CardContent className="py-3 px-1">
           <div className="flex justify-center">
             <div 
-              className="bg-[#F5E6D3] shadow-lg rounded-sm overflow-hidden" 
+              className="bg-[#F5E6D3] text-black shadow-lg rounded-sm overflow-hidden"
               style={{ width: '320px' }}
             >
               {/* Preview com formatação aplicada */}

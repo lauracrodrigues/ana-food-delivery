@@ -1,4 +1,5 @@
-// v2.0.0 — estilo "Urgência & Timeline" — barra progresso, alertas visuais, layout denso
+// v2.5.0 — React.memo para evitar re-renders desnecessários no kanban
+import { memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,16 +9,26 @@ import {
   Truck,
   Package,
   MessageCircle,
+  PauseCircle,
+  PlayCircle,
 } from "lucide-react";
-import { Order, getNextStatus } from "./types";
+import { MotoIcon } from "@/components/ui/moto-icon";
+import { Order } from "./types";
+import { getNextStatus, requiresDelivererAssignment } from "@/utils/orderStatusRules";
+import { useOrderTimeAlert } from "@/hooks/useOrderTimeAlert";
 
 interface OrderCardProps {
   order: Order;
   isSelected: boolean;
+  isAgentPaused?: boolean;
   onSelect: () => void;
   onClick: () => void;
   onPrint: (order: Order, isReprint: boolean) => void;
   onStatusChange: (orderId: string, newStatus: string, previousStatus: string, order: Order) => void;
+  onToggleAgentPause: (order: Order, pause: boolean) => void;
+  // Chamado quando pedido de delivery em "Pronto" precisa escolher entregador antes de avançar
+  onAssignDeliverer: (order: Order) => void;
+  onChangeDeliverer: (order: Order) => void;
   onDragStart: (e: React.DragEvent, order: Order) => void;
   onDragEnd: (e: React.DragEvent) => void;
   alertTime: number;
@@ -35,34 +46,30 @@ function ProgressBar({ elapsed, maxTime }: { elapsed: number; maxTime: number })
   );
 }
 
-export function OrderCard({
+export const OrderCard = memo(function OrderCard({
   order,
   isSelected,
+  isAgentPaused = false,
   onSelect,
   onClick,
   onPrint,
   onStatusChange,
+  onToggleAgentPause,
+  onAssignDeliverer,
+  onChangeDeliverer,
   onDragStart,
   onDragEnd,
   alertTime,
   isPrinting,
   onOpenWhatsApp,
 }: OrderCardProps) {
-  const elapsedMinutes = Math.floor(
-    (Date.now() - new Date(order.created_at).getTime()) / 60000
-  );
-
-  // Tempo limite varia por status
-  const maxTime = order.status === 'pending' ? 15 :
-                  order.status === 'preparing' ? alertTime || 30 :
-                  order.status === 'ready' ? 10 :
-                  order.status === 'delivering' ? 45 : 60;
-
-  const pct = (elapsedMinutes / maxTime) * 100;
-  const overdue = pct >= 100;
-  const warning = pct >= 75 && !overdue;
+  const { elapsedMinutes, maxTime, pct, isOverdue: overdue, isWarning: warning } = useOrderTimeAlert(order, alertTime);
 
   const handleStatusChange = () => {
+    if (requiresDelivererAssignment(order.type, order.status)) {
+      onAssignDeliverer(order);
+      return;
+    }
     const nextStatus = getNextStatus(order.status, order.type);
     onStatusChange(order.id, nextStatus, order.status, order);
   };
@@ -72,6 +79,7 @@ export function OrderCard({
   return (
     <Card
       className={`cursor-move hover:shadow-md select-none transition-all duration-200 ease-out ${
+        isAgentPaused ? "border-orange-300 ring-1 ring-orange-200 dark:border-orange-700" :
         overdue ? "border-red-300 ring-1 ring-red-300 dark:border-red-700 dark:ring-red-700" :
         warning ? "border-amber-200 dark:border-amber-800" :
         "border-gray-100 dark:border-gray-800"
@@ -107,70 +115,99 @@ export function OrderCard({
         </div>
       )}
 
-      <CardContent className={`p-3 ${overdue || warning ? "rounded-b-xl" : "rounded-xl"}`}>
-        {/* Top row — número + tipo */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
+      <CardContent className={`p-2 ${overdue || warning ? "rounded-b-xl" : "rounded-xl"}`}>
+        {/* Top row — checkbox + número + tipo */}
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-1.5">
             <Checkbox
               checked={isSelected}
               onCheckedChange={onSelect}
               onClick={(e) => e.stopPropagation()}
+              className="w-3.5 h-3.5"
             />
-            <span className="text-base font-bold text-gray-800 dark:text-gray-100">
+            <span className="text-sm font-bold text-gray-800 dark:text-gray-100">
               #{order.order_number || order.id.slice(0, 8)}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {order.type === "delivery" ? (
-              <span className="flex items-center gap-1 text-[10px] bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium border border-blue-100 dark:border-blue-900">
-                <Truck className="w-3 h-3" />Delivery
+              <span className="flex items-center gap-0.5 text-[10px] bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-medium border border-blue-100 dark:border-blue-900">
+                <Truck className="w-2.5 h-2.5" />Delivery
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-[10px] bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium border border-purple-100 dark:border-purple-900">
-                <Package className="w-3 h-3" />Retirada
+              <span className="flex items-center gap-0.5 text-[10px] bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded-full font-medium border border-purple-100 dark:border-purple-900">
+                <Package className="w-2.5 h-2.5" />Retirada
               </span>
             )}
           </div>
         </div>
 
-        {/* Cliente */}
-        <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{order.customer_name}</p>
-        {order.neighborhood && (
-          <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-0.5 truncate">
-            📍 {order.neighborhood}
-          </p>
+        {/* Cliente + bairro em linha única */}
+        <div className="flex items-center gap-1 min-w-0">
+          <p className="text-xs font-semibold text-gray-800 dark:text-gray-100 truncate flex-1">{order.customer_name}</p>
+          {order.neighborhood && (
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate shrink-0 max-w-[90px]">
+              📍{order.neighborhood}
+            </p>
+          )}
+        </div>
+
+        {/* Entregador vinculado */}
+        {order.type === "delivery" && (
+          <div className="flex items-center gap-1 mt-1">
+            <MotoIcon className="w-3 h-3 shrink-0 text-purple-500" />
+            <span className="text-[10px] text-purple-600 dark:text-purple-400 truncate flex-1">
+              {order.deliverer_name ?? "Sem entregador"}
+            </span>
+            <button
+              onClick={(e) => { e.stopPropagation(); onChangeDeliverer(order); }}
+              className="text-[10px] text-gray-400 hover:text-purple-600 transition-colors shrink-0 underline"
+              title="Trocar entregador"
+            >
+              {order.deliverer_name ? "trocar" : "vincular"}
+            </button>
+          </div>
         )}
 
-        {/* Progress bar */}
-        <div className="mt-2">
+        {/* Progress bar compacta */}
+        <div className="mt-1">
           <div className="flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500 mb-0.5">
-            <span>{elapsedMinutes}min aguardando</span>
-            <span>limite {maxTime}min</span>
+            <span>{elapsedMinutes}min</span>
+            <span>/ {maxTime}min</span>
           </div>
           <ProgressBar elapsed={elapsedMinutes} maxTime={maxTime} />
         </div>
 
-        {/* Items summary + pagamento */}
-        <div className="mt-2 flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
-              {itemCount} {itemCount === 1 ? "item" : "itens"}
-            </span>
-            <span className="text-xs text-gray-400 dark:text-gray-500">{order.payment_method}</span>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+        {/* Items + pagamento + ações — tudo em uma linha */}
+        <div className="flex items-center gap-1 mt-1.5 pt-1.5 border-t border-gray-100 dark:border-gray-800">
+          <span className="text-[10px] text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded shrink-0">
+            {itemCount} {itemCount === 1 ? "item" : "itens"}
+          </span>
+          <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate flex-1">{order.payment_method}</span>
           <button
             onClick={(e) => {
               e.stopPropagation();
               onOpenWhatsApp(order.customer_phone, order.order_number);
             }}
-            className="flex-1 flex items-center justify-center gap-1 text-[11px] text-gray-500 hover:text-green-600 bg-gray-50 dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-green-950 rounded-lg py-1.5 transition-colors border border-gray-100 dark:border-gray-700"
+            className="flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-green-600 transition-colors shrink-0"
+            title="WhatsApp"
           >
-            <MessageCircle className="w-3.5 h-3.5" />WhatsApp
+            <MessageCircle className="w-3 h-3" />
           </button>
+          {order.status !== "completed" && order.status !== "cancelled" && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleAgentPause(order, !isAgentPaused);
+              }}
+              className={`flex items-center gap-0.5 text-[10px] transition-colors shrink-0 ${
+                isAgentPaused ? "text-orange-500 hover:text-orange-700" : "text-gray-400 hover:text-orange-500"
+              }`}
+              title={isAgentPaused ? "Retomar agente" : "Pausar agente"}
+            >
+              {isAgentPaused ? <PlayCircle className="w-3 h-3" /> : <PauseCircle className="w-3 h-3" />}
+            </button>
+          )}
           {order.status !== "pending" && order.status !== "cancelled" && (
             <button
               onClick={(e) => {
@@ -178,9 +215,10 @@ export function OrderCard({
                 onPrint(order, true);
               }}
               disabled={isPrinting}
-              className="flex-1 flex items-center justify-center gap-1 text-[11px] text-gray-500 hover:text-blue-600 bg-gray-50 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-950 rounded-lg py-1.5 transition-colors border border-gray-100 dark:border-gray-700 disabled:opacity-50"
+              className="flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-blue-600 transition-colors shrink-0 disabled:opacity-50"
+              title="Imprimir"
             >
-              <Printer className="w-3.5 h-3.5" />{isPrinting ? "..." : "Imprimir"}
+              <Printer className="w-3 h-3" />
             </button>
           )}
         </div>
@@ -189,7 +227,7 @@ export function OrderCard({
           <Button
             variant="default"
             size="sm"
-            className="w-full mt-2 h-7 text-xs"
+            className="w-full mt-1.5 h-6 text-xs"
             onClick={(e) => {
               e.stopPropagation();
               handleStatusChange();
@@ -201,4 +239,4 @@ export function OrderCard({
       </CardContent>
     </Card>
   );
-}
+});

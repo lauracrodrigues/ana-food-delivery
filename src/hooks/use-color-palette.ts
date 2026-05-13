@@ -1,7 +1,10 @@
-// v1.1.0 — Paleta isolada ao dashboard; rotas públicas usam resetPalette()
+// v2.0.0 — paletas expandidas + cor customizada via hex picker
 import { useEffect, useState } from "react";
 
-export type ColorPalette = "purple" | "blue" | "green" | "orange" | "pink";
+export type ColorPalette =
+  | "purple" | "blue" | "green" | "orange" | "pink"
+  | "red" | "teal" | "indigo" | "yellow" | "slate"
+  | "custom";
 
 interface PaletteColors {
   primary: string;
@@ -12,7 +15,7 @@ interface PaletteColors {
   shadowGlow: string;
 }
 
-const palettes: Record<ColorPalette, PaletteColors> = {
+const palettes: Record<Exclude<ColorPalette, "custom">, PaletteColors> = {
   purple: {
     primary: "263 70% 50%",
     accent: "271 91% 65%",
@@ -53,11 +56,97 @@ const palettes: Record<ColorPalette, PaletteColors> = {
     gradientAccent: "linear-gradient(135deg, hsl(340 82% 65%), hsl(350 80% 70%))",
     shadowGlow: "0 0 24px hsl(330 81% 60% / 0.3)",
   },
+  red: {
+    primary: "0 84% 55%",
+    accent: "8 85% 62%",
+    ring: "0 84% 55%",
+    gradientPrimary: "linear-gradient(135deg, hsl(0 84% 55%), hsl(8 85% 62%))",
+    gradientAccent: "linear-gradient(135deg, hsl(8 85% 62%), hsl(15 82% 67%))",
+    shadowGlow: "0 0 24px hsl(0 84% 55% / 0.3)",
+  },
+  teal: {
+    primary: "174 72% 40%",
+    accent: "180 66% 48%",
+    ring: "174 72% 40%",
+    gradientPrimary: "linear-gradient(135deg, hsl(174 72% 40%), hsl(180 66% 48%))",
+    gradientAccent: "linear-gradient(135deg, hsl(180 66% 48%), hsl(185 60% 55%))",
+    shadowGlow: "0 0 24px hsl(174 72% 40% / 0.3)",
+  },
+  indigo: {
+    primary: "239 84% 67%",
+    accent: "245 80% 72%",
+    ring: "239 84% 67%",
+    gradientPrimary: "linear-gradient(135deg, hsl(239 84% 67%), hsl(245 80% 72%))",
+    gradientAccent: "linear-gradient(135deg, hsl(245 80% 72%), hsl(252 75% 76%))",
+    shadowGlow: "0 0 24px hsl(239 84% 67% / 0.3)",
+  },
+  yellow: {
+    primary: "48 96% 48%",
+    accent: "42 93% 55%",
+    ring: "48 96% 48%",
+    gradientPrimary: "linear-gradient(135deg, hsl(48 96% 48%), hsl(42 93% 55%))",
+    gradientAccent: "linear-gradient(135deg, hsl(42 93% 55%), hsl(38 90% 62%))",
+    shadowGlow: "0 0 24px hsl(48 96% 48% / 0.3)",
+  },
+  slate: {
+    primary: "215 25% 35%",
+    accent: "215 20% 50%",
+    ring: "215 25% 35%",
+    gradientPrimary: "linear-gradient(135deg, hsl(215 25% 35%), hsl(215 20% 50%))",
+    gradientAccent: "linear-gradient(135deg, hsl(215 20% 50%), hsl(215 15% 60%))",
+    shadowGlow: "0 0 24px hsl(215 25% 35% / 0.3)",
+  },
 };
 
-const STORAGE_KEY = "anafood-color-palette";
+// Converte hex (#rrggbb) → {h, s, l} em inteiros
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  let h = 0;
+  let s = 0;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return {
+    h: Math.round(h * 360),
+    s: Math.round(s * 100),
+    l: Math.round(l * 100),
+  };
+}
 
-// Propriedades CSS que a paleta sobrescreve
+// Gera paleta completa a partir de uma cor hexadecimal
+function buildCustomPalette(hex: string): PaletteColors {
+  const { h, s, l } = hexToHsl(hex);
+  const primary = `${h} ${s}% ${l}%`;
+  const accentS = Math.min(s + 5, 100);
+  const accentL = Math.min(l + 10, 90);
+  const accent = `${h} ${accentS}% ${accentL}%`;
+  const accent2L = Math.min(l + 20, 90);
+  const accent2 = `${h} ${accentS}% ${accent2L}%`;
+  return {
+    primary,
+    accent,
+    ring: primary,
+    gradientPrimary: `linear-gradient(135deg, hsl(${primary}), hsl(${accent}))`,
+    gradientAccent: `linear-gradient(135deg, hsl(${accent}), hsl(${accent2}))`,
+    shadowGlow: `0 0 24px hsl(${primary} / 0.3)`,
+  };
+}
+
+const STORAGE_KEY = "anafood-color-palette";
+const CUSTOM_COLOR_KEY = "anafood-custom-color";
+
 const PALETTE_PROPS = [
   "--primary",
   "--accent",
@@ -67,8 +156,15 @@ const PALETTE_PROPS = [
   "--shadow-glow",
 ] as const;
 
-function applyPalette(paletteKey: ColorPalette) {
-  const colors = palettes[paletteKey];
+function applyPalette(paletteKey: ColorPalette, customHex?: string) {
+  let colors: PaletteColors;
+  if (paletteKey === "custom" && customHex) {
+    colors = buildCustomPalette(customHex);
+  } else if (paletteKey !== "custom") {
+    colors = palettes[paletteKey];
+  } else {
+    return;
+  }
   const root = document.documentElement;
   root.style.setProperty("--primary", colors.primary);
   root.style.setProperty("--accent", colors.accent);
@@ -78,33 +174,48 @@ function applyPalette(paletteKey: ColorPalette) {
   root.style.setProperty("--shadow-glow", colors.shadowGlow);
 }
 
-// Remove inline overrides → CSS do stylesheet volta a valer (isolamento de rotas públicas)
 export function resetPalette() {
   const root = document.documentElement;
   PALETTE_PROPS.forEach((prop) => root.style.removeProperty(prop));
 }
 
 export function useColorPalette() {
-  const [palette, setPalette] = useState<ColorPalette>(() => {
+  const [palette, setPaletteState] = useState<ColorPalette>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     return (saved as ColorPalette) || "purple";
   });
 
+  const [customColor, setCustomColorState] = useState<string>(() => {
+    return localStorage.getItem(CUSTOM_COLOR_KEY) || "#8b5cf6";
+  });
+
   useEffect(() => {
-    applyPalette(palette);
+    applyPalette(palette, customColor);
     localStorage.setItem(STORAGE_KEY, palette);
-  }, [palette]);
+  }, [palette, customColor]);
+
+  const setPalette = (p: ColorPalette) => {
+    setPaletteState(p);
+  };
+
+  // Aplica cor livre — muda palette para "custom" e armazena o hex
+  const setCustomColor = (hex: string) => {
+    setCustomColorState(hex);
+    localStorage.setItem(CUSTOM_COLOR_KEY, hex);
+    setPaletteState("custom");
+  };
 
   return {
     palette,
     setPalette,
-    palettes: Object.keys(palettes) as ColorPalette[],
+    customColor,
+    setCustomColor,
+    palettes: Object.keys(palettes) as Exclude<ColorPalette, "custom">[],
   };
 }
 
-// Chamado pelo DashboardLayout para restaurar paleta do admin
 export function initializeColorPalette() {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  const palette = (saved as ColorPalette) || "purple";
-  applyPalette(palette);
+  const palette = (localStorage.getItem(STORAGE_KEY) as ColorPalette) || "purple";
+  const customHex = localStorage.getItem(CUSTOM_COLOR_KEY) || "#8b5cf6";
+  applyPalette(palette, customHex);
 }

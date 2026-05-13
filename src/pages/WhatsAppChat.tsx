@@ -106,7 +106,57 @@ export default function WhatsAppChat() {
     enabled: !!instanceName && !!selectedContact,
   });
 
-  // Send message
+  // Busca config de auto-resume da empresa (store_settings)
+  const { data: humanTakeoverConfig } = useQuery({
+    queryKey: ["human-takeover-config", companyId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("store_settings")
+        .select("human_takeover_resume_minutes")
+        .eq("company_id", companyId!)
+        .single();
+      return data;
+    },
+    enabled: !!companyId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const autoResumeMinutes = humanTakeoverConfig?.human_takeover_resume_minutes ?? 15;
+
+  // Pausa agente e registra timestamp de intervenção do operador
+  const pauseForOperator = async (phone: string) => {
+    const resumeMinutes = autoResumeMinutes;
+    const now = new Date().toISOString();
+
+    // Busca registro existente para este contato
+    const { data: existing } = await supabase
+      .from("whatsapp_agent_control" as any)
+      .select("id")
+      .eq("company_id", companyId!)
+      .eq("session_name", instanceName!)
+      .eq("phone", phone)
+      .single();
+
+    const payload = {
+      is_paused: true,
+      paused_at: now,
+      operator_last_message_at: now,
+      auto_resume_minutes: resumeMinutes,
+    };
+
+    if ((existing as any)?.id) {
+      await (supabase.from("whatsapp_agent_control" as any) as any)
+        .update(payload)
+        .eq("id", (existing as any).id);
+    } else {
+      await (supabase.from("whatsapp_agent_control" as any) as any)
+        .insert({ company_id: companyId, session_name: instanceName, phone, ...payload });
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["agent-control"] });
+  };
+
+  // Send message — ao enviar, auto-pausa agente para este contato
   const sendMutation = useMutation({
     mutationFn: async (text: string) => {
       const phone = extractPhoneFromJid(selectedContact!.remoteJid);
@@ -115,6 +165,8 @@ export default function WhatsAppChat() {
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Erro ao enviar");
+      // Auto-pausa: operador assumiu a conversa
+      await pauseForOperator(phone).catch(() => {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-messages", instanceName, selectedContact?.remoteJid] });
@@ -271,6 +323,12 @@ export default function WhatsAppChat() {
                   pause: !isContactPaused,
                 })
               }
+              operatorLastMessageAt={
+                agentControl?.find(
+                  (r: any) => r.phone === extractPhoneFromJid(selectedContact.remoteJid)
+                )?.operator_last_message_at ?? null
+              }
+              autoResumeMinutes={autoResumeMinutes}
             />
             <ChatMessages messages={messages} isLoading={isLoadingMessages} />
             <ChatInput

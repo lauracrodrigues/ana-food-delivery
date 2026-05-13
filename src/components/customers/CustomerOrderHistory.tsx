@@ -3,6 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ShoppingBag, TrendingUp, DollarSign, Clock, Loader2 } from "lucide-react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -88,11 +89,16 @@ export function CustomerOrderHistory({
     enabled: open && !!customerPhone && !!companyId,
   });
 
-  // Métricas calculadas no frontend
-  const validOrders = orders.filter(o => o.status !== "cancelled");
-  const totalOrders = validOrders.length;
-  const totalSpent = validOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
-  const avgTicket = totalOrders > 0 ? totalSpent / totalOrders : 0;
+  // Métricas calculadas no frontend — memoizadas pois orders só muda com nova query
+  const { totalOrders, totalSpent, avgTicket } = useMemo(() => {
+    const valid = orders.filter(o => o.status !== "cancelled");
+    const spent = valid.reduce((sum, o) => sum + Number(o.total || 0), 0);
+    return {
+      totalOrders: valid.length,
+      totalSpent: spent,
+      avgTicket: valid.length > 0 ? spent / valid.length : 0,
+    };
+  }, [orders]);
 
   return (
     <Sheet open={open} onOpenChange={onClose}>

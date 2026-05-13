@@ -1,5 +1,6 @@
 // v1.0.0 — Página de Billing/Assinatura do tenant
 import { useState } from "react";
+import { formatCurrency } from "@/lib/currency-formatter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useCompanyId } from "@/hooks/useCompanyId";
@@ -93,7 +94,7 @@ function PlanCard({ plan, currentPlanName, onSelect, loading }: {
         <CardTitle className="text-lg">{plan.name}</CardTitle>
         <CardDescription>{plan.description}</CardDescription>
         <div className="pt-2">
-          <span className="text-3xl font-bold">R$ {plan.price.toFixed(2)}</span>
+          <span className="text-3xl font-bold">{formatCurrency(plan.price)}</span>
           <span className="text-muted-foreground">/mês</span>
         </div>
       </CardHeader>
@@ -218,7 +219,7 @@ export default function Billing() {
                   <div>
                     <p className="text-2xl font-bold">{status.plan?.name || "Sem plano"}</p>
                     {status.plan && (
-                      <p className="text-sm text-muted-foreground">R$ {status.plan.price.toFixed(2)}/mês</p>
+                      <p className="text-sm text-muted-foreground">{formatCurrency(status.plan.price)}/mês</p>
                     )}
                   </div>
                   <StatusBadge status={status.subscription_status} />

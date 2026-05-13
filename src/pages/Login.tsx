@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Mail, Lock, Store, ArrowRight, Chrome } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseQueryNullable } from "@/lib/supabase-safe";
 import { Separator } from "@/components/ui/separator";
 
 const loginSchema = z.object({
@@ -34,25 +35,38 @@ export default function Login() {
   });
 
   useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        checkUserRole(session.user.id);
-      }
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (session) checkUserRole(session.user.id, session.user.email ?? undefined);
+      })
+      .catch((err) => console.error('[Login] Erro ao verificar sessão:', err));
   }, [navigate]);
 
-  const checkUserRole = async (userId: string) => {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
+  const checkUserRole = async (userId: string, email?: string) => {
+    try {
+      const profile = await supabaseQueryNullable(
+        supabase.from('profiles').select('role').eq('id', userId).single()
+      );
 
-    if (profile?.role === 'super_admin' || profile?.role === 'master_admin') {
-      navigate('/admin');
-    } else {
+      if (profile?.role === 'super_admin' || profile?.role === 'master_admin') {
+        navigate('/admin');
+        return;
+      }
+
+      if (email) {
+        const deliverer = await supabaseQueryNullable(
+          supabase.from('deliverers').select('id').eq('email', email).maybeSingle()
+        );
+        if (deliverer) {
+          navigate('/entregador');
+          return;
+        }
+      }
+
       navigate('/dashboard');
+    } catch (err) {
+      console.error('[Login] Erro ao verificar role:', err);
+      navigate('/dashboard'); // Fallback seguro
     }
   };
 
@@ -83,7 +97,7 @@ export default function Login() {
           description: "Bem-vindo de volta!",
         });
         
-        await checkUserRole(authData.user.id);
+        await checkUserRole(authData.user.id, authData.user.email ?? undefined);
       }
     } catch (error) {
       toast({

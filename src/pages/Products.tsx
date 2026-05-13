@@ -1,312 +1,379 @@
-import { useState } from "react";
+// v2.0.0 — Produtos: SKU/barcode, upload imagem, toggle inline, duplicar, filtro categoria, delete dialog
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompanyId } from "@/hooks/useCompanyId";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Edit, Trash2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Search, Plus, Edit, Trash2, Upload, Copy, ImageIcon, Loader2, X } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
-
-interface Product {
-  id: string;
-  company_id: string;
-  category_id?: string;
-  name: string;
-  price: number;
-  description?: string;
-  image_url?: string;
-  on_off?: boolean;
-  created_at?: string;
-}
+import { MenuImportDialog } from "@/components/products/MenuImportDialog";
+import { formatCurrency } from "@/lib/currency-formatter";
+import { cn } from "@/lib/utils";
 
 interface Category {
   id: string;
   name: string;
 }
 
-export function Products() {
-  const [search, setSearch] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState<Partial<Product>>({
-    name: "",
-    price: 0,
-    description: "",
-    category_id: "",
-    image_url: "",
-    on_off: true,
-  });
+interface Product {
+  id: string;
+  company_id: string;
+  category_id: string | null;
+  name: string;
+  price: number;
+  description: string | null;
+  image_url: string | null;
+  on_off: boolean | null;
+  internal_code: string | null;
+  print_sector: string | null;
+  display_order: number | null;
+  categories?: { name: string } | null;
+}
 
+const PRINT_SECTORS = [
+  { value: "cozinha", label: "Cozinha" },
+  { value: "bar", label: "Bar" },
+  { value: "balcao", label: "Balcão" },
+  { value: "confeitaria", label: "Confeitaria" },
+];
+
+const emptyForm = (): Partial<Product> => ({
+  name: "",
+  price: 0,
+  description: "",
+  category_id: null,
+  image_url: null,
+  on_off: true,
+  internal_code: null,
+  print_sector: null,
+});
+
+export function Products() {
+  const { companyId } = useCompanyId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Get company ID from user profile
-  const { data: profile } = useQuery({
-    queryKey: ["profile"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      
-      const { data } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
-      
-      return data;
-    },
-  });
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [formData, setFormData] = useState<Partial<Product>>(emptyForm());
+  const [uploading, setUploading] = useState(false);
 
-  // Fetch categories
-  const { data: categories = [] } = useQuery({
-    queryKey: ["categories", profile?.company_id],
+  // ── Queries
+
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ["categories", companyId],
     queryFn: async () => {
-      if (!profile?.company_id) return [];
-      
+      if (!companyId) return [];
       const { data, error } = await supabase
         .from("categories")
-        .select("*")
-        .eq("company_id", profile.company_id)
+        .select("id, name")
+        .eq("company_id", companyId)
         .order("name");
-      
       if (error) throw error;
-      return data as Category[];
+      return data;
     },
-    enabled: !!profile?.company_id,
+    enabled: !!companyId,
   });
 
-  // Fetch products
-  const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products", profile?.company_id],
+  const { data: products = [], isLoading } = useQuery<Product[]>({
+    queryKey: ["products", companyId],
     queryFn: async () => {
-      if (!profile?.company_id) return [];
-      
+      if (!companyId) return [];
       const { data, error } = await supabase
         .from("products")
         .select("*, categories(name)")
-        .eq("company_id", profile.company_id)
+        .eq("company_id", companyId)
         .order("name");
-      
       if (error) throw error;
-      return data;
+      return data as Product[];
     },
-    enabled: !!profile?.company_id,
+    enabled: !!companyId,
   });
 
-  // Create/Update product
+  // ── Mutations
+
   const saveMutation = useMutation({
     mutationFn: async (data: Partial<Product>) => {
-      if (!profile?.company_id) throw new Error("Company ID not found");
-      
+      if (!companyId) throw new Error("Company ID não encontrado");
+      const payload = {
+        name: data.name || "",
+        price: data.price || 0,
+        description: data.description || null,
+        category_id: data.category_id || null,
+        image_url: data.image_url || null,
+        on_off: data.on_off ?? true,
+        internal_code: data.internal_code || null,
+        print_sector: data.print_sector || null,
+      };
       if (editingProduct) {
-        const { error } = await supabase
-          .from("products")
-          .update(data)
-          .eq("id", editingProduct.id);
-        
+        const { error } = await supabase.from("products").update(payload).eq("id", editingProduct.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from("products")
-          .insert([{ 
-            name: data.name || '',
-            price: data.price || 0,
-            description: data.description,
-            category_id: data.category_id,
-            image_url: data.image_url,
-            on_off: data.on_off,
-            company_id: profile.company_id 
-          }]);
-        
+        const { error } = await supabase.from("products").insert({ ...payload, company_id: companyId });
         if (error) throw error;
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast({
-        title: editingProduct ? "Produto atualizado" : "Produto cadastrado",
-        description: "Operação realizada com sucesso.",
-      });
-      handleCloseModal();
+      queryClient.invalidateQueries({ queryKey: ["products", companyId] });
+      toast({ title: editingProduct ? "Produto atualizado" : "Produto cadastrado" });
+      closeModal();
     },
-    onError: (error) => {
-      toast({
-        title: "Erro ao salvar produto",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
+    onError: (e: any) => toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" }),
   });
 
-  // Delete product
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, on_off }: { id: string; on_off: boolean }) => {
+      const { error } = await supabase.from("products").update({ on_off }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products", companyId] }),
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("products")
-        .delete()
-        .eq("id", id);
-      
+      const { error } = await supabase.from("products").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast({
-        title: "Produto excluído",
-        description: "Produto removido com sucesso.",
-      });
+      queryClient.invalidateQueries({ queryKey: ["products", companyId] });
+      toast({ title: "Produto excluído" });
+      setDeletingProduct(null);
     },
-    onError: (error) => {
-      toast({
-        title: "Erro ao excluir produto",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
+    onError: (e: any) => toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" }),
   });
 
-  const handleOpenModal = (product?: Product) => {
-    if (product) {
-      setEditingProduct(product);
-      setFormData(product);
-    } else {
-      setEditingProduct(null);
-      setFormData({
-        name: "",
-        price: 0,
-        description: "",
-        category_id: "",
-        image_url: "",
-        on_off: true,
+  const duplicateMutation = useMutation({
+    mutationFn: async (product: Product) => {
+      if (!companyId) throw new Error("Company ID não encontrado");
+      const { error } = await supabase.from("products").insert({
+        company_id: companyId,
+        name: `${product.name} (cópia)`,
+        price: product.price,
+        description: product.description,
+        category_id: product.category_id,
+        image_url: product.image_url,
+        on_off: false, // inicia desativado para revisão
+        internal_code: null,
+        print_sector: product.print_sector,
       });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products", companyId] });
+      toast({ title: "Produto duplicado", description: "Cópia criada como inativa para revisão." });
+    },
+    onError: (e: any) => toast({ title: "Erro ao duplicar", description: e.message, variant: "destructive" }),
+  });
+
+  // ── Image upload
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !companyId) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `${companyId}/products/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("company-logos").upload(fileName, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from("company-logos").getPublicUrl(fileName);
+      setFormData(f => ({ ...f, image_url: publicUrl }));
+      toast({ title: "Imagem enviada" });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar imagem", description: err.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  // ── Helpers
+
+  const openModal = (product?: Product) => {
+    setEditingProduct(product ?? null);
+    setFormData(product ? { ...product } : emptyForm());
     setShowModal(true);
   };
 
-  const handleCloseModal = () => {
+  const closeModal = () => {
     setShowModal(false);
     setEditingProduct(null);
-    setFormData({
-      name: "",
-      price: 0,
-      description: "",
-      category_id: "",
-      image_url: "",
-      on_off: true,
-    });
+    setFormData(emptyForm());
   };
 
   const handleSave = () => {
-    if (!formData.name || !formData.price) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Nome e preço são obrigatórios.",
-        variant: "destructive",
-      });
+    if (!formData.name?.trim()) {
+      toast({ title: "Nome obrigatório", variant: "destructive" });
       return;
     }
-    
+    if (!formData.price || formData.price <= 0) {
+      toast({ title: "Preço deve ser maior que zero", variant: "destructive" });
+      return;
+    }
     saveMutation.mutate(formData);
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(search.toLowerCase()) ||
-    product.description?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
+  const filtered = products.filter(p => {
+    const matchSearch =
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.internal_code?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+      (p.description?.toLowerCase().includes(search.toLowerCase()) ?? false);
+    const matchCategory = filterCategory === null || p.category_id === filterCategory;
+    return matchSearch && matchCategory;
+  });
 
   return (
     <PageLayout
       title="Produtos"
       actions={
-        <Button onClick={() => handleOpenModal()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Produto
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowImport(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Importar Cardápio
+          </Button>
+          <Button onClick={() => openModal()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Produto
+          </Button>
+        </div>
       }
     >
       <Card>
-        <CardContent className="pt-6">
-          <div className="mb-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Buscar produtos..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+        <CardContent className="pt-6 space-y-4">
+          {/* Busca */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, SKU ou descrição..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-10"
+            />
           </div>
 
-          {isLoading ? (
-            <div className="text-center py-8">Carregando...</div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              {search ? "Nenhum produto encontrado." : "Nenhum produto cadastrado."}
+          {/* Filtro categoria */}
+          <ScrollArea className="w-full">
+            <div className="flex gap-2 pb-1">
+              <Button
+                variant={filterCategory === null ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterCategory(null)}
+              >
+                Todos ({products.length})
+              </Button>
+              {categories.map(cat => {
+                const count = products.filter(p => p.category_id === cat.id).length;
+                return (
+                  <Button
+                    key={cat.id}
+                    variant={filterCategory === cat.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFilterCategory(cat.id)}
+                  >
+                    {cat.name} ({count})
+                  </Button>
+                );
+              })}
             </div>
+          </ScrollArea>
+
+          {isLoading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <p className="text-center text-muted-foreground py-10 text-sm">
+              {search || filterCategory ? "Nenhum resultado para os filtros." : "Nenhum produto cadastrado."}
+            </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12" />
                   <TableHead>Nome</TableHead>
+                  <TableHead>SKU</TableHead>
                   <TableHead>Categoria</TableHead>
-                  <TableHead>Preço</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Descrição</TableHead>
+                  <TableHead className="text-right">Preço</TableHead>
+                  <TableHead>Setor</TableHead>
+                  <TableHead>Ativo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.map((product) => (
+                {filtered.map(product => (
                   <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
+                    {/* Thumbnail */}
+                    <TableCell>
+                      {product.image_url ? (
+                        <img
+                          src={product.image_url}
+                          alt={product.name}
+                          className="w-9 h-9 object-cover rounded"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded bg-muted flex items-center justify-center">
+                          <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium max-w-[180px]">
+                      <p className="truncate">{product.name}</p>
+                      {product.description && (
+                        <p className="text-xs text-muted-foreground truncate max-w-[160px]">{product.description}</p>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground font-mono">
+                      {product.internal_code ?? "—"}
+                    </TableCell>
                     <TableCell>
                       {product.categories?.name && (
                         <Badge variant="secondary">{product.categories.name}</Badge>
                       )}
                     </TableCell>
-                    <TableCell>{formatCurrency(product.price)}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(product.price)}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground capitalize">
+                      {product.print_sector ?? "—"}
+                    </TableCell>
+                    {/* Toggle on_off inline */}
                     <TableCell>
-                      <Badge variant={product.on_off ? "default" : "secondary"}>
-                        {product.on_off ? "Ativo" : "Inativo"}
-                      </Badge>
+                      <Switch
+                        checked={product.on_off ?? false}
+                        onCheckedChange={checked => toggleMutation.mutate({ id: product.id, on_off: checked })}
+                        disabled={toggleMutation.isPending}
+                      />
                     </TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {product.description}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleOpenModal(product)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          if (confirm("Deseja realmente excluir este produto?")) {
-                            deleteMutation.mutate(product.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" title="Duplicar" onClick={() => duplicateMutation.mutate(product)}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" title="Editar" onClick={() => openModal(product)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" title="Excluir" onClick={() => setDeletingProduct(product)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -316,93 +383,162 @@ export function Products() {
         </CardContent>
       </Card>
 
-      <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent>
+      {/* ── Dialog: Criar/Editar */}
+      <Dialog open={showModal} onOpenChange={v => !v && closeModal()}>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>
-              {editingProduct ? "Editar Produto" : "Novo Produto"}
-            </DialogTitle>
+            <DialogTitle>{editingProduct ? "Editar Produto" : "Novo Produto"}</DialogTitle>
           </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
+
+          <div className="grid gap-4 py-2">
+            {/* Imagem */}
+            <div className="flex items-center gap-4">
+              <div
+                className="w-24 h-24 rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer hover:border-primary transition-colors bg-muted/30 shrink-0"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {formData.image_url ? (
+                  <div className="relative w-full h-full">
+                    <img src={formData.image_url} className="w-full h-full object-cover rounded-lg" alt="preview" />
+                    <button
+                      type="button"
+                      className="absolute -top-1 -right-1 bg-destructive text-white rounded-full w-5 h-5 flex items-center justify-center"
+                      onClick={e => { e.stopPropagation(); setFormData(f => ({ ...f, image_url: null })); }}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : uploading ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                ) : (
+                  <div className="text-center">
+                    <ImageIcon className="h-6 w-6 text-muted-foreground mx-auto" />
+                    <p className="text-[10px] text-muted-foreground mt-1">Foto</p>
+                  </div>
+                )}
+              </div>
+              <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageUpload} />
+              <div className="flex-1 space-y-3">
+                <div>
+                  <Label>Nome *</Label>
+                  <Input
+                    autoFocus
+                    value={formData.name ?? ""}
+                    onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
+                    placeholder="Ex: X-Burguer"
+                  />
+                </div>
+                <div>
+                  <Label>SKU / Código de barras</Label>
+                  <Input
+                    value={formData.internal_code ?? ""}
+                    onChange={e => setFormData(f => ({ ...f, internal_code: e.target.value || null }))}
+                    placeholder="Ex: 7891234567890"
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Preço *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.price ?? 0}
+                  onChange={e => setFormData(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+              <div>
+                <Label>Categoria</Label>
+                <Select
+                  value={formData.category_id ?? "none"}
+                  onValueChange={v => setFormData(f => ({ ...f, category_id: v === "none" ? null : v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sem categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem categoria</SelectItem>
+                    {categories.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div>
-              <Label htmlFor="name">Nome *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              <Label>Descrição</Label>
+              <Textarea
+                value={formData.description ?? ""}
+                onChange={e => setFormData(f => ({ ...f, description: e.target.value || null }))}
+                rows={2}
+                placeholder="Ingredientes, informações..."
               />
             </div>
-            
+
             <div>
-              <Label htmlFor="category">Categoria</Label>
+              <Label>Setor de Impressão</Label>
               <Select
-                value={formData.category_id}
-                onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+                value={formData.print_sector ?? "none"}
+                onValueChange={v => setFormData(f => ({ ...f, print_sector: v === "none" ? null : v }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma categoria" />
+                  <SelectValue placeholder="Sem setor" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
+                  <SelectItem value="none">Sem setor</SelectItem>
+                  {PRINT_SECTORS.map(s => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            
-            <div>
-              <Label htmlFor="price">Preço *</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={3}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="image_url">URL da Imagem</Label>
-              <Input
-                id="image_url"
-                value={formData.image_url}
-                onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <Label htmlFor="on_off">Produto Ativo</Label>
+
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <Label>Produto Ativo</Label>
+                <p className="text-xs text-muted-foreground">Exibir no cardápio e PDV</p>
+              </div>
               <Switch
-                id="on_off"
-                checked={formData.on_off}
-                onCheckedChange={(checked) => setFormData({ ...formData, on_off: checked })}
+                checked={formData.on_off ?? true}
+                onCheckedChange={v => setFormData(f => ({ ...f, on_off: v }))}
               />
             </div>
           </div>
-          
+
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseModal}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave}>
+            <Button variant="outline" onClick={closeModal}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={saveMutation.isPending}>
+              {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editingProduct ? "Atualizar" : "Cadastrar"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={!!deletingProduct}
+        onOpenChange={v => !v && setDeletingProduct(null)}
+        title="Excluir produto?"
+        description={`"${deletingProduct?.name}" será removido permanentemente. Esta ação não pode ser desfeita.`}
+        onConfirm={() => deletingProduct && deleteMutation.mutate(deletingProduct.id)}
+        isPending={deleteMutation.isPending}
+      />
+
+      {/* ── Importar cardápio via IA */}
+      <MenuImportDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        companyId={companyId ?? null}
+        onImported={() => {
+          queryClient.invalidateQueries({ queryKey: ["products", companyId] });
+          queryClient.invalidateQueries({ queryKey: ["categories", companyId] });
+        }}
+      />
     </PageLayout>
   );
 }

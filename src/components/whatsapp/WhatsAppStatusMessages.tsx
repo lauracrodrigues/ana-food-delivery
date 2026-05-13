@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Save } from "lucide-react";
+import { Save, MessageSquare } from "lucide-react";
 
 interface StatusMessage {
   status: string;
@@ -21,12 +21,14 @@ export function WhatsAppStatusMessages() {
   const [statusMessages, setStatusMessages] = useState<StatusMessage[]>([
     { status: 'pending', label: 'Novo Pedido', message: '🔔 *Novo Pedido!*\n\nRecebemos seu pedido #{order_number}!\n\n📦 *Itens:*\n{order_items}\n\n💰 *Total:* R$ {order_total}\n\nEstamos preparando com carinho! 😊', enabled: true },
     { status: 'preparando', label: 'Preparando', message: '👨‍🍳 *Pedido em Preparação*\n\nSeu pedido #{order_number} está sendo preparado!\n\n⏱️ Tempo estimado: {estimated_time} minutos', enabled: true },
-    { status: 'pronto', label: 'Pronto', message: '✅ *Pedido Pronto!*\n\nSeu pedido #{order_number} está pronto!\n\n🏃 Em breve sairá para entrega.', enabled: true },
-    { status: 'em_entrega', label: 'Em Entrega', message: '🚴 *Saiu para Entrega!*\n\nSeu pedido #{order_number} está a caminho!\n\n📍 Endereço: {delivery_address}', enabled: true },
+    { status: 'pronto', label: 'Pronto', message: '✅ *Pedido Pronto!*\n\nSeu pedido #{order_number} está pronto!\n\n🏃 Em breve sairá para entrega.', enabled: false },
+    { status: 'em_entrega', label: 'Em Entrega', message: '🛵 *Saiu para Entrega!*\n\nSeu pedido #{order_number} está a caminho!\n\n📍 Endereço: {delivery_address}', enabled: true },
     { status: 'concluido', label: 'Concluído', message: '🎉 *Pedido Entregue!*\n\nObrigado pela preferência!\n\nEsperamos você novamente! ❤️', enabled: true },
     { status: 'cancelado', label: 'Cancelado', message: '❌ *Pedido Cancelado*\n\nSeu pedido #{order_number} foi cancelado.\n\nMotivo: {cancellation_reason}\n\nQualquer dúvida, estamos à disposição.', enabled: false },
   ]);
   const [isSaving, setIsSaving] = useState(false);
+  const [globalEnabled, setGlobalEnabled] = useState(true);
+  const [savingGlobal, setSavingGlobal] = useState(false);
 
   // Load company info and messages
   useEffect(() => {
@@ -41,7 +43,15 @@ export function WhatsAppStatusMessages() {
         
         if (profile?.company_id) {
           setCompanyId(profile.company_id);
-          
+
+          // Carrega flag global send_status_messages de store_settings
+          const { data: storeData } = await supabase
+            .from('store_settings')
+            .select('send_status_messages')
+            .eq('company_id', profile.company_id)
+            .single();
+          if (storeData) setGlobalEnabled(storeData.send_status_messages !== false);
+
           // Load existing messages - type-safe query
           const { data: messages, error } = await supabase
             .from('whatsapp_config')
@@ -68,6 +78,23 @@ export function WhatsAppStatusMessages() {
     }
     loadData();
   }, []);
+
+  const handleToggleGlobal = async (enabled: boolean) => {
+    if (!companyId) return;
+    setGlobalEnabled(enabled);
+    setSavingGlobal(true);
+    try {
+      const { error } = await supabase
+        .from('store_settings')
+        .upsert({ company_id: companyId, send_status_messages: enabled }, { onConflict: 'company_id' });
+      if (error) throw error;
+    } catch {
+      setGlobalEnabled(!enabled); // reverte
+      toast({ title: "Erro ao salvar", variant: "destructive" });
+    } finally {
+      setSavingGlobal(false);
+    }
+  };
 
   const handleMessageChange = (status: string, message: string) => {
     setStatusMessages(prev => 
@@ -127,6 +154,29 @@ export function WhatsAppStatusMessages() {
   };
 
   return (
+    <div className="space-y-4">
+    {/* Card global — ativa/desativa todas as notificações de status */}
+    <Card>
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <MessageSquare className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="font-medium text-sm">Notificações de Status Ativas</p>
+              <p className="text-xs text-muted-foreground">
+                Quando desativado, nenhuma mensagem automática é enviada ao cliente
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={globalEnabled}
+            onCheckedChange={handleToggleGlobal}
+            disabled={savingGlobal}
+          />
+        </div>
+      </CardContent>
+    </Card>
+
     <Card>
       <CardHeader>
         <CardTitle>Mensagens por Status</CardTitle>
@@ -173,5 +223,6 @@ export function WhatsAppStatusMessages() {
         </Button>
       </CardContent>
     </Card>
+    </div>
   );
 }

@@ -8,8 +8,10 @@ import { Send, CheckCircle2, Star, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
+import { useCompanyId } from "@/hooks/useCompanyId";
+import { useStoreSettings } from "@/hooks/useStoreSettings";
 
 interface WhatsAppSession {
   id: string;
@@ -25,50 +27,13 @@ interface WhatsAppTestMessageProps {
 export function WhatsAppTestMessage({ sessions }: WhatsAppTestMessageProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { companyId } = useCompanyId();
+  const { settings: storeSettings } = useStoreSettings();
   const [selectedSession, setSelectedSession] = useState<string>("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [companyId, setCompanyId] = useState<string | null>(null);
-
-  // Obter company_id do usuário
-  useEffect(() => {
-    const getCompanyId = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('company_id')
-          .eq('id', user.id)
-          .single();
-        if (profile) {
-          setCompanyId(profile.company_id);
-        }
-      }
-    };
-    getCompanyId();
-  }, []);
-
-  // Buscar configurações da loja
-  const { data: storeSettings } = useQuery({
-    queryKey: ['store-settings', companyId],
-    queryFn: async () => {
-      if (!companyId) return null;
-      const { data, error } = await supabase
-        .from('store_settings')
-        .select('default_whatsapp_session')
-        .eq('company_id', companyId)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') {
-        console.error('Erro ao buscar configurações:', error);
-        return null;
-      }
-      return data;
-    },
-    enabled: !!companyId,
-  });
 
   // Definir sessão padrão quando as configurações forem carregadas
   useEffect(() => {

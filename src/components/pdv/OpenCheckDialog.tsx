@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { useWaiters } from '@/hooks/pdv/useWaiters';
 import { useChecks } from '@/hooks/pdv/useChecks';
+import { useToast } from '@/hooks/use-toast';
 import { usePOSStore } from '@/stores/posStore';
 import { TableWithStatus } from '@/types/pdv';
 import { Loader2, Users, Receipt, User } from 'lucide-react';
@@ -33,6 +34,7 @@ export function OpenCheckDialog({ open, onOpenChange, table, onSuccess }: OpenCh
   const { waiters, isLoading: isLoadingWaiters } = useWaiters();
   const { createCheck, isCreating } = useChecks();
   const { setContext } = usePOSStore();
+  const { toast } = useToast();
 
   const [identification, setIdentification] = useState('');
   const [waiterId, setWaiterId] = useState<string>('');
@@ -76,6 +78,11 @@ export function OpenCheckDialog({ open, onOpenChange, table, onSuccess }: OpenCh
       onSuccess(check.id);
     } catch (error) {
       console.error('Error opening check:', error);
+      toast({
+        title: "Erro ao abrir comanda",
+        description: "Não foi possível abrir a comanda para esta mesa.",
+        variant: "destructive",
+      });
     }
   };
 

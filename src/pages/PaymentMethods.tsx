@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch";
 import { Edit2, Trash2, Plus, Save, X, CreditCard } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 
 interface PaymentMethod {
   id: string;
@@ -284,26 +284,14 @@ const PaymentMethods = () => {
         </CardContent>
       </Card>
 
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja remover esta forma de pagamento?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteId && handleDelete(deleteId)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={!!deleteId}
+        onOpenChange={() => setDeleteId(null)}
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja remover esta forma de pagamento?"
+        confirmLabel="Remover"
+        onConfirm={() => deleteId && handleDelete(deleteId)}
+      />
     </PageLayout>
   );
 };

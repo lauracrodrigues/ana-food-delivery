@@ -13,10 +13,11 @@ import {
   Store,
   Truck,
   Package,
-  AlertTriangle,
   Bell,
   BellOff,
   Filter,
+  Check,
+  Map,
 } from "lucide-react";
 import { StoreSettings, STATUS_COLUMNS } from "./types";
 
@@ -31,6 +32,9 @@ interface KanbanHeaderProps {
   onToggleFilters: () => void;
   selectedOrdersCount: number;
   onBulkStatusChange: (status: string) => void;
+  showSaved?: boolean;
+  showMap?: boolean;
+  onToggleMap?: () => void;
 }
 
 export function KanbanHeader({
@@ -42,6 +46,9 @@ export function KanbanHeader({
   onToggleFilters,
   selectedOrdersCount,
   onBulkStatusChange,
+  showSaved = false,
+  showMap = false,
+  onToggleMap,
 }: KanbanHeaderProps) {
   return (
     <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 border-b pb-4">
@@ -141,6 +148,28 @@ export function KanbanHeader({
           <Filter className="w-4 h-4 mr-1" />
           Filtros
         </Button>
+
+        {onToggleMap && (
+          <Button
+            variant={showMap ? "default" : "outline"}
+            size="sm"
+            onClick={onToggleMap}
+            title="Mapa de entregadores"
+          >
+            <Map className="w-4 h-4 mr-1" />
+            Mapa
+          </Button>
+        )}
+
+        {/* Indicador visual de salvo — aparece por 2s após qualquer mudança */}
+        <span
+          className={`flex items-center gap-1 text-xs text-emerald-600 font-medium transition-all duration-300 ${
+            showSaved ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1 pointer-events-none"
+          }`}
+        >
+          <Check className="w-3.5 h-3.5" />
+          Salvo
+        </span>
       </div>
 
       {showFilters && (

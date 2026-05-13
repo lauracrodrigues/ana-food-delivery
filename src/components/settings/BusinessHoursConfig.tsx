@@ -1,20 +1,25 @@
-// src/components/settings/BusinessHoursConfig.tsx — v1.0.0
+// src/components/settings/BusinessHoursConfig.tsx — v2.0.0
+// Suporta múltiplos períodos por dia (ex: 11:00-14:00 e 18:00-22:00)
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Clock, Save, Loader2 } from "lucide-react";
+import { Clock, Save, Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 // ─── TIPOS ───────────────────────────────────────────────────────
 
-interface DaySchedule {
-  enabled: boolean;
+interface TimeSlot {
   open: string;
   close: string;
+}
+
+interface DaySchedule {
+  enabled: boolean;
+  periods: TimeSlot[];
 }
 
 type WeekSchedule = Record<string, DaySchedule>;
@@ -30,8 +35,28 @@ const DAYS = [
 ];
 
 const DEFAULT_SCHEDULE: WeekSchedule = Object.fromEntries(
-  DAYS.map(({ key }) => [key, { enabled: true, open: "08:00", close: "22:00" }])
+  DAYS.map(({ key }) => [key, { enabled: true, periods: [{ open: "08:00", close: "22:00" }] }])
 );
+
+// Migra formato antigo { open, close } → novo { periods: [...] }
+function normalize(raw: any): WeekSchedule {
+  const result: WeekSchedule = {};
+  for (const { key } of DAYS) {
+    const day = raw?.[key];
+    if (!day) {
+      result[key] = DEFAULT_SCHEDULE[key];
+    } else if (Array.isArray(day.periods)) {
+      result[key] = day; // já no novo formato
+    } else {
+      // formato antigo: { enabled, open, close }
+      result[key] = {
+        enabled: day.enabled ?? true,
+        periods: [{ open: day.open ?? "08:00", close: day.close ?? "22:00" }],
+      };
+    }
+  }
+  return result;
+}
 
 // ─── COMPONENTE ──────────────────────────────────────────────────
 
@@ -44,7 +69,6 @@ export function BusinessHoursConfig({ companyId }: BusinessHoursConfigProps) {
   const queryClient = useQueryClient();
   const [schedule, setSchedule] = useState<WeekSchedule>(DEFAULT_SCHEDULE);
 
-  // Busca schedule atual da empresa
   const { data, isLoading } = useQuery({
     queryKey: ["business-hours", companyId],
     queryFn: async () => {
@@ -53,54 +77,71 @@ export function BusinessHoursConfig({ companyId }: BusinessHoursConfigProps) {
         .select("schedule")
         .eq("id", companyId)
         .single();
-
       if (error) throw error;
-      return (data?.schedule as WeekSchedule) || DEFAULT_SCHEDULE;
+      return normalize(data?.schedule);
     },
     enabled: !!companyId,
   });
 
-  // Sincroniza state local quando dados chegam do banco
   useEffect(() => {
-    if (data) {
-      setSchedule({ ...DEFAULT_SCHEDULE, ...data });
-    }
+    if (data) setSchedule(data);
   }, [data]);
 
-  // Salva schedule no banco
   const saveMutation = useMutation({
     mutationFn: async (newSchedule: WeekSchedule) => {
       const { error } = await supabase
         .from("companies")
         .update({ schedule: newSchedule })
         .eq("id", companyId);
-
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["business-hours", companyId] });
       toast({ title: "Horários salvos com sucesso" });
     },
-    onError: () => {
-      toast({ title: "Erro ao salvar horários", variant: "destructive" });
-    },
+    onError: () => toast({ title: "Erro ao salvar horários", variant: "destructive" }),
   });
 
-  const updateDay = (day: string, field: keyof DaySchedule, value: string | boolean) => {
-    setSchedule(prev => ({
-      ...prev,
-      [day]: { ...prev[day], [field]: value },
-    }));
+  const toggleDay = (day: string, enabled: boolean) => {
+    setSchedule(prev => ({ ...prev, [day]: { ...prev[day], enabled } }));
   };
 
-  // Aplica horário de um dia para todos os dias habilitados
+  const updateSlot = (day: string, idx: number, field: "open" | "close", value: string) => {
+    setSchedule(prev => {
+      const periods = [...prev[day].periods];
+      periods[idx] = { ...periods[idx], [field]: value };
+      return { ...prev, [day]: { ...prev[day], periods } };
+    });
+  };
+
+  const addSlot = (day: string) => {
+    setSchedule(prev => {
+      const last = prev[day].periods.at(-1);
+      return {
+        ...prev,
+        [day]: {
+          ...prev[day],
+          periods: [...prev[day].periods, { open: last?.close ?? "18:00", close: "22:00" }],
+        },
+      };
+    });
+  };
+
+  const removeSlot = (day: string, idx: number) => {
+    setSchedule(prev => {
+      const periods = prev[day].periods.filter((_, i) => i !== idx);
+      return { ...prev, [day]: { ...prev[day], periods: periods.length ? periods : [{ open: "08:00", close: "22:00" }] } };
+    });
+  };
+
+  // Copia todos os períodos do dia fonte para os dias habilitados
   const applyToAll = (sourceDay: string) => {
     const source = schedule[sourceDay];
     setSchedule(prev => {
       const next = { ...prev };
       DAYS.forEach(({ key }) => {
         if (next[key].enabled) {
-          next[key] = { ...next[key], open: source.open, close: source.close };
+          next[key] = { ...next[key], periods: source.periods.map(p => ({ ...p })) };
         }
       });
       return next;
@@ -123,84 +164,95 @@ export function BusinessHoursConfig({ companyId }: BusinessHoursConfigProps) {
           Horário de Funcionamento
         </CardTitle>
         <CardDescription>
-          Configure os dias e horários em que sua loja aceita pedidos pelo WhatsApp
+          Configure os dias e horários. Adicione múltiplos períodos por dia (ex: almoço e jantar).
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {/* Cabeçalho grid */}
-        <div className="grid grid-cols-[140px_60px_1fr_1fr_auto] gap-3 items-center px-2 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          <span>Dia</span>
-          <span className="text-center">Aberto</span>
-          <span>Abertura</span>
-          <span>Fechamento</span>
-          <span className="w-24" />
-        </div>
-
-        {/* Linhas por dia */}
+      <CardContent className="space-y-3">
         {DAYS.map(({ key, label }) => {
-          const day = schedule[key] || { enabled: false, open: "08:00", close: "22:00" };
+          const day = schedule[key] ?? { enabled: false, periods: [{ open: "08:00", close: "22:00" }] };
           return (
             <div
               key={key}
-              className={`grid grid-cols-[140px_60px_1fr_1fr_auto] gap-3 items-center p-2 rounded-lg transition-colors ${
-                day.enabled ? "bg-muted/30" : "opacity-50"
-              }`}
+              className={`rounded-lg border p-3 transition-colors ${day.enabled ? "bg-muted/30" : "opacity-50"}`}
             >
-              {/* Nome do dia */}
-              <Label className="font-medium text-sm">{label}</Label>
-
-              {/* Toggle aberto/fechado */}
-              <div className="flex justify-center">
-                <Switch
-                  checked={day.enabled}
-                  onCheckedChange={(v) => updateDay(key, "enabled", v)}
-                />
+              {/* Cabeçalho do dia */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={day.enabled}
+                    onCheckedChange={(v) => toggleDay(key, v)}
+                  />
+                  <Label className="font-medium text-sm cursor-pointer" onClick={() => toggleDay(key, !day.enabled)}>
+                    {label}
+                  </Label>
+                </div>
+                <div className="flex gap-2">
+                  {day.enabled && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs h-7 px-2"
+                        onClick={() => applyToAll(key)}
+                        title="Copiar horários para todos os dias abertos"
+                      >
+                        Aplicar a todos
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7 px-2 gap-1"
+                        onClick={() => addSlot(key)}
+                      >
+                        <Plus className="w-3 h-3" /> Período
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
 
-              {/* Hora abertura */}
-              <input
-                type="time"
-                value={day.open}
-                disabled={!day.enabled}
-                onChange={(e) => updateDay(key, "open", e.target.value)}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              />
-
-              {/* Hora fechamento */}
-              <input
-                type="time"
-                value={day.close}
-                disabled={!day.enabled}
-                onChange={(e) => updateDay(key, "close", e.target.value)}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              />
-
-              {/* Aplicar a todos */}
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={!day.enabled}
-                onClick={() => applyToAll(key)}
-                className="w-24 text-xs"
-                title="Aplicar este horário a todos os dias abertos"
-              >
-                Aplicar todos
-              </Button>
+              {/* Períodos do dia */}
+              {day.enabled && (
+                <div className="space-y-2 pl-9">
+                  {day.periods.map((slot, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-14 shrink-0">
+                        {idx === 0 ? "Abertura" : `Período ${idx + 1}`}
+                      </span>
+                      <input
+                        type="time"
+                        value={slot.open}
+                        onChange={(e) => updateSlot(key, idx, "open", e.target.value)}
+                        className="h-8 w-28 rounded-md border border-input bg-background px-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      <span className="text-xs text-muted-foreground">até</span>
+                      <input
+                        type="time"
+                        value={slot.close}
+                        onChange={(e) => updateSlot(key, idx, "close", e.target.value)}
+                        className="h-8 w-28 rounded-md border border-input bg-background px-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      {day.periods.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                          onClick={() => removeSlot(key, idx)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
 
-        {/* Botão salvar */}
-        <div className="flex justify-end pt-4">
-          <Button
-            onClick={() => saveMutation.mutate(schedule)}
-            disabled={saveMutation.isPending}
-          >
-            {saveMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
+        <div className="flex justify-end pt-2">
+          <Button onClick={() => saveMutation.mutate(schedule)} disabled={saveMutation.isPending}>
+            {saveMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             Salvar Horários
           </Button>
         </div>

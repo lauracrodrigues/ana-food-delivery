@@ -3,7 +3,8 @@ import QRCode from "qrcode";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare, Plus, Clock, Bot } from "lucide-react";
+import { MessageSquare, Plus, Clock, Bot, Mic, Play, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -15,7 +16,8 @@ import { WhatsAppTestMessage } from "@/components/whatsapp/WhatsAppTestMessage";
 import { WhatsAppStatusMessages } from "@/components/whatsapp/WhatsAppStatusMessages";
 import { WhatsAppSessionDialog } from "@/components/whatsapp/WhatsAppSessionDialog";
 import { WhatsAppQRCodeDialog } from "@/components/whatsapp/WhatsAppQRCodeDialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AgentBehaviorConfig, type AgentBehaviorData } from "@/components/whatsapp/AgentBehaviorConfig";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 
 interface WhatsAppSession {
   id: string;
@@ -46,6 +48,10 @@ export default function WhatsApp() {
     sessionName: '',
   });
   const [loadingStatus, setLoadingStatus] = useState<Record<string, boolean>>({});
+  const [isTesting, setIsTesting] = useState<string | false>(false);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  // estado local de velocidade — atualiza imediatamente sem esperar cache DB
+  const [localSpeed, setLocalSpeed] = useState<string>('normal');
   
   const [formData, setFormData] = useState<SessionForm>({
     session_name: "",
@@ -56,44 +62,63 @@ export default function WhatsApp() {
   // Load company info
   useEffect(() => {
     async function loadCompany() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
+        if (!user) return;
+
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('company_id')
           .eq('id', user.id)
           .single();
-        
-        if (profile?.company_id) {
-          setCompanyId(profile.company_id);
-        }
+
+        if (profileError) throw profileError;
+        if (profile?.company_id) setCompanyId(profile.company_id);
+      } catch (err) {
+        console.error('[WhatsApp] ❌ Erro ao carregar empresa:', err);
+        toast({
+          title: "Erro ao carregar configurações",
+          description: "Não foi possível identificar sua empresa. Recarregue a página.",
+          variant: "destructive",
+        });
       }
     }
     loadCompany();
   }, []);
 
-  // Load bot timing settings from store_settings
+  // Load bot timing settings from store_settings — declarado ANTES do useEffect que usa botSettings
   const { data: botSettings, isLoading: loadingBotSettings } = useQuery({
     queryKey: ["bot-settings", companyId],
     queryFn: async () => {
-      if (!companyId) return { debounce_ms: 10000, typing_debounce_ms: 3000, followup_minutes: 10, cancel_minutes: 20 };
+      if (!companyId) return { debounce_ms: 1000, typing_debounce_ms: 1000, followup_minutes: 10, cancel_minutes: 20, human_takeover_resume_minutes: 15, tts_enabled: false, tts_voice: 'pt-BR-Neural2-C', tts_speed: 'normal' };
       const { data } = await supabase
         .from("store_settings")
-        .select("debounce_ms, typing_debounce_ms, followup_minutes, cancel_minutes")
+        .select("debounce_ms, typing_debounce_ms, followup_minutes, cancel_minutes, human_takeover_resume_minutes, tts_enabled, tts_voice, tts_speed, send_status_messages")
         .eq("company_id", companyId)
         .single();
       return {
-        debounce_ms: data?.debounce_ms ?? 10000,
-        typing_debounce_ms: data?.typing_debounce_ms ?? 3000,
+        debounce_ms: data?.debounce_ms ?? 1000,
+        typing_debounce_ms: data?.typing_debounce_ms ?? 1000,
         followup_minutes: data?.followup_minutes ?? 10,
         cancel_minutes: data?.cancel_minutes ?? 20,
+        human_takeover_resume_minutes: data?.human_takeover_resume_minutes ?? 15,
+        tts_enabled: (data as any)?.tts_enabled ?? false,
+        tts_voice: (data as any)?.tts_voice ?? 'pt-BR-Neural2-C',
+        tts_speed: (data as any)?.tts_speed ?? 'normal',
+        send_status_messages: (data as any)?.send_status_messages !== false,
       };
     },
     enabled: !!companyId,
   });
 
+  // Sincroniza localSpeed quando botSettings carrega do banco (declarado após botSettings)
+  useEffect(() => {
+    if (botSettings?.tts_speed) setLocalSpeed(botSettings.tts_speed);
+  }, [botSettings?.tts_speed]);
+
   const updateBotSettingsMutation = useMutation({
-    mutationFn: async (values: Partial<{ debounce_ms: number; typing_debounce_ms: number; followup_minutes: number; cancel_minutes: number }>) => {
+    mutationFn: async (values: Partial<{ debounce_ms: number; typing_debounce_ms: number; followup_minutes: number; cancel_minutes: number; human_takeover_resume_minutes: number; tts_enabled: boolean; tts_voice: string; tts_speed: string; send_status_messages: boolean }>) => {
       if (!companyId) throw new Error("No company");
       const { error } = await supabase
         .from("store_settings")
@@ -107,13 +132,31 @@ export default function WhatsApp() {
     onError: () => toast({ title: "Erro", description: "Não foi possível salvar.", variant: "destructive" }),
   });
 
+  // Salva personalidade + regras na sessão ativa (whatsapp_config)
+  const saveAgentBehaviorMutation = useMutation({
+    mutationFn: async ({ sessionId, data }: { sessionId: string; data: AgentBehaviorData }) => {
+      const { error } = await supabase
+        .from("whatsapp_config")
+        .update({
+          agent_personality: data.agent_personality,
+          behavior_rules: data.behavior_rules,
+        })
+        .eq("id", sessionId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-sessions", companyId] });
+      toast({ title: "Salvo", description: "Comportamento do agente atualizado." });
+    },
+    onError: () => toast({ title: "Erro", description: "Não foi possível salvar comportamento.", variant: "destructive" }),
+  });
+
   // Load WhatsApp sessions with optimized caching
-  const { data: sessions = [], isLoading } = useQuery({
+  const { data: sessions = [], isLoading, isError: sessionsLoadError } = useQuery({
     queryKey: ["whatsapp-sessions", companyId],
     queryFn: async () => {
-      console.log('[WhatsApp] 🔄 Carregando sessões para empresa:', companyId);
       if (!companyId) return [];
-      
+
       const { data, error } = await supabase
         .from('whatsapp_config')
         .select('*')
@@ -121,17 +164,23 @@ export default function WhatsApp() {
         .eq('config_type', 'session')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('[WhatsApp] ❌ Erro ao carregar sessões:', error);
-        throw error;
-      }
-      console.log('[WhatsApp] ✅ Sessões carregadas:', data?.length || 0);
+      if (error) throw error;
       return data as WhatsAppSession[];
     },
     enabled: !!companyId,
-    staleTime: 30000, // Cache por 30s
-    gcTime: 60000, // Manter em cache por 1min
+    staleTime: 30000,
+    gcTime: 60000,
   });
+
+  useEffect(() => {
+    if (sessionsLoadError) {
+      toast({
+        title: "Erro ao carregar sessões",
+        description: "Não foi possível buscar as sessões do WhatsApp.",
+        variant: "destructive",
+      });
+    }
+  }, [sessionsLoadError, toast]);
 
   // Auto-check status de todas sessões ao carregar — sem toast, silencioso
   const autoCheckedRef = useRef(false);
@@ -201,11 +250,14 @@ export default function WhatsApp() {
               description: "Sessão salva, mas houve erro ao comunicar com Evolution API.",
               variant: "destructive",
             });
-          } else {
-            console.log('Sucesso ao comunicar com Evolution API:', response.data);
           }
         } catch (error) {
           console.error('Erro ao chamar edge function:', error);
+          toast({
+            title: "Aviso",
+            description: "Sessão salva localmente, mas não foi possível registrar na Evolution API.",
+            variant: "destructive",
+          });
         }
       }
     },
@@ -513,14 +565,12 @@ export default function WhatsApp() {
           });
 
           // Iniciar polling do status da conexão
-          console.log(`[WhatsApp] 🔄 Iniciando polling de status`);
           const pollInterval = setInterval(async () => {
             const status = await checkConnectionStatus(sessionName, true);
-            console.log(`[WhatsApp] 📊 Status atual: ${status}`);
-            
+
             if (status === 'open') {
-              console.log(`[WhatsApp] ✅ Conexão estabelecida com sucesso!`);
               clearInterval(pollInterval);
+              clearTimeout(timeoutId);
               setQrCodeDialog({ open: false, qrCode: '', sessionName: '' });
               toast({
                 title: "Conectado com sucesso!",
@@ -528,27 +578,29 @@ export default function WhatsApp() {
               });
               queryClient.invalidateQueries({ queryKey: ["whatsapp-sessions"] });
             } else if (status === 'close') {
-              console.warn(`[WhatsApp] ⚠️ Conexão fechada`);
               clearInterval(pollInterval);
+              clearTimeout(timeoutId);
               toast({
                 title: "Erro na conexão",
                 description: "Não foi possível conectar. Verifique se o QR Code foi escaneado corretamente.",
                 variant: "destructive",
               });
             }
-          }, 3000); // Verifica a cada 3 segundos
+          }, 3000);
 
-          // Timeout após 2 minutos
-          setTimeout(() => {
+          // Timeout após 2 minutos — limpa o poll se QR expirar
+          const timeoutId = setTimeout(() => {
             clearInterval(pollInterval);
-            if (qrCodeDialog.open) {
-              console.warn(`[WhatsApp] ⏰ Timeout do QR Code`);
-              toast({
-                title: "Tempo esgotado",
-                description: "O QR Code expirou. Por favor, tente novamente.",
-                variant: "destructive",
-              });
-            }
+            setQrCodeDialog(prev => {
+              if (prev.open) {
+                toast({
+                  title: "Tempo esgotado",
+                  description: "O QR Code expirou. Por favor, tente novamente.",
+                  variant: "destructive",
+                });
+              }
+              return prev;
+            });
           }, 120000);
         } catch (qrError) {
           console.error('[WhatsApp] ❌ Erro ao gerar QR Code:', qrError);
@@ -617,6 +669,30 @@ export default function WhatsApp() {
 
         <TabsContent value="bot">
           <div className="space-y-4">
+            {/* Comportamento do Agente — personalidade + regras */}
+            {(() => {
+              const activeSession = sessions.find((s) => s.is_active) ?? sessions[0];
+              if (!activeSession) return (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground text-sm">
+                    Crie uma sessão WhatsApp primeiro para configurar o comportamento do agente.
+                  </CardContent>
+                </Card>
+              );
+              return (
+                <AgentBehaviorConfig
+                  sessionId={activeSession.id}
+                  agentName={activeSession.agent_name}
+                  initialData={{
+                    agent_personality: (activeSession as any).agent_personality ?? "amigavel",
+                    behavior_rules: (activeSession as any).behavior_rules ?? [],
+                  }}
+                  onSave={(data) => saveAgentBehaviorMutation.mutate({ sessionId: activeSession.id, data })}
+                  isSaving={saveAgentBehaviorMutation.isPending}
+                />
+              );
+            })()}
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -733,6 +809,172 @@ export default function WhatsApp() {
                     Após X minutos sem resposta, cancela atendimento e reseta sessão.
                   </p>
                 </div>
+
+                <div className="space-y-2">
+                  <Label>Auto-Retomada após Intervenção Humana (minutos)</Label>
+                  <Select
+                    value={String(botSettings?.human_takeover_resume_minutes ?? 15)}
+                    onValueChange={(v) => updateBotSettingsMutation.mutate({ human_takeover_resume_minutes: parseInt(v) })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending}
+                  >
+                    <SelectTrigger className="w-72">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5 minutos</SelectItem>
+                      <SelectItem value="10">10 minutos</SelectItem>
+                      <SelectItem value="15">15 minutos — padrão</SelectItem>
+                      <SelectItem value="20">20 minutos</SelectItem>
+                      <SelectItem value="30">30 minutos</SelectItem>
+                      <SelectItem value="60">1 hora</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Quando operador envia mensagem no chat, agente pausa. Retoma automaticamente após X minutos de silêncio do operador.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Seção TTS — resposta por voz */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Mic className="h-4 w-4" />
+                  Resposta por Voz (TTS)
+                </CardTitle>
+                <CardDescription>
+                  Quando cliente enviar áudio, agente responde com mensagem de voz. Texto é salvo no histórico mas não enviado ao cliente.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Toggle TTS */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Ativar resposta por voz</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Detecta automaticamente quando cliente envia áudio e responde no mesmo formato.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={botSettings?.tts_enabled ?? false}
+                    onCheckedChange={(checked) => updateBotSettingsMutation.mutate({ tts_enabled: checked })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending}
+                  />
+                </div>
+
+                {/* Cards de seleção de voz + velocidade */}
+                {botSettings?.tts_enabled && (
+                  <div className="space-y-5">
+                    {/* Velocidade */}
+                    <div className="space-y-2">
+                      <Label>Velocidade de resposta</Label>
+                      <div className="flex gap-2">
+                        {([
+                          { id: 'fast',   label: 'Rápida',   desc: 'Ágil, direto ao ponto' },
+                          { id: 'normal', label: 'Natural',  desc: 'Ritmo equilibrado' },
+                          { id: 'slow',   label: 'Relaxada', desc: 'Calma e pausada' },
+                        ] as { id: string; label: string; desc: string }[]).map(s => {
+                          const isSelected = localSpeed === s.id;
+                          return (
+                            <button
+                              key={s.id}
+                              onClick={() => { setLocalSpeed(s.id); updateBotSettingsMutation.mutate({ tts_speed: s.id }); }}
+                              className={`flex-1 px-3 py-2.5 rounded-lg border text-left transition-colors ${
+                                isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-muted/30'
+                              }`}
+                            >
+                              <div className="font-medium text-sm">{s.label}</div>
+                              <div className="text-xs text-muted-foreground mt-0.5">{s.desc}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Voz */}
+                    <div className="space-y-2">
+                      <Label>Voz do agente</Label>
+                      <div className="space-y-2">
+                        {([
+                          { id: 'pt-BR-Neural2-C', label: 'Clara',  desc: 'Feminina, natural',  badge: 'Recomendada' },
+                          { id: 'pt-BR-Neural2-B', label: 'Bruno',  desc: 'Masculina' },
+                          { id: 'pt-BR-Standard-A', label: 'Duda',  desc: 'Feminina' },
+                        ] as { id: string; label: string; desc: string; badge?: string }[]).map(v => {
+                          const isSelected = (botSettings?.tts_voice ?? 'pt-BR-Neural2-C') === v.id;
+                          const isPlayingThis = isTesting === v.id;
+                          const speed = localSpeed;
+                          const STORAGE_URL = `https://jgdyklzrxygvwuhlnbat.supabase.co/storage/v1/object/public/voice-samples/${companyId}`;
+
+                          return (
+                            <div
+                              key={v.id}
+                              onClick={() => updateBotSettingsMutation.mutate({ tts_voice: v.id })}
+                              className={`flex items-center justify-between px-4 py-3 rounded-lg border cursor-pointer transition-colors ${
+                                isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-muted/30'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                                  isSelected ? 'border-primary' : 'border-muted-foreground/40'
+                                }`}>
+                                  {isSelected && <div className="h-2 w-2 rounded-full bg-primary" />}
+                                </div>
+                                <div>
+                                  <span className="font-medium text-sm">{v.label}</span>
+                                  <span className="text-muted-foreground text-sm ml-2">{v.desc}</span>
+                                  {v.badge && (
+                                    <span className="ml-2 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{v.badge}</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Play direto do Storage — para áudio anterior se houver */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Para áudio em execução (seja qual for)
+                                  if (currentAudioRef.current) {
+                                    currentAudioRef.current.pause();
+                                    currentAudioRef.current.currentTime = 0;
+                                    currentAudioRef.current = null;
+                                  }
+                                  // Se clicou no que já tocava → apenas parar
+                                  if (isTesting === v.id) {
+                                    setIsTesting(false);
+                                    return;
+                                  }
+                                  setIsTesting(v.id as any);
+                                  const audio = new Audio(`${STORAGE_URL}/${v.id}_${speed}.mp3`);
+                                  currentAudioRef.current = audio;
+                                  audio.onended = () => { currentAudioRef.current = null; setIsTesting(false); };
+                                  audio.onerror = () => {
+                                    currentAudioRef.current = null;
+                                    setIsTesting(false);
+                                    toast({ title: "Erro ao tocar áudio", variant: "destructive" });
+                                  };
+                                  audio.play().catch(() => { currentAudioRef.current = null; setIsTesting(false); });
+                                }}
+                                className="shrink-0"
+                              >
+                                {isPlayingThis
+                                  ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Tocando...</>
+                                  : <><Play className="h-4 w-4 mr-1" /> Ouvir</>
+                                }
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                      Google Cloud TTS — vozes em português brasileiro nativo · Neural2: 1M chars/mês grátis
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -758,26 +1000,14 @@ export default function WhatsApp() {
         isEditing={!!editingSession}
       />
 
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja remover esta sessão do WhatsApp? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteId && handleDelete(deleteId)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={!!deleteId}
+        onOpenChange={() => setDeleteId(null)}
+        title="Confirmar exclusão"
+        description="Tem certeza que deseja remover esta sessão do WhatsApp? Esta ação não pode ser desfeita."
+        confirmLabel="Remover"
+        onConfirm={() => deleteId && handleDelete(deleteId)}
+      />
 
       {/* QR Code Dialog */}
       <WhatsAppQRCodeDialog

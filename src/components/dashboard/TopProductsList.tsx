@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/currency-formatter";
 
 interface TopProduct {
   name: string;
@@ -30,7 +31,7 @@ export const TopProductsList = memo(function TopProductsList({ products }: TopPr
                 <p className="text-sm text-muted-foreground">{product.quantity} vendidos</p>
               </div>
             </div>
-            <Badge variant="secondary">R$ {product.revenue.toFixed(2)}</Badge>
+            <Badge variant="secondary">{formatCurrency(product.revenue)}</Badge>
           </div>
         ))}
       </CardContent>

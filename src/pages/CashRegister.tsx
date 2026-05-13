@@ -16,16 +16,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDeleteDialog } from '@/components/common/ConfirmDeleteDialog';
 import { 
   Wallet, 
   DollarSign, 
@@ -457,23 +448,14 @@ export default function CashRegister() {
         </CardContent>
       </Card>
 
-      {/* Delete Movement Confirmation */}
-      <AlertDialog open={!!movementToDelete} onOpenChange={() => setMovementToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover movimentação?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja remover esta movimentação? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteMovement}>
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={!!movementToDelete}
+        onOpenChange={() => setMovementToDelete(null)}
+        title="Remover movimentação?"
+        description="Tem certeza que deseja remover esta movimentação? Esta ação não pode ser desfeita."
+        confirmLabel="Remover"
+        onConfirm={handleDeleteMovement}
+      />
 
       {/* Success Dialog after closing register */}
       <CashRegisterSuccessDialog

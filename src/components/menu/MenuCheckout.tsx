@@ -1,4 +1,6 @@
-import { useState } from "react";
+// v2.2 — Hooks useOrderCreation e usePIXPolling extraídos
+import { formatCurrency } from "@/lib/currency-formatter";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,15 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { apiClient } from "@/lib/api-client";
-import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { usePIXPolling } from "@/hooks/menu/usePIXPolling";
+import { useOrderCreation } from "@/hooks/menu/useOrderCreation";
+import { Loader2, LocateFixed, Copy, CheckCircle2, Clock } from "lucide-react";
 
 interface CartItem {
-  product: {
-    id: string;
-    name: string;
-    price: number;
-  };
+  product: { id: string; name: string; price: number };
   quantity: number;
   observations?: string;
 }
@@ -32,12 +33,119 @@ interface MenuCheckoutProps {
   tableInfo?: { id: string; table_number: string } | null;
   requireCustomerInfo?: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (orderId?: string) => void;
+}
+
+// Tela do QR code PIX — compacta para mobile
+function PixQrScreen({
+  orderId, qrCode, qrCodeBase64, expiresAt, total, onConfirmed, onClose,
+}: {
+  orderId: string;
+  qrCode: string;
+  qrCodeBase64?: string | null;
+  expiresAt?: string | null;
+  total: number;
+  onConfirmed: () => void;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState<number>(() => {
+    if (!expiresAt) return 30 * 60;
+    return Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
+  });
+
+  // Sincroniza quando expiresAt mudar (ex: novo QR gerado)
+  useEffect(() => {
+    if (!expiresAt) return;
+    setSecondsLeft(Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)));
+  }, [expiresAt]);
+
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const t = setInterval(() => setSecondsLeft(s => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [secondsLeft]);
+
+  usePIXPolling(orderId, onConfirmed);
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(qrCode);
+    setCopied(true);
+    toast({ title: "Código copiado!" });
+    setTimeout(() => setCopied(false), 3000);
+  };
+
+  const mins = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
+  const secs = String(secondsLeft % 60).padStart(2, "0");
+  const expired = secondsLeft <= 0;
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+      {/* Valor + instrução */}
+      <div className="text-center">
+        <p className="text-xs text-muted-foreground">Escaneie o QR code ou copie o código</p>
+        <p className="text-xl font-bold text-primary">{formatCurrency(total)}</p>
+      </div>
+
+      {/* QR menor para caber na tela */}
+      <div className="border-2 border-dashed border-muted rounded-xl p-2 bg-white">
+        {qrCodeBase64 ? (
+          <img
+            src={`data:image/png;base64,${qrCodeBase64}`}
+            alt="QR Code PIX"
+            className="w-40 h-40 object-contain"
+          />
+        ) : (
+          <div className="w-40 h-40 flex items-center justify-center text-xs text-muted-foreground text-center p-3">
+            Use o código abaixo para pagar via PIX
+          </div>
+        )}
+      </div>
+
+      {/* Countdown */}
+      <div className={`flex items-center gap-1.5 text-sm font-medium ${expired ? "text-destructive" : "text-amber-600"}`}>
+        <Clock className="w-3.5 h-3.5" />
+        {expired ? "PIX expirado" : `Expira em ${mins}:${secs}`}
+      </div>
+
+      {/* Copia e cola — botão grande para facilitar no celular */}
+      {!expired && (
+        <div className="w-full space-y-1.5">
+          <p className="text-xs text-muted-foreground text-center">PIX copia e cola:</p>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-2 font-mono text-xs h-10"
+            onClick={copyCode}
+          >
+            {copied
+              ? <><CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" /> Copiado!</>
+              : <><Copy className="w-4 h-4 shrink-0" /> Copiar código PIX</>
+            }
+          </Button>
+        </div>
+      )}
+
+      {/* Status polling */}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+        Aguardando confirmação...
+      </div>
+
+      <Button type="button" variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground text-xs h-8">
+        Cancelar pedido
+      </Button>
+    </div>
+  );
 }
 
 export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerInfo, onClose, onSuccess }: MenuCheckoutProps) {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+  const { createOrder, loading, pixData } = useOrderCreation();
+  const [locating, setLocating] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+
   const [formData, setFormData] = useState({
     customer_name: "",
     customer_phone: "",
@@ -47,95 +155,154 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
     observations: "",
   });
 
-  // For table orders, always require customer info
   const isTableOrder = !!tableInfo;
+
+  // Verifica se empresa tem MP configurado via função segura (não expõe credenciais ao anon)
+  const { data: hasMpActive } = useQuery({
+    queryKey: ["mp-active", company.id],
+    queryFn: async () => {
+      const { data } = await supabase.rpc("company_has_mp", { p_company_id: company.id });
+      return !!data;
+    },
+  });
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "GPS não disponível", description: "Seu navegador não suporta geolocalização.", variant: "destructive" });
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
+            { headers: { "Accept-Language": "pt-BR", "User-Agent": "AnaFood/1.0" } }
+          );
+          const data = await res.json();
+          const a = data?.address || {};
+          const road = a.road || a.pedestrian || a.footway || "";
+          const houseNumber = a.house_number || "";
+          const suburb = a.suburb || a.neighbourhood || a.quarter || "";
+          const city = a.city || a.town || a.village || a.municipality || "";
+          const state = a.state || "";
+          const addressParts = [road, houseNumber, suburb, city, state].filter(Boolean).join(", ");
+          setFormData(prev => ({ ...prev, address: addressParts }));
+          toast({ title: "Localização detectada", description: "Verifique e ajuste o endereço se necessário." });
+        } catch {
+          toast({ title: "Erro ao buscar endereço", description: "Tente digitar manualmente.", variant: "destructive" });
+        } finally {
+          setLocating(false);
+        }
+      },
+      (err) => {
+        setLocating(false);
+        const msg = err.code === 1
+          ? "Permita o acesso à localização nas configurações do navegador."
+          : "Não foi possível obter sua localização.";
+        toast({ title: "Localização negada", description: msg, variant: "destructive" });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.customer_name || !formData.customer_phone) {
-      toast({
-        title: "Atenção",
-        description: "Preencha todos os campos obrigatórios",
-        variant: "destructive",
-      });
+      toast({ title: "Atenção", description: "Preencha todos os campos obrigatórios", variant: "destructive" });
       return;
     }
-
     if (formData.type === "delivery" && !formData.address) {
-      toast({
-        title: "Atenção",
-        description: "Informe o endereço de entrega",
-        variant: "destructive",
-      });
+      toast({ title: "Atenção", description: "Informe o endereço de entrega", variant: "destructive" });
       return;
     }
 
-    setLoading(true);
+    const payload = {
+      company_id: company.id,
+      customer_name: formData.customer_name,
+      customer_phone: formData.customer_phone,
+      total,
+      items: cart.map(item => ({
+        id: item.product.id,
+        name: item.product.name,
+        price: item.product.price,
+        quantity: item.quantity,
+        observations: item.observations,
+      })),
+      type: isTableOrder ? "table" : formData.type,
+      address: formData.address,
+      payment_method: formData.payment_method,
+      observations: formData.observations,
+      status: "pending",
+      delivery_fee: 0,
+      estimated_time: 30,
+      source: tableInfo ? "qr_code" : "digital_menu",
+      ...(tableInfo && { table_id: tableInfo.id, table_number: tableInfo.table_number }),
+    };
 
     try {
-      const orderData: any = {
-        company_id: company.id,
-        customer_name: formData.customer_name,
-        customer_phone: formData.customer_phone,
-        total: total,
-        items: cart.map(item => ({
-          id: item.product.id,
-          name: item.product.name,
-          price: item.product.price,
-          quantity: item.quantity,
-          observations: item.observations,
-        })),
-        type: isTableOrder ? "table" : formData.type,
-        address: formData.address,
-        payment_method: formData.payment_method,
-        observations: formData.observations,
-        status: "pending",
-        delivery_fee: 0,
-        estimated_time: 30,
-      };
-
-      // Add table info if it's a table order
-      if (tableInfo) {
-        orderData.table_id = tableInfo.id;
-        orderData.table_number = tableInfo.table_number;
-        orderData.source = "qr_code";
-      }
-
-      const response: any = await apiClient.createOrder(orderData);
-
-      toast({
-        title: "Pedido realizado!",
-        description: "Seu pedido foi enviado com sucesso. Aguarde a confirmação.",
+      await createOrder(payload, (orderId) => {
+        toast({ title: "Pedido realizado!", description: "Aguarde a confirmação." });
+        onSuccess(orderId);
       });
-
-      onSuccess();
-    } catch (error) {
-      console.error('Error creating order:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao realizar pedido. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+    } catch (error: any) {
+      console.error("Error creating order:", error);
+      toast({ title: "Erro", description: error?.message ?? "Erro ao realizar pedido. Tente novamente.", variant: "destructive" });
     }
   };
+
+  // Pagamento PIX confirmado via polling
+  const handlePixConfirmed = () => {
+    setPaymentConfirmed(true);
+    toast({ title: "Pagamento confirmado! ✅", description: "Seu pedido foi recebido com sucesso." });
+    setTimeout(() => onSuccess(pixData?.orderId), 2000);
+  };
+
+  // Tela de QR code
+  if (pixData) {
+    return (
+      <Dialog open onOpenChange={onClose}>
+        <DialogContent className="max-w-sm w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Pagar com PIX</DialogTitle>
+          </DialogHeader>
+          {paymentConfirmed ? (
+            <div className="flex flex-col items-center gap-3 py-6">
+              <CheckCircle2 className="w-16 h-16 text-green-500" />
+              <p className="text-lg font-semibold">Pagamento confirmado!</p>
+              <p className="text-sm text-muted-foreground">Seu pedido está sendo preparado.</p>
+            </div>
+          ) : (
+            <PixQrScreen
+              orderId={pixData.orderId}
+              qrCode={pixData.qrCode}
+              qrCodeBase64={pixData.qrCodeBase64}
+              expiresAt={pixData.expiresAt}
+              total={total}
+              onConfirmed={handlePixConfirmed}
+              onClose={onClose}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isTableOrder ? `Finalizar Pedido - Mesa ${tableInfo?.table_number}` : 'Finalizar Pedido'}
+            {isTableOrder ? `Finalizar Pedido - Mesa ${tableInfo?.table_number}` : "Finalizar Pedido"}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Customer Info */}
+          {/* Dados do cliente */}
           <div className="space-y-4">
             <h3 className="font-semibold">Seus Dados</h3>
-            
             <div className="space-y-2">
               <Label htmlFor="name">Nome *</Label>
               <Input
@@ -146,7 +313,6 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
                 required
               />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="phone">Telefone *</Label>
               <Input
@@ -160,7 +326,7 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
             </div>
           </div>
 
-          {/* Order Type - only for non-table orders */}
+          {/* Tipo de pedido */}
           {!isTableOrder && (
             <div className="space-y-4">
               <h3 className="font-semibold">Tipo de Pedido</h3>
@@ -180,10 +346,23 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
             </div>
           )}
 
-          {/* Address - only for delivery */}
+          {/* Endereço */}
           {!isTableOrder && formData.type === "delivery" && (
             <div className="space-y-2">
-              <Label htmlFor="address">Endereço de Entrega *</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="address">Endereço de Entrega *</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs gap-1.5 h-7 text-blue-600 border-blue-300 hover:bg-blue-50"
+                  onClick={handleDetectLocation}
+                  disabled={locating}
+                >
+                  {locating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LocateFixed className="w-3.5 h-3.5" />}
+                  {locating ? "Detectando..." : "Usar minha localização"}
+                </Button>
+              </div>
               <Textarea
                 id="address"
                 value={formData.address}
@@ -195,7 +374,7 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
             </div>
           )}
 
-          {/* Payment Method */}
+          {/* Forma de pagamento */}
           <div className="space-y-4">
             <h3 className="font-semibold">Forma de Pagamento</h3>
             <RadioGroup
@@ -208,16 +387,33 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="pix" id="pix" />
-                <Label htmlFor="pix">PIX</Label>
+                <Label htmlFor="pix">PIX (manual)</Label>
               </div>
+              {/* Opção MP PIX aparece só se empresa configurou */}
+              {hasMpActive && (
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="pix_mp" id="pix_mp" />
+                  <Label htmlFor="pix_mp" className="flex items-center gap-2">
+                    <span>PIX automático</span>
+                    <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">QR Code</span>
+                  </Label>
+                </div>
+              )}
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="cartao" id="cartao" />
                 <Label htmlFor="cartao">Cartão</Label>
               </div>
             </RadioGroup>
+
+            {/* Aviso quando PIX automático selecionado */}
+            {formData.payment_method === "pix_mp" && (
+              <p className="text-xs text-muted-foreground bg-blue-50 border border-blue-100 rounded px-3 py-2">
+                Após confirmar, você receberá um QR code para pagar via PIX. O pedido é confirmado automaticamente após o pagamento.
+              </p>
+            )}
           </div>
 
-          {/* Observations */}
+          {/* Observações */}
           <div className="space-y-2">
             <Label htmlFor="observations">Observações</Label>
             <Textarea
@@ -229,11 +425,11 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
             />
           </div>
 
-          {/* Summary */}
+          {/* Resumo */}
           <div className="p-4 bg-muted rounded-lg space-y-2">
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span>R$ {total.toFixed(2)}</span>
+              <span>{formatCurrency(total)}</span>
             </div>
             <div className="flex justify-between">
               <span>Taxa de Entrega</span>
@@ -241,28 +437,18 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
             </div>
             <div className="flex justify-between text-lg font-bold pt-2 border-t">
               <span>Total</span>
-              <span className="text-primary">R$ {total.toFixed(2)}</span>
+              <span className="text-primary">{formatCurrency(total)}</span>
             </div>
           </div>
 
-          {/* Actions */}
+          {/* Ações */}
           <div className="flex gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-              className="flex-1"
-            >
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading} className="flex-1">
               Cancelar
             </Button>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="flex-1"
-            >
+            <Button type="submit" disabled={loading} className="flex-1">
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirmar Pedido
+              {formData.payment_method === "pix_mp" ? "Gerar QR Code PIX" : "Confirmar Pedido"}
             </Button>
           </div>
         </form>

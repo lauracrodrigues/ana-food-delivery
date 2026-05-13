@@ -64,7 +64,7 @@ export function PrintPreview({ config, sector }: PrintPreviewProps) {
         <CardTitle className="text-sm">Preview em Tempo Real</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="bg-white border-2 border-border rounded-lg p-4 font-mono text-xs overflow-hidden" style={{ maxWidth: `${config.chars_per_line}ch` }}>
+        <div className="bg-white text-black border-2 border-border rounded-lg p-4 font-mono text-xs overflow-hidden" style={{ maxWidth: `${config.chars_per_line}ch` }}>
           {/* Header */}
           {config.show_company_logo && (
             <div className={`${getFontSizeClass(config.font_sizes.header)} ${getFormatClasses("header")} mb-2`}>

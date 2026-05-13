@@ -1,13 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface SessionForm {
   session_name: string;
   agent_name: string;
-  agent_prompt: string;
+  agent_prompt: string; // mantido na interface para compatibilidade com WhatsApp.tsx
 }
 
 interface WhatsAppSessionDialogProps {
@@ -62,17 +61,9 @@ export function WhatsAppSessionDialog({
               value={formData.agent_name}
               onChange={(e) => onFormChange({ ...formData, agent_name: e.target.value })}
             />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="agent_prompt">Prompt do Agente</Label>
-            <Textarea
-              id="agent_prompt"
-              placeholder="Defina o comportamento e personalidade do agente..."
-              value={formData.agent_prompt}
-              onChange={(e) => onFormChange({ ...formData, agent_prompt: e.target.value })}
-              rows={4}
-            />
+            <p className="text-xs text-muted-foreground">
+              Nome que aparecerá nas mensagens enviadas pelo agente
+            </p>
           </div>
         </div>
         

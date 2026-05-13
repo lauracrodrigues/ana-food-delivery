@@ -165,6 +165,7 @@ export function TablesSettings() {
             });
           } catch (err) {
             console.error('Error generating QR code:', err);
+            toast({ title: 'Erro ao gerar QR Code da mesa', variant: 'destructive' });
           }
         }
         setQrCodes(codes);

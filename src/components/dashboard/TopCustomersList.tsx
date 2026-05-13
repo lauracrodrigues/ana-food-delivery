@@ -2,6 +2,7 @@ import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users } from "lucide-react";
+import { formatCurrency } from "@/lib/currency-formatter";
 
 interface TopCustomer {
   name: string;
@@ -34,7 +35,7 @@ export const TopCustomersList = memo(function TopCustomersList({ customers }: To
                 <p className="text-sm text-muted-foreground">{customer.orders} pedidos</p>
               </div>
             </div>
-            <Badge variant="secondary">R$ {customer.totalSpent.toFixed(2)}</Badge>
+            <Badge variant="secondary">{formatCurrency(customer.totalSpent)}</Badge>
           </div>
         ))}
       </CardContent>

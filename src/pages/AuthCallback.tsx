@@ -16,11 +16,27 @@ export default function AuthCallback() {
           .eq('id', session.user.id)
           .single();
 
-        if (profile?.role === 'master_admin') {
+        if (profile?.role === 'super_admin' || profile?.role === 'master_admin') {
           navigate('/admin');
-        } else {
-          navigate('/dashboard');
+          return;
         }
+
+        // Verifica se o email está vinculado a um entregador
+        if (session.user.email) {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore — deliverers não está no tipo gerado mas existe no banco
+          const { data: deliverer } = await supabase
+            .from('deliverers')
+            .select('id')
+            .eq('email', session.user.email)
+            .maybeSingle();
+          if (deliverer) {
+            navigate('/entregador');
+            return;
+          }
+        }
+
+        navigate('/dashboard');
       }
     });
   }, [navigate]);

@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+// v2.6.0 — botão trocar entregador em qualquer status + notificação WA via API
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,32 +8,47 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { qzPrinter } from "@/lib/qz-tray";
 import { apiClient } from "@/lib/api-client";
 import { useCompanyId } from "@/hooks/useCompanyId";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { KanbanHeader } from "./KanbanHeader";
 import { KanbanColumn } from "./KanbanColumn";
 import { OrderDetailsDialog } from "./OrderDetailsDialog";
 import { CancelOrderDialog } from "./CancelOrderDialog";
-import { 
-  Order, 
-  StoreSettings, 
-  STATUS_COLUMNS, 
-  normalizeStatus 
+import { AssignDelivererDialog } from "./AssignDelivererDialog";
+import { DeliveryMap } from "./DeliveryMap";
+import {
+  Order,
+  StoreSettings,
+  STATUS_COLUMNS,
 } from "./types";
+import {
+  normalizeStatus,
+  isInvalidStatusMove,
+  requiresDelivererAssignment,
+} from "@/utils/orderStatusRules";
 
 export function OrdersKanban() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { companyId } = useCompanyId();
-  
+  // Preferências pessoais do usuário (som, colunas visíveis, impressora)
+  const { preferences: userPrefs, savePreference } = useUserPreferences();
+
   // UI States
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [savedIndicator, setSavedIndicator] = useState(false);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [draggedOrder, setDraggedOrder] = useState<Order | null>(null);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [isPrinting, setIsPrinting] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
-  const [audioPreloaded, setAudioPreloaded] = useState(false);
+  // localStorage: persiste entre recargas e navegação — usuário não precisa reativar toda vez
+  const [audioPreloaded, setAudioPreloaded] = useLocalStorage<boolean>("orders:audioUnlocked", false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  // Pedido aguardando seleção de entregador antes de avançar para Em Entrega
+  const [orderPendingDeliverer, setOrderPendingDeliverer] = useState<Order | null>(null);
+  const [showDeliveryMap, setShowDeliveryMap] = useState(false);
   
   // Settings state (grouped)
   const [settings, setSettings] = useState<StoreSettings>({
@@ -68,7 +85,6 @@ export function OrdersKanban() {
     queryFn: async () => {
       if (!companyId) return [];
       
-      console.log("Fetching orders via API for company:", companyId);
       const response: any = await apiClient.getOrders(companyId);
 
       // Filtra pedidos arquivados (>24h concluídos/cancelados)
@@ -98,6 +114,26 @@ export function OrdersKanban() {
 
       if (error) throw error;
       return data;
+    },
+    enabled: !!companyId,
+  });
+
+  // Sessão WhatsApp ativa — usada para envio via API ao entregador
+  const { data: waSession } = useQuery({
+    queryKey: ["whatsapp-session", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const { data } = await supabase
+        .from("whatsapp_config")
+        .select("session_name")
+        .eq("company_id", companyId)
+        .eq("config_type", "session")  // filtra apenas sessões (não configs do bot)
+        .eq("is_active", true)
+        .not("session_name", "is", null)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data?.session_name ?? null;
     },
     enabled: !!companyId,
   });
@@ -135,7 +171,6 @@ export function OrdersKanban() {
           audio.pause();
           audio.currentTime = 0;
           setAudioPreloaded(true);
-          console.log('✅ Áudio pré-carregado com sucesso:', soundUrl);
         }).catch(() => {
           console.log('⏳ Aguardando interação do usuário para áudio');
         });
@@ -154,142 +189,165 @@ export function OrdersKanban() {
     };
   }, [audioPreloaded, settings.notificationSound]);
 
-  // Setup real-time subscription for orders
+  // Refs para acessar valores atuais dentro do callback sem re-criar subscription
+  const settingsRef = useRef(settings);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+  const stopSoundRef = useRef(stopNotificationSound);
+  useEffect(() => { stopSoundRef.current = stopNotificationSound; }, [stopNotificationSound]);
+
+  // Realtime subscription — deps APENAS em companyId para nunca recriar desnecessariamente
   useEffect(() => {
     if (!companyId) return;
 
     const channel = supabase
-      .channel('orders-realtime')
+      .channel(`orders-realtime-${companyId}`)
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-          filter: `company_id=eq.${companyId}`
-        },
+        { event: '*', schema: 'public', table: 'orders', filter: `company_id=eq.${companyId}` },
         (payload) => {
-          console.log('🔔 Real-time update received:', payload);
-          
-          if (payload.eventType === 'INSERT') {
-            const newOrder = payload.new as Order;
-            console.log('🆕 Novo pedido recebido:', newOrder.order_number);
-
-            stopNotificationSound();
-
-            if (settings.soundEnabled) {
-              const soundUrl = settings.notificationSound || '/sounds/default-notification.mp3';
-              const audio = new Audio(soundUrl);
-              audio.loop = true;
-              audio.volume = 0.7;
-
-              const playPromise = audio.play();
-              if (playPromise !== undefined) {
-                playPromise
-                  .then(() => {
-                    console.log('✅ Som tocando:', soundUrl);
-                    setCurrentAudio(audio);
-                    setAudioPreloaded(true);
-                  })
-                  .catch(e => {
-                    // Browser bloqueou autoplay — pede clique e toca no próximo
-                    console.warn('⚠️ Autoplay bloqueado, aguardando clique:', e.message);
-                    const playOnClick = () => {
-                      audio.play().then(() => { setCurrentAudio(audio); setAudioPreloaded(true); }).catch(() => {});
-                    };
-                    document.addEventListener('click', playOnClick, { once: true });
-                    toast({
-                      title: "🔔 NOVO PEDIDO — clique para ativar som",
-                      description: `Pedido #${newOrder.order_number} aguardando. Clique em qualquer lugar para ouvir a campainha.`,
-                      duration: 30000,
-                    });
-                  });
-              }
-              
-              setTimeout(() => {
-                audio.pause();
-                audio.currentTime = 0;
-                setCurrentAudio(null);
-              }, 20000);
-            }
-            
-            toast({
-              title: "🎉 Novo Pedido!",
-              description: `Pedido #${newOrder.order_number} de ${newOrder.customer_name}`,
-            });
-          }
-          
-          // Use invalidateQueries instead of refetch for better performance
+          // Invalida cache → React Query busca lista atualizada
           queryClient.invalidateQueries({ queryKey: ["orders", companyId] });
+
+          if (payload.eventType !== 'INSERT') return;
+
+          const newOrder = payload.new as Order;
+          const s = settingsRef.current;
+
+          stopSoundRef.current();
+
+          if (s.soundEnabled) {
+            const soundUrl = s.notificationSound || '/sounds/default-notification.mp3';
+            const audio = new Audio(soundUrl);
+            audio.loop = true;
+            audio.volume = 0.7;
+            audio.play()
+              .then(() => { setCurrentAudio(audio); setAudioPreloaded(true); })
+              .catch(() => {
+                document.addEventListener('click', () => {
+                  audio.play().then(() => { setCurrentAudio(audio); setAudioPreloaded(true); }).catch(() => {});
+                }, { once: true });
+                toast({
+                  title: "🔔 NOVO PEDIDO — clique para ativar som",
+                  description: `Pedido #${newOrder.order_number} aguardando.`,
+                  duration: 30000,
+                });
+              });
+            setTimeout(() => { audio.pause(); audio.currentTime = 0; setCurrentAudio(null); }, 20000);
+          }
+
+          toast({
+            title: "🎉 Novo Pedido!",
+            description: `Pedido #${newOrder.order_number} de ${newOrder.customer_name}`,
+          });
         }
       )
-      .subscribe((status) => {
-        console.log('🔔 Realtime subscription status:', status);
+      .subscribe((status, err) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('[Kanban] ❌ Realtime subscription falhou:', status, err);
+          toast({
+            title: "Conexão em tempo real perdida",
+            description: "Atualização automática de pedidos pode estar lenta. Atualizações via polling a cada 15s.",
+            variant: "destructive",
+            duration: 8000,
+          });
+          // Aumenta frequência do polling como fallback quando realtime cai
+          clearInterval(poll);
+          poll = setInterval(() => {
+            queryClient.invalidateQueries({ queryKey: ["orders", companyId] });
+          }, 15000);
+        }
       });
 
+    // Polling fallback a cada 30s — garante atualização mesmo se Realtime cair
+    let poll = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["orders", companyId] });
+    }, 30000);
+
     return () => {
-      stopNotificationSound();
       supabase.removeChannel(channel);
+      clearInterval(poll);
     };
-  }, [companyId, settings.soundEnabled, audioPreloaded, queryClient, toast, stopNotificationSound]);
+  }, [companyId, queryClient, toast]);
+
+  // Auto-corrige pickup orders que estão incorretamente em "delivering"
+  // Cobre pedidos criados antes da regra existir (como #011)
+  useEffect(() => {
+    const wrongOrders = orders.filter(
+      o => o.type === "pickup" && normalizeStatus(o.status) === "delivering"
+    );
+    wrongOrders.forEach(o => {
+      updateOrderMutation.mutate({ orderId: o.id, status: "ready", previousStatus: o.status, order: o });
+    });
+    if (wrongOrders.length > 0) {
+      toast({
+        title: `${wrongOrders.length} pedido(s) corrigido(s)`,
+        description: "Pedidos de retirada foram movidos de volta para Pronto.",
+      });
+    }
+  }, [orders, updateOrderMutation, toast]);
 
   // NOTA: Lógica de auto-completar pedidos foi removida do frontend
   // Recomenda-se implementar no backend com Cron Job para melhor performance e confiabilidade
 
-  // Load settings from Supabase
-  useQuery({
-    queryKey: ["store-settings", companyId],
-    queryFn: async () => {
-      if (!companyId) return null;
+  // Merge storeSettings + userPrefs → settings
+  // useEffect garante re-aplicação quando qualquer dos dois chegar (fix race condition)
+  useEffect(() => {
+    if (!storeSettings) return;
 
-      const { data } = await supabase
-        .from("store_settings")
-        .select("*")
-        .eq("company_id", companyId)
-        .single();
+    const userCols = userPrefs.visibleColumns as any;
+    const storeCols = storeSettings.visible_columns as any;
+    const printerSettings = storeSettings.printer_settings as any;
 
-      if (data) {
-        const columns = data.visible_columns as any;
-        const printerSettings = data.printer_settings as any;
-        setSettings({
-          storeOpen: data.store_open ?? true,
-          autoAccept: data.auto_accept ?? false,
-          soundEnabled: data.sound_enabled ?? true,
-          deliveryTime: data.delivery_time ?? 30,
-          pickupTime: data.pickup_time ?? 45,
-          alertTime: data.alert_time ?? 10,
-          autoPrint: printerSettings?.auto_print ?? true,
-          notificationSound: data.notification_sound ?? '/sounds/default-notification.mp3',
-          visibleColumns: {
-            pending: columns?.pending ?? true,
-            preparing: columns?.preparing ?? true,
-            ready: columns?.ready ?? true,
-            delivering: columns?.delivering ?? true,
-            completed: columns?.completed ?? true,
-            cancelled: columns?.cancelled ?? false,
-          },
-        });
-      }
-
-      return data;
-    },
-    enabled: !!companyId,
-    refetchInterval: false,
-    refetchOnWindowFocus: false,
-  });
+    setSettings({
+      storeOpen:    storeSettings.store_open ?? true,
+      autoAccept:   storeSettings.auto_accept ?? false,
+      deliveryTime: storeSettings.delivery_time ?? 30,
+      pickupTime:   storeSettings.pickup_time ?? 45,
+      alertTime:    storeSettings.alert_time ?? 10,
+      // Prefs pessoais têm prioridade sobre config da empresa
+      soundEnabled:      userPrefs.soundEnabled      ?? storeSettings.sound_enabled      ?? true,
+      notificationSound: userPrefs.notificationSound ?? storeSettings.notification_sound ?? '/sounds/default-notification.mp3',
+      autoPrint:         userPrefs.autoPrint         ?? printerSettings?.auto_print      ?? true,
+      visibleColumns: userCols ? {
+        pending:    userCols.pending    ?? true,
+        preparing:  userCols.preparing  ?? true,
+        ready:      userCols.ready      ?? true,
+        delivering: userCols.delivering ?? true,
+        completed:  userCols.completed  ?? true,
+        cancelled:  userCols.cancelled  ?? false,
+      } : {
+        pending:    storeCols?.pending    ?? true,
+        preparing:  storeCols?.preparing  ?? true,
+        ready:      storeCols?.ready      ?? true,
+        delivering: storeCols?.delivering ?? true,
+        completed:  storeCols?.completed  ?? true,
+        cancelled:  storeCols?.cancelled  ?? false,
+      },
+    });
+  }, [storeSettings, userPrefs]);
 
   // Update order status mutation with optimistic updates
   const updateOrderMutation = useMutation({
-    mutationFn: async ({ orderId, status, previousStatus, order, cancellationReason }: { 
-      orderId: string; 
-      status: string; 
-      previousStatus?: string; 
+    mutationFn: async ({ orderId, status, previousStatus, order, cancellationReason, delivererId, delivererName }: {
+      orderId: string;
+      status: string;
+      previousStatus?: string;
       order?: Order;
       cancellationReason?: string;
+      delivererId?: string;
+      delivererName?: string;
     }) => {
       if (!companyId) throw new Error("Company not found");
 
       await apiClient.updateOrderStatus(orderId, status, companyId);
+
+      // Salva entregador vinculado — precisa salvar nome também para exibir no card
+      if (delivererId) {
+        await supabase
+          .from("orders")
+          .update({ deliverer_id: delivererId, deliverer_name: delivererName ?? null })
+          .eq("id", orderId);
+      }
       
           // Auto-print when accepting order (non-blocking) if enabled
         if (previousStatus === 'pending' && status === 'preparing' && order) {
@@ -387,6 +445,61 @@ export function OrdersKanban() {
       });
     },
   });
+
+  // Query pause states para todos os pedidos visíveis
+  const { data: agentPauseData } = useQuery({
+    queryKey: ["agent-pause", companyId],
+    queryFn: async () => {
+      if (!companyId) return { pausedPhones: new Set<string>(), globalPause: false };
+      const { data } = await supabase
+        .from("whatsapp_agent_control")
+        .select("phone, is_paused")
+        .eq("company_id", companyId)
+        .eq("is_paused", true);
+      const globalPause = (data || []).some((r: any) => r.phone === null);
+      const pausedPhones = new Set<string>(
+        (data || []).filter((r: any) => r.phone !== null).map((r: any) => String(r.phone))
+      );
+      return { pausedPhones, globalPause };
+    },
+    enabled: !!companyId,
+    refetchInterval: 30000,
+  });
+
+  const pausedPhones = agentPauseData?.pausedPhones || new Set<string>();
+  const globalAgentPaused = agentPauseData?.globalPause || false;
+
+  // Toggle pausa do agente para um contato específico
+  const toggleAgentPauseMutation = useMutation({
+    mutationFn: async ({ order, pause }: { order: Order; pause: boolean }) => {
+      if (!companyId) throw new Error("Company not found");
+      const phone = (order.customer_phone || '').replace(/\D/g, '');
+      const { error } = await supabase
+        .from("whatsapp_agent_control")
+        .upsert(
+          { company_id: companyId, phone, is_paused: pause, updated_at: new Date().toISOString() },
+          { onConflict: 'company_id,phone' }
+        );
+      if (error) throw error;
+      return { phone, pause };
+    },
+    onSuccess: ({ phone, pause }) => {
+      queryClient.invalidateQueries({ queryKey: ["agent-pause", companyId] });
+      toast({
+        title: pause ? "⏸️ Agente pausado" : "▶️ Agente retomado",
+        description: pause
+          ? `Bot pausado para ${phone}. Cliente não receberá respostas.`
+          : `Bot retomado para ${phone}.`,
+      });
+    },
+    onError: () => {
+      toast({ title: "Erro ao alterar pausa", variant: "destructive" });
+    },
+  });
+
+  const handleToggleAgentPause = (order: Order, pause: boolean) => {
+    toggleAgentPauseMutation.mutate({ order, pause });
+  };
 
   // Update settings mutation
   const updateSettingsMutation = useMutation({
@@ -527,17 +640,36 @@ export function OrdersKanban() {
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+  const isInvalidMove = (order: Order, targetStatus: string) =>
+    isInvalidStatusMove(order.type, targetStatus);
+
+  const handleDragOver = (e: React.DragEvent, targetColumnId: string) => {
     e.stopPropagation();
+    // Bloqueia cursor se pickup tentando entrar em delivering
+    if (draggedOrder && isInvalidMove(draggedOrder, targetColumnId)) {
+      e.dataTransfer.dropEffect = "none";
+      // Não chama preventDefault → browser mostra cursor "proibido" e não dispara onDrop
+      return;
+    }
+    e.preventDefault();
     e.dataTransfer.dropEffect = "move";
   };
 
   const handleDrop = (e: React.DragEvent, newStatus: string) => {
     e.preventDefault();
     if (draggedOrder && draggedOrder.status !== newStatus) {
-      updateOrderMutation.mutate({ 
-        orderId: draggedOrder.id, 
+      // Drop bloqueado — pickup não entra em delivering
+      if (isInvalidMove(draggedOrder, newStatus)) {
+        toast({
+          title: "Bloqueado",
+          description: "Pedidos de retirada não podem ir para Em Entrega.",
+          variant: "destructive",
+        });
+        setDraggedOrder(null);
+        return;
+      }
+      updateOrderMutation.mutate({
+        orderId: draggedOrder.id,
         status: newStatus,
         previousStatus: draggedOrder.status,
         order: draggedOrder
@@ -546,8 +678,10 @@ export function OrdersKanban() {
     setDraggedOrder(null);
   };
 
-  const updateOrderStatus = (orderId: string, newStatus: string, previousStatus?: string, order?: Order, cancellationReason?: string) => {
-    updateOrderMutation.mutate({ orderId, status: newStatus, previousStatus, order, cancellationReason });
+  const updateOrderStatus = (orderId: string, newStatus: string, previousStatus?: string, order?: Order, cancellationReason?: string, delivererId?: string) => {
+    // Botão "Avançar" também bloqueado para retirada→entrega
+    if (order && isInvalidMove(order, newStatus)) return;
+    updateOrderMutation.mutate({ orderId, status: newStatus, previousStatus, order, cancellationReason, delivererId });
   };
 
   const toggleOrderSelection = (orderId: string) => {
@@ -559,6 +693,19 @@ export function OrdersKanban() {
     }
     setSelectedOrders(newSelected);
   };
+
+  // Selecionar/desmarcar todos de uma coluna
+  const handleSelectAllInColumn = (_columnId: string, orderIds: string[]) => {
+    const newSelected = new Set(selectedOrders);
+    if (orderIds.length === 0) {
+      // Desmarcar todos da coluna — remove apenas os ids que pertencem à coluna
+      const columnOrders = filteredOrders.filter(o => normalizeStatus(o.status) === _columnId);
+      columnOrders.forEach(o => newSelected.delete(o.id));
+    } else {
+      orderIds.forEach(id => newSelected.add(id));
+    }
+    setSelectedOrders(newSelected);
+  };
   
   const handleBulkStatusChange = (status: string) => {
     selectedOrders.forEach(orderId => {
@@ -567,19 +714,26 @@ export function OrdersKanban() {
     setSelectedOrders(new Set());
   };
 
-  const openWhatsApp = (phone: string, orderNumber: string) => {
+  const openWhatsApp = async (phone: string, orderNumber: string) => {
     if (!phone) {
-      toast({
-        title: "Telefone não disponível",
-        variant: "destructive",
-      });
+      toast({ title: "Telefone não disponível", variant: "destructive" });
       return;
     }
-
     const cleanPhone = phone.replace(/\D/g, "");
     const message = `Olá! Sobre o pedido #${orderNumber}, como posso ajudar?`;
-    const whatsappUrl = `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, "_blank");
+
+    if (waSession) {
+      try {
+        await supabase.functions.invoke('whatsapp-evolution', {
+          body: { action: "sendText", instanceName: waSession, number: cleanPhone, message },
+        });
+        toast({ title: "Mensagem enviada via WhatsApp ✓" });
+      } catch {
+        toast({ title: "Erro ao enviar WA", variant: "destructive" });
+      }
+    } else {
+      window.open(`https://wa.me/55${cleanPhone}?text=${encodeURIComponent(message)}`, "_blank");
+    }
   };
 
   // Auto-accept effect
@@ -592,9 +746,32 @@ export function OrdersKanban() {
     }
   }, [settings.autoAccept, orders]);
   
+  // Dispara indicador visual "Salvo ✓" por 2s
+  const triggerSaved = () => {
+    setSavedIndicator(true);
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    savedTimerRef.current = setTimeout(() => setSavedIndicator(false), 2000);
+  };
+
   const handleSettingsChange = (newSettings: Partial<StoreSettings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }));
-    updateSettingsMutation.mutate(newSettings);
+    triggerSaved();
+
+    // Campos pessoais → salva em profiles.preferences (por usuário)
+    const personalFields: Array<keyof StoreSettings> = ['soundEnabled', 'notificationSound', 'visibleColumns', 'autoPrint'];
+    const personalPatch: Record<string, unknown> = {};
+    const companyPatch: Partial<StoreSettings> = {};
+
+    for (const [key, val] of Object.entries(newSettings)) {
+      if (personalFields.includes(key as keyof StoreSettings)) {
+        personalPatch[key] = val;
+      } else {
+        companyPatch[key as keyof StoreSettings] = val as any;
+      }
+    }
+
+    if (Object.keys(personalPatch).length > 0) savePreference(personalPatch);
+    if (Object.keys(companyPatch).length > 0) updateSettingsMutation.mutate(companyPatch);
   };
   
   const handleCancelOrder = (reason: string) => {
@@ -606,6 +783,97 @@ export function OrdersKanban() {
     });
     setShowCancelDialog(false);
     setSelectedOrder(null);
+  };
+
+  const handleChangeType = async (orderId: string, newType: "delivery" | "pickup") => {
+    const { error } = await supabase
+      .from("orders")
+      .update({ type: newType, updated_at: new Date().toISOString() })
+      .eq("id", orderId);
+    if (error) {
+      toast({ title: "Erro ao alterar tipo", description: error.message, variant: "destructive" });
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["orders", companyId] });
+    // Atualiza selectedOrder localmente para o badge mudar imediatamente
+    setSelectedOrder(prev => prev ? { ...prev, type: newType } : prev);
+    toast({ title: `Pedido alterado para ${newType === "delivery" ? "Entrega" : "Retirada"}` });
+  };
+
+  // Monta mensagem WhatsApp para o entregador com todos os dados do pedido
+  const buildDelivererMessage = (order: Order): string => {
+    const items = (order.items || [])
+      .map(i => `• ${i.quantity}x ${i.name}${i.price ? ` — R$ ${(i.price * (i.quantity || 1)).toFixed(2).replace('.', ',')}` : ''}`)
+      .join('\n');
+
+    const address = [
+      order.address && order.address_number ? `${order.address}, ${order.address_number}` : order.address,
+      order.address_complement,
+      order.neighborhood,
+      order.city && order.state ? `${order.city}/${order.state}` : order.city,
+      order.zip_code ? `CEP ${order.zip_code}` : null,
+    ].filter(Boolean).join('\n');
+
+    const total = order.total
+      ? `R$ ${order.total.toFixed(2).replace('.', ',')}`
+      : '';
+
+    return [
+      `🛵 *Novo pedido para entrega!*`,
+      ``,
+      `📋 *Pedido #${order.order_number}*`,
+      `👤 Cliente: ${order.customer_name}`,
+      order.customer_phone ? `📱 ${order.customer_phone}` : null,
+      address ? `📍 *Endereço:*\n${address}` : null,
+      ``,
+      `📦 *Itens:*`,
+      items,
+      ``,
+      total ? `💰 *Total: ${total}*` : null,
+      order.payment_method ? `💳 Pagamento: ${order.payment_method}` : null,
+      order.observations ? `⚠️ Obs: ${order.observations}` : null,
+    ].filter(line => line !== null).join('\n');
+  };
+
+  // Chamado pelo OrderCard quando pedido de delivery em "Pronto" clica "Avançar"
+  const handleAssignDeliverer = (order: Order) => {
+    setOrderPendingDeliverer(order);
+  };
+
+  // Trocar entregador — abre modal para qualquer pedido delivery
+  const handleChangeDeliverer = (order: Order) => {
+    setOrderPendingDeliverer(order);
+  };
+
+  // Confirma seleção do entregador: vincula ao pedido + avança status se necessário + notifica via API ou link
+  const handleConfirmDeliverer = async (order: Order, deliverer: { id: string; name: string; phone: string }) => {
+    const nextStatus = order.status === "ready" ? "delivering" : order.status;
+    updateOrderMutation.mutate({
+      orderId: order.id,
+      status: nextStatus,
+      previousStatus: order.status,
+      order,
+      delivererId: deliverer.id,
+      delivererName: deliverer.name,
+    });
+
+    const msg = buildDelivererMessage(order);
+    const phone = deliverer.phone.replace(/\D/g, '');
+
+    if (waSession) {
+      // Envia via Evolution API — sem abrir link
+      try {
+        await supabase.functions.invoke('whatsapp-evolution', {
+          body: { action: "sendText", instanceName: waSession, number: phone, message: msg },
+        });
+        toast({ title: "Entregador notificado via WhatsApp ✓" });
+      } catch {
+        toast({ title: "Erro ao enviar WA", description: "Verifique a conexão WhatsApp", variant: "destructive" });
+      }
+    } else {
+      // Fallback: abre link wa.me
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
   };
 
   const filteredOrders = orders.filter((order) => {
@@ -654,8 +922,18 @@ export function OrdersKanban() {
           onToggleFilters={() => setShowFilters(!showFilters)}
           selectedOrdersCount={selectedOrders.size}
           onBulkStatusChange={handleBulkStatusChange}
+          showSaved={savedIndicator}
+          showMap={showDeliveryMap}
+          onToggleMap={() => setShowDeliveryMap(v => !v)}
         />
       </div>
+
+      {/* Mapa de entregadores — expande acima das colunas */}
+      {showDeliveryMap && (
+        <div className="flex-shrink-0 h-80 border border-border rounded-lg overflow-hidden mb-2">
+          <DeliveryMap onClose={() => setShowDeliveryMap(false)} />
+        </div>
+      )}
 
       {/* Colunas: scroll horizontal, cada coluna scroll vertical independente */}
       <div className="flex-1 min-h-0 flex gap-4 overflow-x-auto pt-3 pb-2">
@@ -676,12 +954,13 @@ export function OrdersKanban() {
                 column={column}
                 orders={columnOrders}
                 onDrop={handleDrop}
-                onDragOver={handleDragOver}
+                onDragOver={(e, colId) => handleDragOver(e, colId)}
                 onCardClick={(order) => {
                   stopNotificationSound();
                   setSelectedOrder(order);
                 }}
                 onCardSelect={toggleOrderSelection}
+                onSelectAll={handleSelectAllInColumn}
                 selectedOrders={selectedOrders}
                 onPrintOrder={handlePrintOrder}
                 onUpdateStatus={updateOrderStatus}
@@ -690,7 +969,13 @@ export function OrdersKanban() {
                 alertTime={settings.alertTime}
                 isPrinting={isPrinting}
                 isDraggedOver={!!isDraggedOver}
+                draggedOrder={draggedOrder}
                 onOpenWhatsApp={openWhatsApp}
+                pausedPhones={pausedPhones}
+                globalAgentPaused={globalAgentPaused}
+                onToggleAgentPause={handleToggleAgentPause}
+                onAssignDeliverer={handleAssignDeliverer}
+                onChangeDeliverer={handleChangeDeliverer}
               />
             );
           })}
@@ -703,6 +988,7 @@ export function OrdersKanban() {
         onPrint={handlePrintOrder}
         onCancel={() => setShowCancelDialog(true)}
         onOpenWhatsApp={openWhatsApp}
+        onChangeType={handleChangeType}
         isPrinting={isPrinting}
       />
 
@@ -711,6 +997,13 @@ export function OrdersKanban() {
         onClose={() => setShowCancelDialog(false)}
         onConfirm={handleCancelOrder}
         orderNumber={selectedOrder?.order_number || ""}
+      />
+
+      <AssignDelivererDialog
+        order={orderPendingDeliverer}
+        open={!!orderPendingDeliverer}
+        onClose={() => setOrderPendingDeliverer(null)}
+        onConfirm={handleConfirmDeliverer}
       />
     </div>
   );

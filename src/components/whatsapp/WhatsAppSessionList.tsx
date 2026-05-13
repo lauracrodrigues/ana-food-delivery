@@ -78,7 +78,6 @@ export function WhatsAppSessionList({
                 <TableHead>Nome da Sessão</TableHead>
                 <TableHead>Nome do Agente</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Prompt</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -99,15 +98,6 @@ export function WhatsAppSessionList({
                         <RefreshCw className={`h-4 w-4 ${loadingStatus[session.session_name] ? 'animate-spin' : ''}`} />
                       </Button>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-muted-foreground">
-                      {session.agent_prompt ? 
-                        (session.agent_prompt.length > 50 ? 
-                          session.agent_prompt.substring(0, 50) + "..." : 
-                          session.agent_prompt) : 
-                        "Sem prompt definido"}
-                    </span>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-2 justify-end">

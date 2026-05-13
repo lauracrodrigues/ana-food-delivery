@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/currency-formatter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -200,7 +201,7 @@ export function StoreConfigStep({ onNext, onBack, initialData }: StoreConfigStep
                               )}
                             </div>
                             <p className="text-2xl font-bold mb-2">
-                              R$ {plan.price.toFixed(2)}
+                              {formatCurrency(plan.price)}
                               <span className="text-sm font-normal text-muted-foreground">/mês</span>
                             </p>
                             <p className="text-sm text-muted-foreground mb-3">{plan.description}</p>

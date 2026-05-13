@@ -57,34 +57,6 @@ interface CashRegisterClosingProps {
   isClosing: boolean;
 }
 
-const getPaymentIcon = (type: string) => {
-  switch (type) {
-    case 'cash':
-      return Banknote;
-    case 'pix':
-      return QrCode;
-    case 'credit':
-    case 'debit':
-      return CreditCard;
-    default:
-      return Wallet;
-  }
-};
-
-const getPaymentName = (type: string) => {
-  switch (type) {
-    case 'cash':
-      return 'Dinheiro';
-    case 'pix':
-      return 'PIX';
-    case 'credit':
-      return 'Cartão Crédito';
-    case 'debit':
-      return 'Cartão Débito';
-    default:
-      return 'Outros';
-  }
-};
 
 export function CashRegisterClosing({
   summary,

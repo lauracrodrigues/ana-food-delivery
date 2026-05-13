@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,11 +11,11 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { 
-  Store, 
-  Users, 
-  TrendingUp, 
-  Package, 
+import {
+  Store,
+  Users,
+  TrendingUp,
+  Package,
   Settings,
   LogOut,
   Eye,
@@ -50,14 +50,32 @@ import {
   Shield,
   Key,
   FileText,
-  MessageSquare
+  MessageSquare,
+  Puzzle,
+  UtensilsCrossed,
+  Truck,
+  BarChart2,
+  MonitorSmartphone,
+  Bike,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { TenantUsersTab } from "@/components/admin/TenantUsersTab";
+
+export type ModuleKey = "cardapio_digital" | "whatsapp" | "pdv" | "financeiro" | "app_entregador" | "distribuidoras";
+
+const MODULE_DEFINITIONS: { key: ModuleKey; label: string; description: string; icon: React.ReactNode; defaultEnabled: boolean }[] = [
+  { key: "cardapio_digital", label: "Cardápio Digital",   description: "Cardápio público acessível pelos clientes via link/QR Code", icon: <UtensilsCrossed className="w-5 h-5" />, defaultEnabled: true  },
+  { key: "whatsapp",         label: "WhatsApp",           description: "Integração com WhatsApp para notificações e pedidos",         icon: <MessageSquare   className="w-5 h-5" />, defaultEnabled: true  },
+  { key: "pdv",              label: "PDV",                description: "Ponto de venda — lançamento de pedidos internos",             icon: <MonitorSmartphone className="w-5 h-5" />, defaultEnabled: true  },
+  { key: "financeiro",       label: "Financeiro",         description: "Relatórios financeiros, faturamento e caixa",                 icon: <BarChart2       className="w-5 h-5" />, defaultEnabled: true  },
+  { key: "app_entregador",   label: "App Entregador",     description: "Aplicativo mobile para gerenciamento das entregas",           icon: <Bike            className="w-5 h-5" />, defaultEnabled: true  },
+  { key: "distribuidoras",   label: "Distribuidoras",     description: "Módulo de pedidos para distribuidoras e atacado",             icon: <Truck           className="w-5 h-5" />, defaultEnabled: false },
+];
 
 interface Tenant {
   id: string;
@@ -77,6 +95,7 @@ interface Tenant {
   updated_at?: string;
   owner_id?: string;
   segment?: string;
+  modules_enabled?: Record<ModuleKey, boolean> | null;
 }
 
 interface UserFormData {
@@ -126,6 +145,8 @@ export default function AdminDashboard() {
   const [showUserModal, setShowUserModal] = useState(false);
   const [bulkSelected, setBulkSelected] = useState<Record<string, boolean>>({});
   const [selectAll, setSelectAll] = useState(false);
+  const [modulesLocal, setModulesLocal] = useState<Record<ModuleKey, boolean> | null>(null);
+  const [savingModules, setSavingModules] = useState(false);
 
   const form = useForm<UserFormData>({
     resolver: zodResolver(userFormSchema),
@@ -217,8 +238,31 @@ export default function AdminDashboard() {
 
   function openDetails(tenant: Tenant) {
     setSelectedTenant(tenant);
+    // Inicializa módulos com valores do banco ou defaults
+    const defaults = Object.fromEntries(MODULE_DEFINITIONS.map(m => [m.key, m.defaultEnabled])) as Record<ModuleKey, boolean>;
+    setModulesLocal({ ...defaults, ...(tenant.modules_enabled ?? {}) });
     setShowDetailsPanel(true);
   }
+
+  const saveModules = useCallback(async () => {
+    if (!selectedTenant || !modulesLocal) return;
+    setSavingModules(true);
+    try {
+      const { error } = await supabase
+        .from("companies")
+        .update({ modules_enabled: modulesLocal })
+        .eq("id", selectedTenant.id);
+      if (error) throw error;
+      // Atualiza lista local de tenants para refletir mudança
+      setTenants(prev => prev.map(t => t.id === selectedTenant.id ? { ...t, modules_enabled: modulesLocal } : t));
+      setSelectedTenant(prev => prev ? { ...prev, modules_enabled: modulesLocal } : prev);
+      toast({ title: "Módulos salvos com sucesso ✓" });
+    } catch {
+      toast({ title: "Erro ao salvar módulos", variant: "destructive" });
+    } finally {
+      setSavingModules(false);
+    }
+  }, [selectedTenant, modulesLocal, toast]);
 
   async function handleImpersonate(tenant: Tenant) {
     toast({
@@ -326,8 +370,7 @@ export default function AdminDashboard() {
 
   async function onSubmitUser(data: UserFormData) {
     try {
-      // Here you would create/update the user
-      console.log('User data:', data);
+      // TODO: implementar create/update user via edge function
       
       toast({
         title: "Usuário salvo",
@@ -671,6 +714,7 @@ export default function AdminDashboard() {
                               variant="ghost"
                               className="h-8 px-2"
                               title="Configurações"
+                              onClick={() => openDetails(tenant)}
                             >
                               <Settings className="w-4 h-4" />
                             </Button>
@@ -699,9 +743,12 @@ export default function AdminDashboard() {
               </SheetHeader>
 
               <Tabs defaultValue="overview" className="mt-6">
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-6">
                   <TabsTrigger value="overview">Visão Geral</TabsTrigger>
                   <TabsTrigger value="users">Usuários</TabsTrigger>
+                  <TabsTrigger value="modules" className="flex items-center gap-1">
+                    <Puzzle className="w-3.5 h-3.5" />Módulos
+                  </TabsTrigger>
                   <TabsTrigger value="integrations">Integrações</TabsTrigger>
                   <TabsTrigger value="financial">Financeiro</TabsTrigger>
                   <TabsTrigger value="logs">Logs</TabsTrigger>
@@ -839,6 +886,51 @@ export default function AdminDashboard() {
 
                 <TabsContent value="users" className="space-y-4">
                   <TenantUsersTab companyId={selectedTenant.id} />
+                </TabsContent>
+
+                {/* ── Aba Módulos ─────────────────────────────────────── */}
+                <TabsContent value="modules" className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-medium">Módulos do Sistema</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Habilite ou desabilite recursos para esta loja
+                      </p>
+                    </div>
+                    <Button size="sm" onClick={saveModules} disabled={savingModules}>
+                      {savingModules ? "Salvando..." : "Salvar"}
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {MODULE_DEFINITIONS.map((mod) => {
+                      const enabled = modulesLocal ? modulesLocal[mod.key] : mod.defaultEnabled;
+                      return (
+                        <div
+                          key={mod.key}
+                          className={`flex items-center gap-4 p-3 rounded-lg border transition-colors ${
+                            enabled ? "border-primary/30 bg-primary/5" : "border-border bg-muted/30"
+                          }`}
+                        >
+                          <div className={`shrink-0 ${enabled ? "text-primary" : "text-muted-foreground"}`}>
+                            {mod.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">{mod.label}</p>
+                            <p className="text-xs text-muted-foreground">{mod.description}</p>
+                          </div>
+                          <Switch
+                            checked={enabled}
+                            onCheckedChange={(checked) =>
+                              setModulesLocal(prev => prev ? { ...prev, [mod.key]: checked } : prev)
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Módulos desabilitados ficam ocultos na interface do cliente. Clique em <strong>Salvar</strong> para aplicar.
+                  </p>
                 </TabsContent>
 
                 <TabsContent value="integrations" className="space-y-4">

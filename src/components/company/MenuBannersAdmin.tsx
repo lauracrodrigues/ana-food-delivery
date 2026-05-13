@@ -14,10 +14,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import {
   Upload, Trash2, Pencil, ChevronUp, ChevronDown, Plus, ImageIcon, Link2, ExternalLink,
 } from "lucide-react";
@@ -453,24 +450,13 @@ export function MenuBannersAdmin({ companyId }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* ── Confirm delete ── */}
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir banner?</AlertDialogTitle>
-            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deleteId && deleteMut.mutate(deleteId)}
-            >
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={!!deleteId}
+        onOpenChange={() => setDeleteId(null)}
+        title="Excluir banner?"
+        onConfirm={() => deleteId && deleteMut.mutate(deleteId)}
+        isPending={deleteMut.isPending}
+      />
     </div>
   );
 }

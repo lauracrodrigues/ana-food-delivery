@@ -106,7 +106,6 @@ export function PrintLayoutConfig() {
       return data;
     },
     enabled: !!companyId,
-    staleTime: 0,
   });
 
   // Carregar impressoras do cache ou buscar
@@ -238,12 +237,6 @@ export function PrintLayoutConfig() {
         company_address: companyData?.address || MOCK_ORDER.company_address,
       };
       
-      console.log('🧪 Teste de impressão usando MOCK_ORDER:', {
-        order_number: testOrder.order_number,
-        customer_name: testOrder.customer_name,
-        items_count: testOrder.items.length,
-      });
-
       const qzTray = QZTrayPrinter.getInstance();
       await qzTray.connect();
       await qzTray.printOrder(testOrder, config.printer_name, false, sector as any, config.layout, config.copies);

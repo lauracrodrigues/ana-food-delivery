@@ -1,10 +1,12 @@
+// v1.5.0 — toggle tema dark/light no footer (padrão GitHub/Linear/Notion)
 import { useState, useEffect } from "react";
-import { 
-  ShoppingBag, 
-  Settings, 
-  LogOut, 
-  LayoutDashboard, 
-  Package, 
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import {
+  ShoppingBag,
+  Settings,
+  LogOut,
+  LayoutDashboard,
+  Package,
   Users,
   ShoppingCart,
   Tag,
@@ -26,8 +28,15 @@ import {
   LayoutGrid,
   Wallet,
   Receipt,
-  Clock
+  Clock,
+  Sun,
+  Moon,
+  TrendingUp,
+  Truck,
 } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
+import { saveUserTheme } from "@/components/layout/UserThemeSync";
+import { MotoIcon } from "@/components/ui/moto-icon";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +62,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface MenuItem {
   title: string;
@@ -89,6 +99,16 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
     ],
   },
   {
+    title: "Financeiro",
+    url: "/financeiro",
+    icon: TrendingUp,
+  },
+  {
+    title: "Distribuidoras",
+    url: "/distribuidoras",
+    icon: Truck,
+  },
+  {
     title: "Pedidos",
     url: "/orders",
     icon: ShoppingBag,
@@ -102,8 +122,11 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
     title: "Cadastros",
     icon: Package,
     subItems: [
-      ...(isAdmin ? [{ title: "Usuários", url: "/users", icon: Users }] : []),
+      { title: "Produtos", url: "/products", icon: Package },
+      { title: "Categorias", url: "/categories", icon: Tag },
+...(isAdmin ? [{ title: "Usuários", url: "/users", icon: Users }] : []),
       { title: "Clientes", url: "/customers", icon: Users },
+      { title: "Entregadores", url: "/entregadores", icon: MotoIcon },
       { title: "Taxas de Entrega", url: "/delivery-fees", icon: MapPin },
       { title: "Formas de Pagamento", url: "/payment-methods", icon: CreditCard },
     ],
@@ -129,13 +152,21 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
 
 export function AppSidebar() {
   const { state, toggleSidebar, setOpen } = useSidebar();
+  const { theme, setTheme } = useTheme();
+
+  // Toggle dark mode — persiste por usuário (localStorage + DB), não global
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    saveUserTheme(next); // async, não bloqueia UI
+  };
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isAdmin } = useUserRole();
-  const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const [openGroups, setOpenGroups] = useLocalStorage<string[]>("sidebar:openGroups", []);
   const [isHovered, setIsHovered] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
+  const [isPinned, setIsPinned] = useLocalStorage<boolean>("sidebar:pinned", false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -186,12 +217,11 @@ export function AppSidebar() {
     },
   });
 
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast({
-      title: "Logout realizado",
-      description: "Você foi desconectado com sucesso.",
-    });
+    toast({ title: "Logout realizado", description: "Você foi desconectado com sucesso." });
     navigate("/login");
   };
 
@@ -203,11 +233,10 @@ export function AppSidebar() {
       : "hover:bg-muted/50";
   };
 
+  // Accordion: abre o grupo clicado, fecha todos os outros automaticamente
   const toggleGroup = (groupTitle: string) => {
-    setOpenGroups(prev => 
-      prev.includes(groupTitle) 
-        ? prev.filter(g => g !== groupTitle)
-        : [...prev, groupTitle]
+    setOpenGroups(prev =>
+      prev.includes(groupTitle) ? [] : [groupTitle]
     );
   };
 
@@ -347,11 +376,27 @@ export function AppSidebar() {
             </nav>
           </ScrollArea>
 
-          {/* Mobile Logout Button */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
+          {/* Mobile footer: toggle tema + sair */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border space-y-1">
+            <div className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-muted/50">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {theme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                <span>{theme === "dark" ? "Escuro" : "Claro"}</span>
+              </div>
+              <button
+                onClick={() => toggleTheme()}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                  theme === "dark" ? "bg-primary" : "bg-input"
+                }`}
+              >
+                <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-lg transition-transform duration-200 ${
+                  theme === "dark" ? "translate-x-4" : "translate-x-0"
+                }`} />
+              </button>
+            </div>
             <Button
               variant="ghost"
-              onClick={handleLogout}
+              onClick={() => setShowLogoutConfirm(true)}
               className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <LogOut className="h-4 w-4 mr-2" />
@@ -555,11 +600,44 @@ export function AppSidebar() {
         </SidebarContent>
 
         <SidebarFooter className="border-t border-border">
-          <div className={`${!showContent ? "p-2" : "p-4"} transition-all duration-300`}>
+          <div className={`${!showContent ? "p-2" : "p-4"} space-y-1 transition-all duration-300`}>
+            {/* Toggle dark/light — padrão GitHub/Linear/Notion: bottom of sidebar */}
+            {showContent ? (
+              <div className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {theme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                  <span className="animate-fade-in">{theme === "dark" ? "Escuro" : "Claro"}</span>
+                </div>
+                <button
+                  onClick={() => toggleTheme()}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+                    theme === "dark" ? "bg-primary" : "bg-input"
+                  }`}
+                  title="Alternar tema"
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform duration-200 ${
+                      theme === "dark" ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => toggleTheme()}
+                className="w-full hover:bg-muted/50"
+                title={theme === "dark" ? "Mudar para claro" : "Mudar para escuro"}
+              >
+                {theme === "dark" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+              </Button>
+            )}
+
             <Button
               variant="ghost"
               size={!showContent ? "icon" : "default"}
-              onClick={handleLogout}
+              onClick={() => setShowLogoutConfirm(true)}
               className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
               title="Sair"
             >
@@ -569,6 +647,22 @@ export function AppSidebar() {
           </div>
         </SidebarFooter>
       </Sidebar>
+
+      {/* Confirmação de logout */}
+      <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sair do sistema?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você será desconectado e redirecionado para a tela de login.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLogout}>Sair</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,5 +1,6 @@
+import { formatCurrency } from "@/lib/currency-formatter";
 // v1.0.0 — Preview B: "Cards Coloridos" — fundo claro, borda lateral colorida, info rica nos cards
-import { Clock, MapPin, Phone, Bike, Package, ChevronRight, Printer, MessageCircle } from "lucide-react";
+import { Clock, MapPin, Phone, Bike, Package, Printer, MessageCircle } from "lucide-react";
 
 const MOCK_ORDERS = [
   { id: "1", num: "047", name: "Carlos Silva", phone: "62 9 9876-5432", items: ["2x Frango Grelhado", "1x Suco de Laranja"], total: 52.90, type: "delivery", neighborhood: "Setor Bueno", elapsed: 4, urgent: true, payment: "Pix" },
@@ -90,7 +91,7 @@ function MockCardLight({ order, col }: { order: any; col: ColDef }) {
             <Printer className="w-3.5 h-3.5" />
           </button>
         </div>
-        <span className="text-sm font-bold text-gray-800">R$ {order.total.toFixed(2)}</span>
+        <span className="text-sm font-bold text-gray-800">{formatCurrency(order.total)}</span>
       </div>
     </div>
   );

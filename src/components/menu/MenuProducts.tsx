@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/currency-formatter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -53,6 +54,8 @@ export function MenuProducts({ products, onAddToCart }: MenuProductsProps) {
                       src={product.image_url}
                       alt={product.name}
                       className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <ImageIcon className="h-8 w-8 text-muted-foreground" />
@@ -68,7 +71,7 @@ export function MenuProducts({ products, onAddToCart }: MenuProductsProps) {
                     </p>
                   )}
                   <p className="text-lg font-bold text-primary">
-                    R$ {product.price.toFixed(2)}
+                    {formatCurrency(product.price)}
                   </p>
                 </div>
               </div>
@@ -101,6 +104,8 @@ export function MenuProducts({ products, onAddToCart }: MenuProductsProps) {
                 src={selectedProduct.image_url}
                 alt={selectedProduct.name}
                 className="w-full h-48 object-cover rounded-lg"
+                loading="lazy"
+                decoding="async"
               />
             )}
             
@@ -120,7 +125,7 @@ export function MenuProducts({ products, onAddToCart }: MenuProductsProps) {
 
             <div className="flex items-center justify-between pt-4 border-t">
               <p className="text-2xl font-bold text-primary">
-                R$ {selectedProduct?.price.toFixed(2)}
+                {formatCurrency(selectedProduct?.price)}
               </p>
               <Button onClick={handleAddToCart}>
                 <Plus className="h-4 w-4 mr-2" />

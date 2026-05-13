@@ -1,4 +1,5 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { formatCurrency } from "@/lib/currency-formatter";
 import { Button } from "@/components/ui/button";
 import {
   ShoppingBag,
@@ -11,7 +12,10 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseQueryNullable } from "@/lib/supabase-safe";
 import { useQuery } from "@tanstack/react-query";
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { useDateRangeOrders } from "@/hooks/useDateRangeOrders";
 import { MetricsCard } from "@/components/dashboard/MetricsCard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { TopProductsList } from "@/components/dashboard/TopProductsList";
@@ -33,7 +37,6 @@ import { ptBR } from "date-fns/locale";
 export default function StoreDashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [companyName, setCompanyName] = useState("");
   const [subdomain, setSubdomain] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [storeOpen, setStoreOpen] = useState(true);
@@ -49,42 +52,37 @@ export default function StoreDashboard() {
   const { data: companyData } = useQuery({
     queryKey: ["company-info"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw new Error(authError.message);
+
       if (!user) {
         navigate("/login");
         return null;
       }
 
-      // Verificar o role do usuário
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, company_id')
-        .eq('id', user.id)
-        .single();
+      const profile = await supabaseQueryNullable(
+        supabase.from('profiles').select('role, company_id').eq('id', user.id).single()
+      );
 
-      // Se for super_admin/master_admin, redireciona para o painel admin
       if (profile?.role === 'super_admin' || profile?.role === 'master_admin') {
         navigate('/admin');
         return null;
       }
 
-      // Buscar dados da empresa
-      const { data: company } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('id', profile?.company_id)
-        .single();
-
-      if (company) {
-        setCompanyName(company.fantasy_name || company.name);
-        setSubdomain(company.subdomain);
-        setCompanyId(company.id);
-      }
+      const company = await supabaseQueryNullable(
+        supabase.from('companies').select('*').eq('id', profile?.company_id).single()
+      );
 
       return company;
     },
   });
+
+  // Sincroniza estado local a partir dos dados da empresa
+  useEffect(() => {
+    if (!companyData) return;
+    setSubdomain(companyData.subdomain);
+    setCompanyId(companyData.id);
+  }, [companyData]);
 
   // Load store settings
   const { data: storeSettings } = useQuery({
@@ -98,179 +96,24 @@ export default function StoreDashboard() {
         .eq('company_id', companyId)
         .single();
       
-      if (data) {
-        setStoreOpen(data.store_open || false);
-      }
-      
       return data;
     },
     enabled: !!companyId,
   });
 
-  // Calculate metrics for dashboard
-  const { data: filteredOrders } = useQuery({
-    queryKey: ["filtered-orders", companyId, showTodayOnly, startDate, endDate],
-    queryFn: async () => {
-      if (!companyId) return [];
-      
-      let query = supabase
-        .from('orders')
-        .select('*')
-        .eq('company_id', companyId);
-      
-      if (showTodayOnly) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        
-        query = query
-          .gte('created_at', today.toISOString())
-          .lt('created_at', tomorrow.toISOString());
-      } else if (startDate && endDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        
-        query = query
-          .gte('created_at', start.toISOString())
-          .lte('created_at', end.toISOString());
-      }
-      
-      const { data } = await query.order('created_at', { ascending: false });
-      
-      return data || [];
-    },
-    enabled: !!companyId,
-    refetchInterval: 30000, // Refresh every 30 seconds
+  // Sincroniza storeOpen a partir das configurações da loja
+  useEffect(() => {
+    if (storeSettings) setStoreOpen(storeSettings.store_open || false);
+  }, [storeSettings]);
+
+  const { data: filteredOrders } = useDateRangeOrders({ companyId, showTodayOnly, startDate, endDate });
+
+  const { metrics, revenueData, paymentMethodsData, topProducts, topCustomers } = useDashboardMetrics({
+    filteredOrders,
+    showTodayOnly,
+    startDate,
+    endDate,
   });
-
-  const metrics = useMemo(() => {
-    if (!filteredOrders) return {
-      totalOrders: 0,
-      totalRevenue: 0,
-      averageTicket: 0,
-      pendingOrders: 0,
-    };
-
-    const totalOrders = filteredOrders.length;
-    const totalRevenue = filteredOrders.reduce((sum, order) => sum + Number(order.total), 0);
-    const averageTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-    const pendingOrders = filteredOrders.filter(order => 
-      ['pending', 'preparing'].includes(order.status)
-    ).length;
-
-    return {
-      totalOrders,
-      totalRevenue,
-      averageTicket,
-      pendingOrders,
-    };
-  }, [filteredOrders]);
-
-  // Receita por dia — dados reais dos pedidos filtrados
-  const revenueData = useMemo(() => {
-    if (!filteredOrders || filteredOrders.length === 0) {
-      const last7Days = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() - (6 - i));
-        return {
-          date: date.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' }),
-          revenue: 0,
-        };
-      });
-      return last7Days;
-    }
-
-    const revenueByDay: Record<string, number> = {};
-    for (const order of filteredOrders) {
-      if (order.status === 'cancelled') continue;
-      const d = new Date(order.created_at);
-      const key = d.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' });
-      revenueByDay[key] = (revenueByDay[key] || 0) + Number(order.total || 0);
-    }
-
-    if (showTodayOnly) {
-      const today = new Date();
-      const key = today.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' });
-      return [{ date: key, revenue: revenueByDay[key] || 0 }];
-    }
-
-    const days: { date: string; revenue: number }[] = [];
-    const start = startDate ? new Date(startDate) : new Date();
-    const end = endDate ? new Date(endDate) : new Date();
-    const diff = Math.min(Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1, 90);
-    for (let i = 0; i < diff; i++) {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      const key = d.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' });
-      days.push({ date: key, revenue: revenueByDay[key] || 0 });
-    }
-    return days;
-  }, [filteredOrders, showTodayOnly, startDate, endDate]);
-
-  // Formas de pagamento — dados reais
-  const paymentMethodsData = useMemo(() => {
-    if (!filteredOrders || filteredOrders.length === 0) return [];
-    const colors: Record<string, string> = {
-      dinheiro: 'hsl(var(--success))',
-      pix: 'hsl(var(--warning))',
-      credito: 'hsl(var(--primary))',
-      debito: 'hsl(142, 76%, 36%)',
-    };
-    const counts: Record<string, number> = {};
-    for (const order of filteredOrders) {
-      const method = (order.payment_method || 'outro').toLowerCase();
-      counts[method] = (counts[method] || 0) + 1;
-    }
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, value]) => ({
-        name: name.charAt(0).toUpperCase() + name.slice(1),
-        value,
-        color: colors[name] || 'hsl(var(--muted-foreground))',
-      }));
-  }, [filteredOrders]);
-
-  // Produtos mais vendidos — dados reais
-  const topProducts = useMemo(() => {
-    if (!filteredOrders || filteredOrders.length === 0) return [];
-    const productMap: Record<string, { quantity: number; revenue: number }> = {};
-    for (const order of filteredOrders) {
-      if (order.status === 'cancelled') continue;
-      const items = order.items as Array<{ name?: string; quantity?: number; price?: number }> | null;
-      if (!items) continue;
-      for (const item of items) {
-        const name = item.name || 'Sem nome';
-        const qty = Number(item.quantity || 1);
-        const price = Number(item.price || 0);
-        if (!productMap[name]) productMap[name] = { quantity: 0, revenue: 0 };
-        productMap[name].quantity += qty;
-        productMap[name].revenue += price * qty;
-      }
-    }
-    return Object.entries(productMap)
-      .sort((a, b) => b[1].quantity - a[1].quantity)
-      .slice(0, 5)
-      .map(([name, data]) => ({ name, quantity: data.quantity, revenue: data.revenue }));
-  }, [filteredOrders]);
-
-  // Clientes que mais compram — dados reais
-  const topCustomers = useMemo(() => {
-    if (!filteredOrders || filteredOrders.length === 0) return [];
-    const customerMap: Record<string, { orders: number; totalSpent: number }> = {};
-    for (const order of filteredOrders) {
-      const name = order.customer_name || order.customer_phone || 'Anônimo';
-      if (!customerMap[name]) customerMap[name] = { orders: 0, totalSpent: 0 };
-      customerMap[name].orders += 1;
-      customerMap[name].totalSpent += Number(order.total || 0);
-    }
-    return Object.entries(customerMap)
-      .sort((a, b) => b[1].orders - a[1].orders)
-      .slice(0, 5)
-      .map(([name, data]) => ({ name, orders: data.orders, totalSpent: data.totalSpent }));
-  }, [filteredOrders]);
 
   const handleToggleStore = async () => {
     if (!companyId) return;
@@ -427,13 +270,13 @@ export default function StoreDashboard() {
             />
             <MetricsCard
               title="Faturamento"
-              value={`R$ ${metrics.totalRevenue.toFixed(2)}`}
+              value={formatCurrency(metrics.totalRevenue)}
               icon={DollarSign}
               subtitle={showTodayOnly ? "hoje" : "no período"}
             />
             <MetricsCard
               title="Ticket Médio"
-              value={`R$ ${metrics.averageTicket.toFixed(2)}`}
+              value={formatCurrency(metrics.averageTicket)}
               icon={TrendingUp}
               subtitle={showTodayOnly ? "hoje" : "no período"}
             />

@@ -1,8 +1,9 @@
-// v1.2.0 — suporte a fullScreen + sidebar persiste estado via cookie
+// v1.3.0 — UserThemeSync aplica tema por usuário, nunca vaza para login
 import { ReactNode, useEffect } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { initializeColorPalette, resetPalette } from "@/hooks/use-color-palette";
+import { UserThemeSync } from "@/components/layout/UserThemeSync";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -26,6 +27,7 @@ export function DashboardLayout({ children, fullScreen }: DashboardLayoutProps) 
 
   return (
     <SidebarProvider defaultOpen={getSidebarDefaultOpen()}>
+      <UserThemeSync />
       <div className={`relative flex w-full bg-background ${fullScreen ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
         <AppSidebar />
         <main className={`flex-1 transition-all duration-300 lg:ml-0 pt-16 lg:pt-0 ${fullScreen ? 'overflow-hidden flex flex-col' : 'overflow-auto'}`}>

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { usePOSCategories, usePOSProducts } from '@/hooks/pdv/usePOSProducts';
 import { useCompanyId } from '@/hooks/useCompanyId';
 import { usePOSStore } from '@/stores/posStore';
 import { useChecks } from '@/hooks/pdv/useChecks';
@@ -65,47 +64,8 @@ export function POSDelivery({ onOrderSent }: POSDeliveryProps) {
   const [neighborhood, setNeighborhood] = useState(context.neighborhood || '');
 
   // Fetch categories
-  const { data: categories = [] } = useQuery({
-    queryKey: ['categories', companyId],
-    queryFn: async () => {
-      if (!companyId) return [];
-      const { data } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('company_id', companyId)
-        .eq('on_off', true)
-        .order('display_order');
-      return data || [];
-    },
-    enabled: !!companyId,
-  });
-
-  // Fetch products
-  const { data: products = [] } = useQuery({
-    queryKey: ['products', companyId, selectedCategory, searchTerm],
-    queryFn: async () => {
-      if (!companyId) return [];
-      
-      let query = supabase
-        .from('products')
-        .select('*')
-        .eq('company_id', companyId)
-        .eq('on_off', true)
-        .order('name');
-      
-      if (selectedCategory) {
-        query = query.eq('category_id', selectedCategory);
-      }
-      
-      if (searchTerm) {
-        query = query.ilike('name', `%${searchTerm}%`);
-      }
-      
-      const { data } = await query;
-      return data || [];
-    },
-    enabled: !!companyId,
-  });
+  const { data: categories = [] } = usePOSCategories(companyId);
+  const { data: products = [] } = usePOSProducts(companyId, selectedCategory, searchTerm);
 
   const handleAddProduct = (product: any) => {
     addItem({
@@ -175,11 +135,11 @@ export function POSDelivery({ onOrderSent }: POSDeliveryProps) {
       setNeighborhood('');
       
       onOrderSent?.();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending order:', error);
       toast({
         title: 'Erro ao criar pedido',
-        description: 'Não foi possível criar o pedido.',
+        description: error?.message || 'Não foi possível criar o pedido. Tente novamente.',
         variant: 'destructive',
       });
     } finally {
@@ -322,10 +282,12 @@ export function POSDelivery({ onOrderSent }: POSDeliveryProps) {
               >
                 <CardContent className="p-3">
                   {product.image_url && (
-                    <img 
-                      src={product.image_url} 
+                    <img
+                      src={product.image_url}
                       alt={product.name}
                       className="w-full h-16 object-cover rounded mb-2"
+                      loading="lazy"
+                      decoding="async"
                     />
                   )}
                   <p className="font-medium text-sm line-clamp-2">{product.name}</p>

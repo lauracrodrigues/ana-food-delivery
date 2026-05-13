@@ -23,6 +23,7 @@ import {
   RotateCcw,
   Grid3X3,
   MessageSquare,
+  CreditCard,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +36,8 @@ import { useColorPalette, type ColorPalette } from "@/hooks/use-color-palette";
 import { PrintLayoutConfig } from "@/components/settings/print-layout/PrintLayoutConfig";
 import { TablesSettings } from "@/components/settings/TablesSettings";
 import { BusinessHoursConfig } from "@/components/settings/BusinessHoursConfig";
+import { PaymentSettingsConfig } from "@/components/settings/PaymentSettingsConfig";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface StoreSettings {
   id?: string;
@@ -56,7 +59,9 @@ export function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { theme, setTheme } = useTheme();
-  const { palette, setPalette, palettes } = useColorPalette();
+  const { palette, setPalette, customColor, setCustomColor, palettes } = useColorPalette();
+  // Preferências pessoais do usuário (som, impressora, etc.)
+  const { preferences: userPrefs, savePreference } = useUserPreferences();
   const [activeTab, setActiveTab] = useState("general");
   const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
   const [loadingPrinters, setLoadingPrinters] = useState(false);
@@ -277,8 +282,11 @@ export function Settings() {
     >
       <div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-5 w-full max-w-4xl">
+          <TabsList className="grid grid-cols-6 w-full max-w-4xl">
             <TabsTrigger value="general">Geral</TabsTrigger>
+            <TabsTrigger value="payments" className="flex items-center gap-1">
+              <CreditCard className="w-3.5 h-3.5" />Pagamentos
+            </TabsTrigger>
             <TabsTrigger value="tables">
               <Grid3X3 className="h-4 w-4 mr-1" />
               Mesas
@@ -382,9 +390,8 @@ export function Settings() {
                   </div>
                   <Switch
                     id="sound-enabled"
-                    checked={storeSettings?.sound_enabled}
-                    onCheckedChange={(checked) => handleSettingsUpdate("sound_enabled", checked)}
-                    disabled={loadingSettings}
+                    checked={userPrefs.soundEnabled ?? storeSettings?.sound_enabled ?? true}
+                    onCheckedChange={(checked) => savePreference({ soundEnabled: checked })}
                   />
                 </div>
 
@@ -509,6 +516,11 @@ export function Settings() {
             </Card>
           </TabsContent>
 
+          {/* Payment Settings */}
+          <TabsContent value="payments" className="space-y-6">
+            <PaymentSettingsConfig />
+          </TabsContent>
+
           {/* Appearance Settings */}
           <TabsContent value="appearance" className="space-y-6">
             <Card>
@@ -553,58 +565,123 @@ export function Settings() {
                   Paleta de Cores
                 </CardTitle>
                 <CardDescription>
-                  Personalize as cores do sistema escolhendo uma paleta
+                  Personalize as cores do sistema — presets rápidos ou cor personalizada
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <Label>Escolha uma Paleta</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                    <Button
-                      variant={palette === "purple" ? "default" : "outline"}
-                      className="h-auto flex-col gap-3 p-4"
-                      onClick={() => setPalette("purple")}
-                    >
-                      <div className="w-full h-12 rounded-md bg-gradient-to-br from-purple-500 to-purple-600" />
-                      <span className="text-sm font-medium">Roxo</span>
-                    </Button>
-                    <Button
-                      variant={palette === "blue" ? "default" : "outline"}
-                      className="h-auto flex-col gap-3 p-4"
-                      onClick={() => setPalette("blue")}
-                    >
-                      <div className="w-full h-12 rounded-md bg-gradient-to-br from-blue-500 to-blue-600" />
-                      <span className="text-sm font-medium">Azul</span>
-                    </Button>
-                    <Button
-                      variant={palette === "green" ? "default" : "outline"}
-                      className="h-auto flex-col gap-3 p-4"
-                      onClick={() => setPalette("green")}
-                    >
-                      <div className="w-full h-12 rounded-md bg-gradient-to-br from-green-500 to-green-600" />
-                      <span className="text-sm font-medium">Verde</span>
-                    </Button>
-                    <Button
-                      variant={palette === "orange" ? "default" : "outline"}
-                      className="h-auto flex-col gap-3 p-4"
-                      onClick={() => setPalette("orange")}
-                    >
-                      <div className="w-full h-12 rounded-md bg-gradient-to-br from-orange-500 to-orange-600" />
-                      <span className="text-sm font-medium">Laranja</span>
-                    </Button>
-                    <Button
-                      variant={palette === "pink" ? "default" : "outline"}
-                      className="h-auto flex-col gap-3 p-4"
-                      onClick={() => setPalette("pink")}
-                    >
-                      <div className="w-full h-12 rounded-md bg-gradient-to-br from-pink-500 to-pink-600" />
-                      <span className="text-sm font-medium">Rosa</span>
-                    </Button>
+                {/* Presets principais */}
+                <div className="space-y-3">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Cores prontas
+                  </Label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {(
+                      [
+                        { key: "purple",  label: "Roxo",    from: "from-purple-500", to: "to-violet-600" },
+                        { key: "blue",    label: "Azul",    from: "from-blue-500",   to: "to-sky-600" },
+                        { key: "green",   label: "Verde",   from: "from-green-500",  to: "to-emerald-600" },
+                        { key: "orange",  label: "Laranja", from: "from-orange-500", to: "to-amber-500" },
+                        { key: "pink",    label: "Rosa",    from: "from-pink-500",   to: "to-rose-500" },
+                        { key: "red",     label: "Vermelho",from: "from-red-500",    to: "to-rose-600" },
+                        { key: "teal",    label: "Teal",    from: "from-teal-500",   to: "to-cyan-600" },
+                        { key: "indigo",  label: "Índigo",  from: "from-indigo-500", to: "to-blue-600" },
+                        { key: "yellow",  label: "Amarelo", from: "from-yellow-400", to: "to-amber-500" },
+                        { key: "slate",   label: "Cinza",   from: "from-slate-500",  to: "to-slate-600" },
+                      ] as const
+                    ).map(({ key, label, from, to }) => (
+                      <button
+                        key={key}
+                        onClick={() => setPalette(key as ColorPalette)}
+                        title={label}
+                        className={`relative rounded-xl overflow-hidden h-14 w-full transition-all duration-200 ring-offset-2 ${
+                          palette === key
+                            ? "ring-2 ring-primary scale-105 shadow-lg"
+                            : "hover:scale-105 hover:shadow-md opacity-80 hover:opacity-100"
+                        }`}
+                      >
+                        <div className={`w-full h-full bg-gradient-to-br ${from} ${to}`} />
+                        {palette === key && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        )}
+                        <span className="absolute bottom-1 left-0 right-0 text-center text-[9px] font-semibold text-white drop-shadow">
+                          {label}
+                        </span>
+                      </button>
+                    ))}
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    A paleta de cores será aplicada em todos os elementos do sistema
-                  </p>
                 </div>
+
+                {/* Paleta customizada */}
+                <div className="space-y-3">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Cor personalizada
+                  </Label>
+                  <div className="flex items-center gap-4">
+                    <div className={`relative rounded-xl overflow-hidden h-14 w-16 shrink-0 ring-offset-2 transition-all ${
+                      palette === "custom" ? "ring-2 ring-primary scale-105 shadow-lg" : "opacity-70"
+                    }`}>
+                      <div
+                        className="w-full h-full"
+                        style={{ background: `linear-gradient(135deg, ${customColor}, ${customColor}dd)` }}
+                      />
+                      {palette === "custom" && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <svg className="w-5 h-5 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        Escolha qualquer cor — o sistema gera a paleta automaticamente
+                      </p>
+                      <div className="flex items-center gap-3">
+                        {/* Color picker nativo */}
+                        <label className="cursor-pointer">
+                          <input
+                            type="color"
+                            value={customColor}
+                            onChange={e => setCustomColor(e.target.value)}
+                            className="sr-only"
+                          />
+                          <div
+                            className="w-10 h-10 rounded-lg border-2 border-border cursor-pointer hover:scale-110 transition-transform shadow-sm"
+                            style={{ backgroundColor: customColor }}
+                            title="Clique para abrir o seletor de cor"
+                          />
+                        </label>
+                        <Input
+                          value={customColor}
+                          onChange={e => {
+                            const v = e.target.value;
+                            // Aceita hex válido
+                            if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setCustomColor(v.length === 7 ? v : v);
+                          }}
+                          className="w-32 font-mono text-sm"
+                          placeholder="#000000"
+                          maxLength={7}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCustomColor(customColor)}
+                        >
+                          Aplicar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  A paleta de cores é aplicada em todos os elementos do sistema
+                </p>
               </CardContent>
             </Card>
           </TabsContent>

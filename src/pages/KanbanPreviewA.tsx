@@ -1,5 +1,6 @@
+import { formatCurrency } from "@/lib/currency-formatter";
 // v1.0.0 — Preview A: "Pro Dark" — colunas escuras, cards densos, máxima densidade de info
-import { Clock, MapPin, Phone, ChefHat, Bike, Package, Star } from "lucide-react";
+import { Clock, MapPin, Phone, Bike, Package } from "lucide-react";
 
 const MOCK_ORDERS = [
   { id: "1", num: "047", name: "Carlos Silva", phone: "62 9 9876-5432", items: ["2x Frango Grelhado", "1x Suco de Laranja"], total: 52.90, type: "delivery", neighborhood: "Setor Bueno", elapsed: 4, urgent: true },
@@ -70,7 +71,7 @@ function MockCardDark({ order }: { order: typeof MOCK_ORDERS[0] }) {
         <span className="text-xs text-zinc-500 flex items-center gap-1">
           <Phone className="w-3 h-3" />{order.phone}
         </span>
-        <span className="text-sm font-bold text-emerald-400">R$ {order.total.toFixed(2)}</span>
+        <span className="text-sm font-bold text-emerald-400">{formatCurrency(order.total)}</span>
       </div>
     </div>
   );

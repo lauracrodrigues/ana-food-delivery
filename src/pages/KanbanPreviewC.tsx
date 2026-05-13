@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/currency-formatter";
 // v1.0.0 — Preview C: "Urgência & Timeline" — foco em tempo, barra de progresso, alertas visuais fortes
 import { Clock, MapPin, Bike, Package, AlertTriangle, CheckCircle, Printer, MessageCircle, Zap } from "lucide-react";
 
@@ -102,7 +103,7 @@ function MockCardTimeline({ order }: { order: any }) {
             <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{order.itemCount} {order.itemCount === 1 ? "item" : "itens"}</span>
             <span className="text-xs text-gray-400">{order.payment}</span>
           </div>
-          <span className="text-sm font-bold text-gray-800">R$ {order.total.toFixed(2)}</span>
+          <span className="text-sm font-bold text-gray-800">{formatCurrency(order.total)}</span>
         </div>
 
         {/* Actions */}

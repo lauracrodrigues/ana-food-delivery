@@ -7,7 +7,8 @@ import { MenuCategories } from "@/components/menu/MenuCategories";
 import { MenuProducts } from "@/components/menu/MenuProducts";
 import { MenuCart } from "@/components/menu/MenuCart";
 import { MenuCheckout } from "@/components/menu/MenuCheckout";
-import { Loader2 } from "lucide-react";
+import { OrderTracking } from "@/components/menu/OrderTracking";
+import { Loader2, ChefHat } from "lucide-react";
 import { resetPalette, initializeColorPalette } from "@/hooks/use-color-palette";
 
 interface Company {
@@ -62,6 +63,8 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
+  const [activeOrderBanner, setActiveOrderBanner] = useState<{ orderId: string; status: string } | null>(null);
   const [banners, setBanners] = useState<{ id: string; image_url: string; link_type: string | null; link_value: string | null }[]>([]);
   const [activeBanner, setActiveBanner] = useState(0);
 
@@ -108,6 +111,23 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
       }
 
       setCompany(companyData);
+
+      // Verifica pedido ativo salvo no localStorage para este cliente/empresa
+      const storageKey = `anafood_order_${companyData.id}`;
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          const { orderId } = JSON.parse(saved);
+          const { data: orderStatus } = await supabase.rpc("get_order_tracking", { p_order_id: orderId });
+          if (orderStatus && !["delivered","cancelled"].includes(orderStatus.status)) {
+            setActiveOrderBanner({ orderId, status: orderStatus.status });
+          } else {
+            localStorage.removeItem(storageKey); // pedido finalizado — limpa
+          }
+        } catch {
+          localStorage.removeItem(storageKey);
+        }
+      }
 
       // Se tem mesa na URL, buscar informações da mesa
       if (tableNumber) {
@@ -270,6 +290,8 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
                   alt="Banner promocional"
                   className={`w-full h-full object-cover ${banner.link_type && banner.link_type !== "none" ? "cursor-pointer" : ""}`}
                   onClick={() => handleBannerClick(banner)}
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             ))}
@@ -325,11 +347,50 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
           tableInfo={tableInfo}
           requireCustomerInfo={!!tableInfo}
           onClose={() => setShowCheckout(false)}
-          onSuccess={() => {
+          onSuccess={(orderId) => {
             clearCart();
             setShowCheckout(false);
+            if (orderId && company) {
+              localStorage.setItem(`anafood_order_${company.id}`, JSON.stringify({ orderId }));
+              setTrackingOrderId(orderId);
+            }
           }}
         />
+      )}
+
+      {/* Banner pedido ativo — aparece quando cliente já tem pedido em andamento */}
+      {activeOrderBanner && !trackingOrderId && (
+        <div
+          className="fixed bottom-20 left-0 right-0 z-40 mx-4 cursor-pointer"
+          onClick={() => setTrackingOrderId(activeOrderBanner.orderId)}
+        >
+          <div className="bg-primary text-primary-foreground rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3 animate-bounce-once">
+            <div className="w-9 h-9 bg-primary-foreground/20 rounded-full flex items-center justify-center shrink-0">
+              <ChefHat className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">Você tem um pedido ativo!</p>
+              <p className="text-xs opacity-80">Toque para acompanhar</p>
+            </div>
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shrink-0" />
+          </div>
+        </div>
+      )}
+
+      {trackingOrderId && (
+        <div className="fixed inset-0 z-50 bg-background">
+          <OrderTracking
+            orderId={trackingOrderId}
+            company={{ ...company, id: company.id }}
+            onClose={() => {
+              setTrackingOrderId(null);
+              // Atualiza banner após fechar
+              const storageKey = `anafood_order_${company.id}`;
+              const saved = localStorage.getItem(storageKey);
+              if (!saved) setActiveOrderBanner(null);
+            }}
+          />
+        </div>
       )}
 
       {/* Discreet admin access footer */}

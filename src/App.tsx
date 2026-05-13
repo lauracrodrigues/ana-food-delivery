@@ -1,14 +1,15 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet, Navigate, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CacheProvider } from "@/contexts/CacheContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { ProtectedRoute, AdminRoute, ClientRoute } from "@/components/auth/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { SplashScreen, InlineLoader } from "@/components/ui/SplashScreen";
 
 // Eagerly load critical components
@@ -42,6 +43,11 @@ const CashRegister = lazy(() => import("./pages/CashRegister"));
 const CashRegisterHistory = lazy(() => import("./pages/CashRegisterHistory"));
 const WhatsAppChat = lazy(() => import("./pages/WhatsAppChat"));
 const Billing = lazy(() => import("./pages/Billing"));
+const Estoque = lazy(() => import("./pages/Estoque"));
+const Financeiro = lazy(() => import("./pages/Financeiro"));
+const Distribuidoras = lazy(() => import("./pages/Distribuidoras"));
+const Deliverers = lazy(() => import("./pages/Deliverers").then(m => ({ default: m.Deliverers })));
+const DelivererDashboard = lazy(() => import("./pages/DelivererDashboard"));
 const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
@@ -80,35 +86,56 @@ const PageLoadingFallback = () => <InlineLoader />;
 // Splash screen fullscreen para carregamento inicial
 const FullLoadingFallback = () => <SplashScreen />;
 
-// Layout wrapper that keeps the DashboardLayout mounted
+// Layout wrapper que exige role de cliente (company_admin / company_staff)
 const DashboardLayoutWrapper = () => (
-  <DashboardLayout>
-    <Suspense fallback={<PageLoadingFallback />}>
-      <Outlet />
-    </Suspense>
-  </DashboardLayout>
+  <ClientRoute>
+    <DashboardLayout>
+      <RouteErrorBoundary routeName="Dashboard">
+        <Suspense fallback={<PageLoadingFallback />}>
+          <Outlet />
+        </Suspense>
+      </RouteErrorBoundary>
+    </DashboardLayout>
+  </ClientRoute>
 );
 
-// Layout fullScreen para Kanban (sem padding, h-screen, overflow-hidden)
+// Layout fullScreen para Kanban — também protegido por ClientRoute
 const KanbanLayoutWrapper = () => (
-  <DashboardLayout fullScreen>
-    <Suspense fallback={<PageLoadingFallback />}>
-      <Outlet />
-    </Suspense>
-  </DashboardLayout>
+  <ClientRoute>
+    <DashboardLayout fullScreen>
+      <RouteErrorBoundary routeName="Kanban de Pedidos">
+        <Suspense fallback={<PageLoadingFallback />}>
+          <Outlet />
+        </Suspense>
+      </RouteErrorBoundary>
+    </DashboardLayout>
+  </ClientRoute>
 );
+
+// Redireciona erros de OTP do Supabase (hash na URL raiz) para /entregador
+function HashErrorRedirect() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes('error=access_denied') && hash.includes('otp_expired')) {
+      navigate('/entregador', { replace: true, state: { authError: 'otp_expired' } });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
 
 const App = () => {
   const subdomain = getSubdomain();
   return (
   <ErrorBoundary>
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="light" storageKey="anafood-theme">
+    <ThemeProvider defaultTheme="light">
       <CacheProvider defaultTTL={3600} enableLogs={false}>
         <TooltipProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <HashErrorRedirect />
             <Routes>
             {/* Subdomain ativo: rota raiz renderiza menu público direto */}
             <Route path="/" element={
@@ -125,10 +152,19 @@ const App = () => {
               </Suspense>
             } />
             
-            {/* Admin SaaS — sem sidebar do cliente */}
+            {/* Admin SaaS — só super_admin */}
             <Route path="/admin" element={
+              <AdminRoute>
+                <Suspense fallback={<FullLoadingFallback />}>
+                  <AdminDashboard />
+                </Suspense>
+              </AdminRoute>
+            } />
+
+            {/* Módulo do entregador — tela isolada, mobile-first, sem sidebar */}
+            <Route path="/entregador" element={
               <Suspense fallback={<FullLoadingFallback />}>
-                <AdminDashboard />
+                <DelivererDashboard />
               </Suspense>
             } />
 
@@ -143,8 +179,10 @@ const App = () => {
               <Route path="/customers" element={<Customers />} />
               <Route path="/products" element={<Products />} />
               <Route path="/categories" element={<Categories />} />
+              <Route path="/estoque" element={<Estoque />} />
               <Route path="/extras" element={<Extras />} />
               <Route path="/delivery-fees" element={<DeliveryFees />} />
+              <Route path="/entregadores" element={<Deliverers />} />
               <Route path="/payment-methods" element={<PaymentMethods />} />
               <Route path="/whatsapp" element={<WhatsApp />} />
               <Route path="/menu" element={<Menu />} />
@@ -157,6 +195,8 @@ const App = () => {
               <Route path="/caixa/historico" element={<CashRegisterHistory />} />
               <Route path="/whatsapp-chat" element={<WhatsAppChat />} />
               <Route path="/billing" element={<Billing />} />
+              <Route path="/financeiro" element={<Financeiro />} />
+              <Route path="/distribuidoras" element={<Distribuidoras />} />
               
               {/* Protected admin-only routes */}
               <Route path="/users" element={

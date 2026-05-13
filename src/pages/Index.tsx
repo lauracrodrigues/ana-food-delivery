@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/currency-formatter";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -513,7 +514,7 @@ const Index = () => {
                     <CardDescription>{plan.description}</CardDescription>
                     <div className="mt-4">
                       <span className="text-4xl font-bold">
-                        R$ {plan.price % 1 === 0 ? plan.price.toFixed(0) : plan.price.toFixed(2).replace(".", ",")}
+                        {formatCurrency(plan.price)}
                       </span>
                       <span className="text-muted-foreground">/mês</span>
                     </div>

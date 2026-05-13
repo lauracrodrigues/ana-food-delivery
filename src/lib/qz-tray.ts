@@ -13,12 +13,9 @@ declare global {
   }
 }
 
-console.log('📦 qz-tray.ts carregado');
-
 // Helper function to check if QZ Tray is available
 const isQZAvailable = (): boolean => {
   const available = typeof window !== 'undefined' && typeof window.qz !== 'undefined';
-  console.log('🔍 Verificando disponibilidade do QZ Tray:', available);
   if (!available) {
     console.warn('⚠️ window.qz não está definido. Certifique-se de que:');
     console.warn('1. O script qz-tray.js está carregado no index.html');
@@ -66,7 +63,6 @@ export class QZTrayPrinter {
             return res.text();
           })
           .then((cert) => {
-            console.log('✅ Certificado carregado com sucesso');
             resolve(cert);
           })
           .catch((err) => {
@@ -92,7 +88,6 @@ export class QZTrayPrinter {
             return res.text();
           })
           .then((signature) => {
-            console.log('✅ Dados assinados com sucesso');
             resolve(signature);
           })
           .catch((err) => {
@@ -102,10 +97,7 @@ export class QZTrayPrinter {
         };
       });
 
-      // Connect to QZ Tray
-      console.log('🔌 Conectando ao QZ Tray...');
       await window.qz.websocket.connect({ retries: 3, delay: 1 });
-      console.log('✅ Conectado ao QZ Tray com sucesso');
       return true;
     } catch (error: any) {
       const errorMessage = error?.message || 'Erro desconhecido';

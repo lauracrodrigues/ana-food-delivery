@@ -37,6 +37,8 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -46,6 +48,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 
 interface MenuCategoriesListProps {
   companyId?: string;
@@ -59,6 +62,64 @@ interface Category {
   on_off: boolean;
   display_order: number;
   print_sector?: string | null;
+  company_id?: string;
+}
+
+// Visual do item de categoria (reutilizado no SortableItem e no DragOverlay)
+function CategoryItemContent({
+  category,
+  isSelected,
+  onSelect,
+  onToggleStatus,
+  onDelete,
+  onEdit,
+  dragHandleProps,
+  isOverlay = false,
+}: {
+  category: Category;
+  isSelected: boolean;
+  onSelect: () => void;
+  onToggleStatus: (id: string, status: boolean) => void;
+  onDelete: (id: string) => void;
+  onEdit: (category: Category) => void;
+  dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
+  isOverlay?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-2 p-3 rounded-lg border ${
+        isSelected ? "border-primary bg-primary/5" : "border-border"
+      } cursor-pointer hover:bg-muted/50 ${isOverlay ? "shadow-lg bg-background" : ""}`}
+      onClick={!isOverlay ? onSelect : undefined}
+    >
+      <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing touch-none">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{category.name}</p>
+      </div>
+      {!isOverlay && (
+        <>
+          <Switch
+            checked={category.on_off}
+            onCheckedChange={(checked) => onToggleStatus(category.id, checked)}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit(category)}>Editar</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDelete(category.id)}>Excluir</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
+      )}
+    </div>
+  );
 }
 
 function SortableCategoryItem({
@@ -76,57 +137,27 @@ function SortableCategoryItem({
   onDelete: (id: string) => void;
   onEdit: (category: Category) => void;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: category.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: category.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: transition || "transform 150ms cubic-bezier(0.4, 0, 0.2, 1)",
+    transition,
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`flex items-center gap-2 p-3 rounded-lg border ${
-        isSelected ? "border-primary bg-primary/5" : "border-border"
-      } cursor-pointer hover:bg-muted/50`}
-      onClick={onSelect}
-    >
-      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
-        <GripVertical className="h-4 w-4 text-muted-foreground" />
+    <div ref={setNodeRef} style={style}>
+      {/* Ghost placeholder enquanto arrasta — mantém espaço na lista */}
+      <div className={isDragging ? "opacity-30" : ""}>
+        <CategoryItemContent
+          category={category}
+          isSelected={isSelected}
+          onSelect={onSelect}
+          onToggleStatus={onToggleStatus}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          dragHandleProps={{ ...attributes, ...listeners }}
+        />
       </div>
-
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{category.name}</p>
-      </div>
-
-      <Switch
-        checked={category.on_off}
-        onCheckedChange={(checked) => onToggleStatus(category.id, checked)}
-        onClick={(e) => e.stopPropagation()}
-      />
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <MoreVertical className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onEdit(category)}>
-            Editar
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onDelete(category.id)}>
-            Excluir
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
     </div>
   );
 }
@@ -138,6 +169,7 @@ export function MenuCategoriesList({
 }: MenuCategoriesListProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -146,7 +178,9 @@ export function MenuCategoriesList({
   const [newCategoryPrintSector, setNewCategoryPrintSector] = useState("");
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 }, // evita drag acidental em clique
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -275,36 +309,45 @@ export function MenuCategoriesList({
     },
   });
 
-  // Reorder categories
+  // Reorder categories — updates paralelos + setQueryData síncrono no handleDragEnd
   const reorderMutation = useMutation({
     mutationFn: async (reorderedCategories: Category[]) => {
-      const updates = reorderedCategories.map((cat, index) => ({
-        id: cat.id,
-        display_order: index,
-      }));
-
-      for (const update of updates) {
-        await supabase
-          .from("categories")
-          .update({ display_order: update.display_order })
-          .eq("id", update.id);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      // Promise.all: todos updates em paralelo (~200ms) em vez de sequencial (N*200ms)
+      await Promise.all(
+        reorderedCategories.map((cat, index) =>
+          supabase.from("categories").update({ display_order: index }).eq("id", cat.id)
+        )
+      );
     },
   });
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-    if (over && active.id !== over.id) {
-      const oldIndex = categories.findIndex((cat) => cat.id === active.id);
-      const newIndex = categories.findIndex((cat) => cat.id === over.id);
+    const oldIndex = filteredCategories.findIndex((c) => c.id === active.id);
+    const newIndex = filteredCategories.findIndex((c) => c.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
 
-      const reordered = arrayMove(categories, oldIndex, newIndex);
-      reorderMutation.mutate(reordered);
-    }
+    const reorderedFiltered = arrayMove(filteredCategories, oldIndex, newIndex);
+
+    // Reconstrói lista completa mantendo itens não filtrados nas posições originais
+    const filteredIds = new Set(filteredCategories.map(c => c.id));
+    let fi = 0;
+    const fullReordered = categories.map(c =>
+      filteredIds.has(c.id) ? reorderedFiltered[fi++] : c
+    );
+
+    // setQueryData SÍNCRONO — antes de qualquer await, sem snap-back
+    const snapshot = queryClient.getQueryData(["categories", companyId]);
+    queryClient.setQueryData(["categories", companyId], fullReordered);
+
+    reorderMutation.mutate(fullReordered, {
+      onError: () => {
+        queryClient.setQueryData(["categories", companyId], snapshot);
+        toast({ title: "Erro ao reordenar categorias", variant: "destructive" });
+      },
+    });
   };
 
   const filteredCategories = categories.filter((cat) =>
@@ -348,7 +391,10 @@ export function MenuCategoriesList({
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
+              modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+              onDragStart={({ active }: DragStartEvent) => setActiveCategoryId(String(active.id))}
+              onDragEnd={(event) => { setActiveCategoryId(null); handleDragEnd(event); }}
+              onDragCancel={() => setActiveCategoryId(null)}
             >
               <SortableContext
                 items={filteredCategories.map((c) => c.id)}
@@ -373,6 +419,24 @@ export function MenuCategoriesList({
                   ))}
                 </div>
               </SortableContext>
+
+              {/* Clone flutuante que segue o cursor durante o drag */}
+              <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
+                {activeCategoryId ? (() => {
+                  const cat = categories.find(c => c.id === activeCategoryId);
+                  return cat ? (
+                    <CategoryItemContent
+                      category={cat}
+                      isSelected={false}
+                      isOverlay
+                      onSelect={() => {}}
+                      onToggleStatus={() => {}}
+                      onDelete={() => {}}
+                      onEdit={() => {}}
+                    />
+                  ) : null;
+                })() : null}
+              </DragOverlay>
             </DndContext>
           )}
         </CardContent>

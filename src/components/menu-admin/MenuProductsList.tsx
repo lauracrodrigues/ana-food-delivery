@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/currency-formatter";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,7 +30,10 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
 } from "@dnd-kit/core";
+import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 import {
   arrayMove,
   SortableContext,
@@ -52,10 +56,12 @@ interface Product {
   on_off: boolean;
   display_order: number;
   category_id: string | null;
+  company_id?: string;
 }
 
 function SortableProductItem({
   product,
+  isDraggable,
   onToggleStatus,
   onEdit,
   onDuplicate,
@@ -63,6 +69,7 @@ function SortableProductItem({
   onPriceChange,
 }: {
   product: Product;
+  isDraggable: boolean;
   onToggleStatus: (id: string, status: boolean) => void;
   onEdit: (product: Product) => void;
   onDuplicate: (id: string) => void;
@@ -73,17 +80,11 @@ function SortableProductItem({
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceValue, setPriceValue] = useState(product.price.toString());
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: product.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: transition || "transform 150ms cubic-bezier(0.4, 0, 0.2, 1)",
+    transition,
   };
 
   const handlePriceBlur = () => {
@@ -95,10 +96,14 @@ function SortableProductItem({
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} style={style} className={isDragging ? "opacity-30" : ""}>
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
         <div className="flex items-center gap-2 p-3 rounded-lg border border-border hover:bg-muted/50">
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+          <div
+            {...(isDraggable ? { ...attributes, ...listeners } : {})}
+            className={isDraggable ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-30"}
+            title={isDraggable ? "Arrastar para reordenar" : "Selecione 'Personalizada' para reordenar"}
+          >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>
 
@@ -133,7 +138,7 @@ function SortableProductItem({
                 }}
                 className="text-sm font-medium px-3 py-1.5 rounded bg-muted hover:bg-muted/80 transition-colors"
               >
-                R$ {product.price.toFixed(2)}
+                {formatCurrency(product.price)}
               </button>
             )}
 
@@ -194,12 +199,15 @@ export function MenuProductsList({
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
-  const [sortOrder, setSortOrder] = useState<"name" | "price_asc" | "price_desc">("name");
+  const [sortOrder, setSortOrder] = useState<"custom" | "name" | "price_asc" | "price_desc">("custom");
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeProductId, setActiveProductId] = useState<string | null>(null);
   const itemsPerPage = 20;
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -297,36 +305,44 @@ export function MenuProductsList({
     },
   });
 
-  // Reorder products
+  // Reorder products — updates paralelos + setQueryData síncrono no handleDragEnd
   const reorderMutation = useMutation({
     mutationFn: async (reorderedProducts: Product[]) => {
-      const updates = reorderedProducts.map((prod, index) => ({
-        id: prod.id,
-        display_order: index,
-      }));
-
-      for (const update of updates) {
-        await supabase
-          .from("products")
-          .update({ display_order: update.display_order })
-          .eq("id", update.id);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      await Promise.all(
+        reorderedProducts.map((prod, index) =>
+          supabase.from("products").update({ display_order: index }).eq("id", prod.id)
+        )
+      );
     },
   });
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = (event: DragEndEvent, paginatedProds: Product[]) => {
     const { active, over } = event;
+    if (!over || active.id === over.id || sortOrder !== "custom") return;
 
-    if (over && active.id !== over.id) {
-      const oldIndex = products.findIndex((p) => p.id === active.id);
-      const newIndex = products.findIndex((p) => p.id === over.id);
+    const oldIndex = paginatedProds.findIndex((p) => p.id === active.id);
+    const newIndex = paginatedProds.findIndex((p) => p.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
 
-      const reordered = arrayMove(products, oldIndex, newIndex);
-      reorderMutation.mutate(reordered);
-    }
+    const reorderedPage = arrayMove(paginatedProds, oldIndex, newIndex);
+
+    // Reconstrói lista completa com itens da página na nova ordem
+    const pageIds = new Set(paginatedProds.map(p => p.id));
+    let pi = 0;
+    const fullReordered = products.map(p =>
+      pageIds.has(p.id) ? reorderedPage[pi++] : p
+    );
+
+    // setQueryData SÍNCRONO — antes de qualquer await, sem snap-back
+    const snapshot = queryClient.getQueryData(["products", companyId, selectedCategoryId]);
+    queryClient.setQueryData(["products", companyId, selectedCategoryId], fullReordered);
+
+    reorderMutation.mutate(fullReordered, {
+      onError: () => {
+        queryClient.setQueryData(["products", companyId, selectedCategoryId], snapshot);
+        toast({ title: "Erro ao reordenar produtos", variant: "destructive" });
+      },
+    });
   };
 
   let filteredProducts = products.filter((prod) =>
@@ -340,17 +356,15 @@ export function MenuProductsList({
     filteredProducts = filteredProducts.filter((prod) => !prod.on_off);
   }
 
-  // Sort products
-  filteredProducts = [...filteredProducts].sort((a, b) => {
-    if (sortOrder === "name") {
-      return a.name.localeCompare(b.name);
-    } else if (sortOrder === "price_asc") {
-      return a.price - b.price;
-    } else if (sortOrder === "price_desc") {
-      return b.price - a.price;
-    }
-    return 0;
-  });
+  // Sort products — "custom" mantém ordem do banco (display_order)
+  if (sortOrder !== "custom") {
+    filteredProducts = [...filteredProducts].sort((a, b) => {
+      if (sortOrder === "name") return a.name.localeCompare(b.name);
+      if (sortOrder === "price_asc") return a.price - b.price;
+      if (sortOrder === "price_desc") return b.price - a.price;
+      return 0;
+    });
+  }
 
   // Pagination
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -409,6 +423,7 @@ export function MenuProductsList({
                   <SelectValue placeholder="Ordenar" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="custom">Personalizada</SelectItem>
                   <SelectItem value="name">Alfabética</SelectItem>
                   <SelectItem value="price_asc">Menor preço</SelectItem>
                   <SelectItem value="price_desc">Maior preço</SelectItem>
@@ -431,7 +446,12 @@ export function MenuProductsList({
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
+              modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+              onDragStart={({ active }: DragStartEvent) => {
+                if (sortOrder === "custom") setActiveProductId(String(active.id));
+              }}
+              onDragEnd={(e) => { setActiveProductId(null); handleDragEnd(e, paginatedProducts); }}
+              onDragCancel={() => setActiveProductId(null)}
             >
               <SortableContext
                 items={paginatedProducts.map((p) => p.id)}
@@ -442,6 +462,7 @@ export function MenuProductsList({
                     <SortableProductItem
                       key={product.id}
                       product={product}
+                      isDraggable={sortOrder === "custom"}
                       onToggleStatus={(id, status) => toggleStatusMutation.mutate({ id, status })}
                       onEdit={setEditingProduct}
                       onDuplicate={duplicateMutation.mutate}
@@ -453,6 +474,24 @@ export function MenuProductsList({
                   ))}
                 </div>
               </SortableContext>
+
+              {/* Clone flutuante do produto durante drag */}
+              <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
+                {activeProductId ? (() => {
+                  const prod = products.find(p => p.id === activeProductId);
+                  return prod ? (
+                    <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-background shadow-lg">
+                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{prod.name}</p>
+                      </div>
+                      <span className="text-sm font-medium text-primary">
+                        {formatCurrency(prod.price)}
+                      </span>
+                    </div>
+                  ) : null;
+                })() : null}
+              </DragOverlay>
             </DndContext>
           )}
 
@@ -472,7 +511,7 @@ export function MenuProductsList({
                 </Button>
                 <div className="flex items-center gap-1">
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
+                    let pageNum: number;
                     if (totalPages <= 5) {
                       pageNum = i + 1;
                     } else if (currentPage <= 3) {

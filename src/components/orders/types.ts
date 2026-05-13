@@ -27,8 +27,13 @@ export interface Order {
   type: "delivery" | "pickup";
   created_at: string;
   delivery_fee?: number;
+  total?: number;
   company_id: string;
   source: "whatsapp" | "digital_menu" | "counter";
+  // Entregador designado (preenchido ao avançar para "Em Entrega")
+  deliverer_id?: string;
+  deliverer_name?: string;
+  deliverer_phone?: string;
 }
 
 export interface StoreSettings {

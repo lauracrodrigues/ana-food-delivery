@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { formatCurrency } from "@/lib/currency-formatter";
 
 interface PaymentMethod {
   name: string;
@@ -40,7 +41,7 @@ export const PaymentMethodsChart = memo(function PaymentMethodsChart({ data }: P
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '8px'
               }}
-              formatter={(value: number) => `R$ ${value.toFixed(2)}`}
+              formatter={(value: number) => formatCurrency(value)}
             />
             <Legend 
               verticalAlign="bottom" 

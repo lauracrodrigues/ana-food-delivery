@@ -9,10 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { UserPlus, Key, Lock, Unlock, Trash2, Mail, Copy, Check } from "lucide-react";
 
 interface TenantUser {
@@ -290,26 +287,14 @@ export function TenantUsersTab({ companyId }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Confirm delete */}
-      <AlertDialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O usuário perderá acesso permanente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteUserId && deleteMut.mutate(deleteUserId)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={!!deleteUserId}
+        onOpenChange={() => setDeleteUserId(null)}
+        title="Excluir usuário?"
+        description="Esta ação não pode ser desfeita. O usuário perderá acesso permanente."
+        onConfirm={() => deleteUserId && deleteMut.mutate(deleteUserId)}
+        isPending={deleteMut.isPending}
+      />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/currency-formatter";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -270,7 +271,7 @@ export function GroupEditDialog({
                                   key={extra.id}
                                   onSelect={() => handleAddExtra(extra.id)}
                                 >
-                                  {extra.name} - R$ {extra.price.toFixed(2)}
+                                  {extra.name} - {formatCurrency(extra.price)}
                                 </CommandItem>
                               ))}
                           </CommandGroup>
@@ -367,7 +368,7 @@ export function GroupEditDialog({
                     return (
                       <TableRow key={extra.id}>
                         <TableCell>{extra.name}</TableCell>
-                        <TableCell>R$ {extra.price.toFixed(2)}</TableCell>
+                        <TableCell>{formatCurrency(extra.price)}</TableCell>
                         <TableCell className="text-muted-foreground">
                           {extra.internal_code || "-"}
                         </TableCell>

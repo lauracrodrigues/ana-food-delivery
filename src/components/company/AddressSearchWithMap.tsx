@@ -1,11 +1,21 @@
-import { useState, useEffect, useRef } from "react";
+// v2.0.0 — Busca de endereço com mapa interativo (Leaflet + Nominatim — sem token)
+import { useState, useEffect } from "react";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Search, MapPin, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+
+// Corrige ícones padrão do Leaflet no Vite
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
 interface AddressData {
   cep: string;
@@ -24,152 +34,71 @@ interface AddressSearchWithMapProps {
   onChange: (address: AddressData) => void;
 }
 
+// Componente interno para capturar cliques no mapa e mover marcador
+function MapClickHandler({
+  onMove,
+}: {
+  onMove: (lat: number, lng: number) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      onMove(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
+// Marcador arrastável
+function DraggableMarker({
+  position,
+  onDrag,
+}: {
+  position: [number, number];
+  onDrag: (lat: number, lng: number) => void;
+}) {
+  return (
+    <Marker
+      position={position}
+      draggable
+      eventHandlers={{
+        dragend(e) {
+          const latlng = (e.target as L.Marker).getLatLng();
+          onDrag(latlng.lat, latlng.lng);
+        },
+      }}
+    />
+  );
+}
+
 export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMapProps) {
   const [loading, setLoading] = useState(false);
-  const [mapLoaded, setMapLoaded] = useState(false);
   const { toast } = useToast();
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const marker = useRef<mapboxgl.Marker | null>(null);
-  
-  // Mantém uma referência sempre atualizada do endereço
-  const addressRef = useRef(address);
-  
-  // Atualiza a ref sempre que o address mudar
-  useEffect(() => {
-    addressRef.current = address;
-  }, [address]);
 
-  // Mapbox token - Use sua própria chave API
-  // Obtenha gratuitamente em: https://www.mapbox.com/
-  const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
+  const center: [number, number] =
+    address.latitude && address.longitude
+      ? [address.latitude, address.longitude]
+      : [-23.5505, -46.6333]; // São Paulo default
 
-  useEffect(() => {
-    if (!mapContainer.current || map.current) return;
-
-    // Verificar se há token do Mapbox
-    if (!MAPBOX_TOKEN) {
-      toast({
-        title: "Aviso",
-        description: "Token do Mapbox não configurado. O mapa não será exibido.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    mapboxgl.accessToken = MAPBOX_TOKEN;
-
-    const initialCenter: [number, number] = address.longitude && address.latitude 
-      ? [address.longitude, address.latitude]
-      : [-46.6333, -23.5505]; // São Paulo default
-
-    try {
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: initialCenter,
-        zoom: 15,
-      });
-
-      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-      marker.current = new mapboxgl.Marker({ draggable: true })
-        .setLngLat(initialCenter)
-        .addTo(map.current);
-
-      marker.current.on('dragend', () => {
-        const lngLat = marker.current?.getLngLat();
-        if (lngLat) {
-          // Usa a ref para garantir os valores mais recentes
-          const currentAddress = addressRef.current;
-          const updatedAddress = {
-            cep: currentAddress.cep || '',
-            logradouro: currentAddress.logradouro || '',
-            numero: currentAddress.numero || '',
-            complemento: currentAddress.complemento || '',
-            bairro: currentAddress.bairro || '',
-            cidade: currentAddress.cidade || '',
-            estado: currentAddress.estado || '',
-            latitude: lngLat.lat,
-            longitude: lngLat.lng,
-          };
-          console.log('Marcador arrastado - endereço atual:', currentAddress, 'atualizado:', updatedAddress);
-          onChange(updatedAddress);
-        }
-      });
-
-      map.current.on('click', (e) => {
-        marker.current?.setLngLat([e.lngLat.lng, e.lngLat.lat]);
-        // Usa a ref para garantir os valores mais recentes
-        const currentAddress = addressRef.current;
-        const updatedAddress = {
-          cep: currentAddress.cep || '',
-          logradouro: currentAddress.logradouro || '',
-          numero: currentAddress.numero || '',
-          complemento: currentAddress.complemento || '',
-          bairro: currentAddress.bairro || '',
-          cidade: currentAddress.cidade || '',
-          estado: currentAddress.estado || '',
-          latitude: e.lngLat.lat,
-          longitude: e.lngLat.lng,
-        };
-        console.log('Mapa clicado - endereço atual:', currentAddress, 'atualizado:', updatedAddress);
-        onChange(updatedAddress);
-      });
-
-      map.current.on('load', () => {
-        setMapLoaded(true);
-      });
-
-      map.current.on('error', (e) => {
-        console.error('Erro ao carregar o mapa:', e);
-        toast({
-          title: "Erro no mapa",
-          description: "Não foi possível carregar o mapa. Verifique o token do Mapbox.",
-          variant: "destructive",
-        });
-      });
-    } catch (error) {
-      console.error('Erro ao inicializar o mapa:', error);
-    }
-
-    return () => {
-      map.current?.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (mapLoaded && address.latitude && address.longitude && marker.current && map.current) {
-      const newCenter: [number, number] = [address.longitude, address.latitude];
-      marker.current.setLngLat(newCenter);
-      map.current.flyTo({ center: newCenter, zoom: 15 });
-    }
-  }, [address.latitude, address.longitude, mapLoaded]);
+  const handleCoordChange = (lat: number, lng: number) => {
+    onChange({ ...address, latitude: lat, longitude: lng });
+  };
 
   const handleCEPSearch = async () => {
-    const cep = address.cep.replace(/\D/g, '');
-    
+    const cep = address.cep.replace(/\D/g, "");
+
     if (cep.length !== 8) {
-      toast({
-        title: "CEP inválido",
-        description: "O CEP deve conter 8 dígitos",
-        variant: "destructive",
-      });
+      toast({ title: "CEP inválido", description: "O CEP deve conter 8 dígitos", variant: "destructive" });
       return;
     }
 
     setLoading(true);
-
     try {
-      // Buscar endereço via ViaCEP
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = await response.json();
+      // Busca endereço no ViaCEP
+      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await res.json();
+      if (data.erro) throw new Error("CEP não encontrado");
 
-      if (data.erro) {
-        throw new Error("CEP não encontrado");
-      }
-
-      const updatedAddress: AddressData = {
+      const updated: AddressData = {
         ...address,
         logradouro: data.logradouro || address.logradouro,
         bairro: data.bairro || address.bairro,
@@ -177,41 +106,31 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
         estado: data.uf || address.estado,
       };
 
-      // Geocoding - converter endereço em coordenadas
-      const fullAddress = `${data.logradouro}, ${data.bairro}, ${data.localidade}, ${data.uf}, Brasil`;
-      const geocodeUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(fullAddress)}.json?access_token=${MAPBOX_TOKEN}`;
-      
-      const geocodeResponse = await fetch(geocodeUrl);
-      const geocodeData = await geocodeResponse.json();
+      // Geocoding via Nominatim (OpenStreetMap) — sem custo, sem token
+      const q = encodeURIComponent(`${data.logradouro}, ${data.bairro}, ${data.localidade}, ${data.uf}, Brasil`);
+      const geoRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
+        { headers: { "Accept-Language": "pt-BR", "User-Agent": "AnaFood/1.0" } }
+      );
+      const geoData = await geoRes.json();
 
-      if (geocodeData.features && geocodeData.features.length > 0) {
-        const [longitude, latitude] = geocodeData.features[0].center;
-        updatedAddress.latitude = latitude;
-        updatedAddress.longitude = longitude;
+      if (geoData.length > 0) {
+        updated.latitude = parseFloat(geoData[0].lat);
+        updated.longitude = parseFloat(geoData[0].lon);
       }
 
-      onChange(updatedAddress);
-
-      toast({
-        title: "Endereço encontrado",
-        description: "Ajuste a posição do marcador se necessário",
-      });
-    } catch (error) {
-      console.error('Error searching CEP:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível buscar o CEP",
-        variant: "destructive",
-      });
+      onChange(updated);
+      toast({ title: "Endereço encontrado", description: "Ajuste o marcador se necessário" });
+    } catch {
+      toast({ title: "Erro", description: "Não foi possível buscar o CEP", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
   const handleCEPChange = (value: string) => {
-    // Aplicar máscara de CEP
-    const cleaned = value.replace(/\D/g, '');
-    const masked = cleaned.replace(/(\d{5})(\d)/, '$1-$2');
+    const cleaned = value.replace(/\D/g, "");
+    const masked = cleaned.replace(/(\d{5})(\d)/, "$1-$2");
     onChange({ ...address, cep: masked });
   };
 
@@ -229,16 +148,8 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
               maxLength={9}
               required
             />
-            <Button
-              type="button"
-              onClick={handleCEPSearch}
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
+            <Button type="button" onClick={handleCEPSearch} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </Button>
           </div>
         </div>
@@ -255,7 +166,6 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
             required
           />
         </div>
-
         <div>
           <Label htmlFor="numero">Número *</Label>
           <Input
@@ -273,12 +183,11 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
           <Label htmlFor="complemento">Complemento</Label>
           <Input
             id="complemento"
-            value={address.complemento || ''}
+            value={address.complemento || ""}
             onChange={(e) => onChange({ ...address, complemento: e.target.value })}
             placeholder="Apto, Sala..."
           />
         </div>
-
         <div>
           <Label htmlFor="bairro">Bairro *</Label>
           <Input
@@ -302,7 +211,6 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
             required
           />
         </div>
-
         <div>
           <Label htmlFor="estado">Estado *</Label>
           <Input
@@ -322,37 +230,29 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
           <MapPin className="h-4 w-4" />
           Localização no Mapa
         </Label>
-        {!MAPBOX_TOKEN ? (
-          <div className="w-full h-[400px] rounded-lg border bg-muted flex items-center justify-center">
-            <div className="text-center p-4">
-              <MapPin className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground mb-2">
-                Para habilitar o mapa interativo, configure o token do Mapbox
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Obtenha gratuitamente em:{" "}
-                <a 
-                  href="https://www.mapbox.com/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-primary underline"
-                >
-                  mapbox.com
-                </a>
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <p className="text-xs text-muted-foreground">
-              Clique no mapa ou arraste o marcador para ajustar a localização exata
-            </p>
-            <div 
-              ref={mapContainer} 
-              className="w-full h-[400px] rounded-lg border"
+        <p className="text-xs text-muted-foreground">
+          Clique no mapa ou arraste o marcador para ajustar a localização exata
+        </p>
+        <div className="w-full h-[400px] rounded-lg border overflow-hidden">
+          <MapContainer
+            key={`${center[0]}-${center[1]}`}
+            center={center}
+            zoom={15}
+            className="w-full h-full"
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-          </>
-        )}
+            <MapClickHandler onMove={handleCoordChange} />
+            {address.latitude && address.longitude && (
+              <DraggableMarker
+                position={[address.latitude, address.longitude]}
+                onDrag={handleCoordChange}
+              />
+            )}
+          </MapContainer>
+        </div>
       </div>
 
       {address.latitude && address.longitude && (
