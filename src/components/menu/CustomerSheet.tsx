@@ -1,4 +1,4 @@
-// v1.0.0 — Sheet de conta do cliente: identificação, histórico de pedidos, favoritos
+// v1.1.0 — Sheet de conta do cliente: identificação, histórico, favoritos, pontos fidelidade
 import { useState } from "react";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -6,11 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, ShoppingBag, Heart, LogOut, RefreshCw, Eye } from "lucide-react";
+import { User, ShoppingBag, Heart, LogOut, RefreshCw, Eye, Sparkles } from "lucide-react";
 import type { CustomerSession } from "@/hooks/useCustomerSession";
 import type { OrderHistoryItem } from "@/hooks/useOrderHistory";
+import type { LoyaltyConfig } from "@/hooks/useLoyaltyPoints";
 
 interface Product {
   id: string;
@@ -25,6 +25,8 @@ interface CustomerSheetProps {
   history: OrderHistoryItem[];
   favorites: string[];
   products: Product[];
+  loyaltyPoints?: number;
+  loyaltyConfig?: LoyaltyConfig;
   onIdentify: (name: string, phone: string) => void;
   onClearSession: () => void;
   onRefreshHistory: () => void;
@@ -71,7 +73,7 @@ export function CustomerSheetTrigger({ session, favoritesCount, onClick }: {
 }
 
 export function CustomerSheet({
-  session, history, favorites, products,
+  session, history, favorites, products, loyaltyPoints = 0, loyaltyConfig,
   onIdentify, onClearSession, onRefreshHistory, onRepeatOrder, onViewOrder,
 }: CustomerSheetProps) {
   const [open, setOpen] = useState(false);
@@ -151,9 +153,9 @@ export function CustomerSheet({
               )}
             </div>
           ) : (
-            /* Conta identificada: tabs Pedidos + Favoritos */
+            /* Conta identificada: tabs Pedidos + Favoritos + Pontos */
             <Tabs defaultValue="orders" className="flex flex-col h-[calc(80vh-80px)]">
-              <TabsList className="mx-4 mt-3 grid grid-cols-2">
+              <TabsList className="mx-4 mt-3 grid grid-cols-3">
                 <TabsTrigger value="orders" className="flex items-center gap-1.5">
                   <ShoppingBag className="h-3.5 w-3.5" />
                   Pedidos {history.length > 0 && `(${history.length})`}
@@ -161,6 +163,10 @@ export function CustomerSheet({
                 <TabsTrigger value="favorites" className="flex items-center gap-1.5">
                   <Heart className="h-3.5 w-3.5" />
                   Favoritos {favorites.length > 0 && `(${favorites.length})`}
+                </TabsTrigger>
+                <TabsTrigger value="points" className="flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Pontos
                 </TabsTrigger>
               </TabsList>
 
@@ -251,6 +257,54 @@ export function CustomerSheet({
                       ))}
                     </div>
                   )}
+                </ScrollArea>
+              </TabsContent>
+
+              {/* Tab: Programa de pontos / fidelidade */}
+              <TabsContent value="points" className="flex-1 overflow-hidden mt-0">
+                <ScrollArea className="h-full px-4 pt-2">
+                  <div className="space-y-4 pb-4">
+                    {/* Card grande com saldo atual */}
+                    <div className="bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl p-5 text-center border border-amber-200">
+                      <Sparkles className="h-8 w-8 mx-auto mb-2 text-amber-600" />
+                      <p className="text-xs text-muted-foreground mb-1">Seu saldo</p>
+                      <p className="text-3xl font-bold text-amber-700">{loyaltyPoints}</p>
+                      <p className="text-xs text-muted-foreground">pontos</p>
+                    </div>
+
+                    {/* Regras do programa */}
+                    {loyaltyConfig && (
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-start gap-2 p-3 border rounded-lg">
+                          <span className="text-lg">💰</span>
+                          <div>
+                            <p className="font-medium">Como ganhar</p>
+                            <p className="text-xs text-muted-foreground">
+                              {loyaltyConfig.loyalty_points_per_real ?? 1} ponto a cada R$ 1,00 gasto
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2 p-3 border rounded-lg">
+                          <span className="text-lg">🎁</span>
+                          <div>
+                            <p className="font-medium">Como resgatar</p>
+                            <p className="text-xs text-muted-foreground">
+                              A cada {loyaltyConfig.loyalty_min_redeem ?? 100} pontos ={" "}
+                              {formatCurrency(loyaltyConfig.loyalty_redeem_value ?? 1)} de desconto
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Mínimo: {loyaltyConfig.loyalty_min_redeem ?? 100} pontos
+                            </p>
+                          </div>
+                        </div>
+                        {loyaltyPoints >= (loyaltyConfig.loyalty_min_redeem ?? 100) && (
+                          <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-center text-sm text-green-700">
+                            ✨ Você já pode resgatar! Use no próximo pedido.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </ScrollArea>
               </TabsContent>
 

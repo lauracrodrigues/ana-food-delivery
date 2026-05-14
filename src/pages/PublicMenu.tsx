@@ -1,4 +1,4 @@
-// v3.0.0 — Phase 3: conta do cliente, favoritos, histórico de pedidos
+// v4.0.0 — Phase 4: PWA install prompt, programa fidelidade, analytics tracking
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,11 +13,13 @@ import { MenuCheckout } from "@/components/menu/MenuCheckout";
 import { OrderTracking } from "@/components/menu/OrderTracking";
 import { ProductAddModal, SelectedExtra } from "@/components/menu/ProductAddModal";
 import { CustomerSheet } from "@/components/menu/CustomerSheet";
+import { InstallPrompt } from "@/components/menu/InstallPrompt";
 import { Loader2, ChefHat, Search, X } from "lucide-react";
 import { resetPalette, initializeColorPalette } from "@/hooks/use-color-palette";
 import { useCustomerSession } from "@/hooks/useCustomerSession";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useOrderHistory } from "@/hooks/useOrderHistory";
+import { useLoyaltyPoints } from "@/hooks/useLoyaltyPoints";
 
 interface Company {
   id: string;
@@ -36,6 +38,9 @@ interface Company {
   rating?: number | null;
   instagram?: string | null;
   min_order_value?: number | null;
+  loyalty_points_per_real?: number | null;
+  loyalty_min_redeem?: number | null;
+  loyalty_redeem_value?: number | null;
 }
 
 interface Category {
@@ -91,10 +96,18 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
   const tableNumber = searchParams.get('mesa');
   const [tableInfo, setTableInfo] = useState<{ id: string; table_number: string } | null>(null);
 
-  // Sessão do cliente, favoritos e histórico (company.id disponível após load)
+  // Sessão do cliente, favoritos, histórico e fidelidade (company.id disponível após load)
   const { session, identify, saveAddress, clearSession } = useCustomerSession();
   const { favorites, toggle: toggleFavorite } = useFavorites(company?.id ?? "");
   const { history, addOrder, refreshStatuses } = useOrderHistory(company?.id ?? "");
+  const { points: loyaltyPoints, fetchPoints: refreshLoyalty } = useLoyaltyPoints(company?.id ?? "", session?.phone);
+
+  // Config fidelidade extraída da empresa
+  const loyaltyConfig = company ? {
+    loyalty_points_per_real: company.loyalty_points_per_real,
+    loyalty_min_redeem: company.loyalty_min_redeem,
+    loyalty_redeem_value: company.loyalty_redeem_value,
+  } : undefined;
 
   useEffect(() => {
     resetPalette();
@@ -200,6 +213,14 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
       extrasTotal,
     }]);
     toast({ title: "Produto adicionado", description: `${product.name} foi adicionado ao carrinho` });
+    // Analytics: registra add_to_cart (fire-and-forget, não bloqueia UX)
+    if (company?.id) {
+      supabase.from("product_events" as any).insert({
+        company_id: company.id,
+        product_id: product.id,
+        event_type: "add_to_cart",
+      }).then(({ error }) => { if (error) console.warn("track add_to_cart failed", error); });
+    }
   };
 
   const updateCartItem = (cartItemId: string, quantity: number) => {
@@ -306,6 +327,8 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
             history={history}
             favorites={favorites}
             products={products}
+            loyaltyPoints={loyaltyPoints}
+            loyaltyConfig={loyaltyConfig}
             onIdentify={identify}
             onClearSession={clearSession}
             onRefreshHistory={refreshStatuses}
@@ -453,11 +476,17 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
           tableInfo={tableInfo}
           requireCustomerInfo={!!tableInfo}
           session={session}
+          loyaltyPoints={loyaltyPoints}
+          loyaltyConfig={loyaltyConfig}
           onClose={() => setShowCheckout(false)}
           onSuccess={handleOrderSuccess}
           onSaveAddress={saveAddress}
+          onLoyaltyChange={refreshLoyalty}
         />
       )}
+
+      {/* PWA install prompt — só aparece após 8s, dispensável */}
+      <InstallPrompt companyName={company.fantasy_name || company.name} />
 
       {/* Banner de pedido ativo */}
       {activeOrderBanner && !trackingOrderId && (

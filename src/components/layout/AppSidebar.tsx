@@ -34,6 +34,7 @@ import {
   TrendingUp,
   Truck,
   Ticket,
+  BarChart3,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { saveUserTheme } from "@/components/layout/UserThemeSync";
@@ -103,6 +104,11 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
     title: "Financeiro",
     url: "/financeiro",
     icon: TrendingUp,
+  },
+  {
+    title: "Analytics",
+    url: "/analytics",
+    icon: BarChart3,
   },
   {
     title: "Pedidos",

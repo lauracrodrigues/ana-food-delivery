@@ -1,21 +1,23 @@
-// v2.3 — Cupom + valor mínimo + taxa de entrega da empresa
+// v2.4.0 — Cupom + valor mínimo + taxa entrega + pontos fidelidade (ganho + resgate)
 import { formatCurrency } from "@/lib/currency-formatter";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { usePIXPolling } from "@/hooks/menu/usePIXPolling";
 import { useOrderCreation } from "@/hooks/menu/useOrderCreation";
-import { Loader2, LocateFixed, Copy, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { Loader2, LocateFixed, Copy, CheckCircle2, Clock, AlertCircle, Sparkles } from "lucide-react";
 import { CouponInput } from "./CouponInput";
 import { CouponData, CouponValidationResult } from "@/lib/coupon-validator";
 import type { CustomerSession } from "@/hooks/useCustomerSession";
+import type { LoyaltyConfig } from "@/hooks/useLoyaltyPoints";
 
 interface SelectedExtra {
   id: string;
@@ -40,6 +42,9 @@ interface Company {
   fantasy_name: string;
   delivery_fee?: number | null;
   min_order_value?: number | null;
+  loyalty_points_per_real?: number | null;
+  loyalty_min_redeem?: number | null;
+  loyalty_redeem_value?: number | null;
 }
 
 interface MenuCheckoutProps {
@@ -49,9 +54,12 @@ interface MenuCheckoutProps {
   tableInfo?: { id: string; table_number: string } | null;
   requireCustomerInfo?: boolean;
   session?: CustomerSession | null;
+  loyaltyPoints?: number;
+  loyaltyConfig?: LoyaltyConfig;
   onClose: () => void;
   onSuccess: (orderId?: string) => void;
   onSaveAddress?: (address: string) => void;
+  onLoyaltyChange?: () => void;
 }
 
 // Tela do QR code PIX — compacta para mobile
@@ -158,13 +166,18 @@ function PixQrScreen({
   );
 }
 
-export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerInfo, session, onClose, onSuccess, onSaveAddress }: MenuCheckoutProps) {
+export function MenuCheckout({
+  cart, total, company, tableInfo, requireCustomerInfo, session,
+  loyaltyPoints = 0, loyaltyConfig,
+  onClose, onSuccess, onSaveAddress, onLoyaltyChange,
+}: MenuCheckoutProps) {
   const { toast } = useToast();
   const { createOrder, loading, pixData } = useOrderCreation();
   const [locating, setLocating] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<CouponData | null>(null);
   const [couponResult, setCouponResult] = useState<CouponValidationResult | null>(null);
+  const [redeemPointsActive, setRedeemPointsActive] = useState(false);
 
   const [formData, setFormData] = useState({
     customer_name: session?.name ?? "",
@@ -182,7 +195,17 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
     ? (couponResult?.freeShipping ? 0 : (company.delivery_fee ?? 0))
     : 0;
   const couponDiscount = couponResult?.discount ?? 0;
-  const finalTotal = Math.max(0, total + deliveryFee - couponDiscount);
+
+  // Resgate de pontos: calcula desconto em R$ se cliente tem saldo >= mínimo
+  const minRedeem = loyaltyConfig?.loyalty_min_redeem ?? 100;
+  const redeemValue = loyaltyConfig?.loyalty_redeem_value ?? 1.0;
+  const canRedeem = loyaltyPoints >= minRedeem;
+  // Resgata em blocos do mínimo: ex 250 pts, min 100 → resgata 200 pts = 2x redeem_value
+  const redeemBlocks = canRedeem ? Math.floor(loyaltyPoints / minRedeem) : 0;
+  const redeemPointsAmount = redeemBlocks * minRedeem;
+  const redeemDiscount = redeemPointsActive ? redeemBlocks * redeemValue : 0;
+
+  const finalTotal = Math.max(0, total + deliveryFee - couponDiscount - redeemDiscount);
 
   // Verifica se empresa tem MP configurado via função segura (não expõe credenciais ao anon)
   const { data: hasMpActive } = useQuery({
@@ -232,6 +255,55 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
+  };
+
+  // Pós-pedido: resgata pontos (se ativo) e concede novos pontos pelo total final
+  const handleLoyaltyAfterOrder = async (orderId: string) => {
+    if (!session?.phone || !loyaltyConfig) return;
+    const phone = session.phone;
+    let balance = loyaltyPoints;
+
+    // 1) Resgate: debita os pontos usados
+    if (redeemPointsActive && redeemPointsAmount > 0) {
+      balance = balance - redeemPointsAmount;
+      await supabase.from("loyalty_points" as any).upsert({
+        company_id: company.id,
+        customer_phone: phone,
+        points: balance,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "company_id,customer_phone" });
+      await supabase.from("loyalty_transactions" as any).insert({
+        company_id: company.id,
+        customer_phone: phone,
+        order_id: orderId,
+        points_earned: 0,
+        points_redeemed: redeemPointsAmount,
+        balance_after: balance,
+      });
+    }
+
+    // 2) Ganho: gera pontos pelo total final do pedido
+    const perReal = loyaltyConfig.loyalty_points_per_real ?? 1;
+    const earned = Math.floor(finalTotal * perReal);
+    if (earned > 0) {
+      balance = balance + earned;
+      await supabase.from("loyalty_points" as any).upsert({
+        company_id: company.id,
+        customer_phone: phone,
+        points: balance,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "company_id,customer_phone" });
+      await supabase.from("loyalty_transactions" as any).insert({
+        company_id: company.id,
+        customer_phone: phone,
+        order_id: orderId,
+        points_earned: earned,
+        points_redeemed: 0,
+        balance_after: balance,
+      });
+    }
+
+    onLoyaltyChange?.();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -293,6 +365,20 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
         if (formData.type === "delivery" && formData.address && onSaveAddress) {
           onSaveAddress(formData.address);
         }
+        // Fidelidade: resgate (consome pontos) + ganho (gera pontos)
+        if (session?.phone && loyaltyConfig) {
+          await handleLoyaltyAfterOrder(orderId);
+        }
+        // Tracking event: registra pedido para analytics
+        try {
+          await supabase.from("product_events" as any).insert(
+            cart.map(item => ({
+              company_id: company.id,
+              product_id: item.product.id,
+              event_type: "order",
+            }))
+          );
+        } catch (err) { console.warn("Failed to log order events", err); }
         toast({ title: "Pedido realizado!", description: "Aguarde a confirmação." });
         onSuccess(orderId);
       });
@@ -493,6 +579,30 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
             </div>
           )}
 
+          {/* Resgate de pontos fidelidade */}
+          {!isTableOrder && canRedeem && loyaltyConfig && (
+            <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <Checkbox
+                  checked={redeemPointsActive}
+                  onCheckedChange={(v) => setRedeemPointsActive(!!v)}
+                  className="mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-600" />
+                    <p className="text-sm font-medium text-amber-900">
+                      Usar {redeemPointsAmount} pontos
+                    </p>
+                  </div>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    Você tem {loyaltyPoints} pts — desconto de {formatCurrency(redeemBlocks * redeemValue)}
+                  </p>
+                </div>
+              </label>
+            </div>
+          )}
+
           {/* Aviso valor mínimo */}
           {company.min_order_value != null && total < company.min_order_value && !isTableOrder && (
             <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -534,10 +644,27 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
                 <span>-{formatCurrency(couponDiscount)}</span>
               </div>
             )}
+            {redeemDiscount > 0 && (
+              <div className="flex justify-between text-sm text-amber-700">
+                <span>Pontos resgatados ({redeemPointsAmount} pts)</span>
+                <span>-{formatCurrency(redeemDiscount)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-lg font-bold pt-2 border-t">
               <span>Total</span>
               <span className="text-primary">{formatCurrency(finalTotal)}</span>
             </div>
+            {/* Pontos a ganhar */}
+            {session?.phone && loyaltyConfig && finalTotal > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-amber-700 pt-1">
+                <Sparkles className="h-3 w-3" />
+                <span>
+                  Você ganhará{" "}
+                  <strong>{Math.floor(finalTotal * (loyaltyConfig.loyalty_points_per_real ?? 1))} pontos</strong>{" "}
+                  com este pedido
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Ações */}
