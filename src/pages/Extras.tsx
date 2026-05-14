@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Edit, Trash2 } from "lucide-react";
+import { WEEKDAYS } from "@/lib/weekday-utils";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { SkeletonTable } from "@/components/loading";
 
@@ -23,6 +24,9 @@ interface Extra {
   category?: string;
   description?: string;
   on_off?: boolean;
+  available_weekdays?: string[] | null;
+  available_start_time?: string | null;
+  available_end_time?: string | null;
   created_at?: string;
 }
 
@@ -30,13 +34,18 @@ export function Extras() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingExtra, setEditingExtra] = useState<Extra | null>(null);
-  const [formData, setFormData] = useState<Partial<Extra>>({
+  const emptyForm: Partial<Extra> = {
     name: "",
     price: 0,
     category: "",
     description: "",
     on_off: true,
-  });
+    available_weekdays: null,
+    available_start_time: null,
+    available_end_time: null,
+  };
+
+  const [formData, setFormData] = useState<Partial<Extra>>(emptyForm);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -152,13 +161,7 @@ export function Extras() {
       setFormData(extra);
     } else {
       setEditingExtra(null);
-      setFormData({
-        name: "",
-        price: 0,
-        category: "",
-        description: "",
-        on_off: true,
-      });
+      setFormData(emptyForm);
     }
     setShowModal(true);
   };
@@ -166,13 +169,7 @@ export function Extras() {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingExtra(null);
-    setFormData({
-      name: "",
-      price: 0,
-      category: "",
-      description: "",
-      on_off: true,
-    });
+    setFormData(emptyForm);
   };
 
   const handleSave = () => {
@@ -238,7 +235,7 @@ export function Extras() {
                   <TableHead>Categoria</TableHead>
                   <TableHead>Preço</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Descrição</TableHead>
+                  <TableHead>Disponibilidade</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -257,8 +254,16 @@ export function Extras() {
                         {extra.on_off ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {extra.description}
+                    <TableCell>
+                      {extra.available_weekdays?.length ? (
+                        <Badge variant="outline" className="text-xs">
+                          {extra.available_weekdays
+                            .map((d) => WEEKDAYS.find((w) => w.value === d)?.short)
+                            .join(", ")}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Todos os dias</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
@@ -344,6 +349,77 @@ export function Extras() {
                 checked={formData.on_off}
                 onCheckedChange={(checked) => setFormData({ ...formData, on_off: checked })}
               />
+            </div>
+
+            {/* Dias disponíveis */}
+            <div>
+              <Label className="mb-1.5 block">Disponível nos dias</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Deixe vazio = disponível todos os dias
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {WEEKDAYS.map((day) => {
+                  const selected = (formData.available_weekdays || []).includes(day.value);
+                  return (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => {
+                        const current = formData.available_weekdays || [];
+                        const updated = selected
+                          ? current.filter((d) => d !== day.value)
+                          : [...current, day.value];
+                        setFormData({
+                          ...formData,
+                          available_weekdays: updated.length ? updated : null,
+                        });
+                      }}
+                      className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
+                        selected
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border text-muted-foreground hover:border-primary"
+                      }`}
+                    >
+                      {day.short}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Faixa de horário */}
+            <div>
+              <Label className="mb-1.5 block">Horário (opcional)</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="start_time" className="text-xs text-muted-foreground">Início</Label>
+                  <Input
+                    id="start_time"
+                    type="time"
+                    value={formData.available_start_time || ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        available_start_time: e.target.value || null,
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="end_time" className="text-xs text-muted-foreground">Fim</Label>
+                  <Input
+                    id="end_time"
+                    type="time"
+                    value={formData.available_end_time || ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        available_end_time: e.target.value || null,
+                      })
+                    }
+                  />
+                </div>
+              </div>
             </div>
           </div>
           

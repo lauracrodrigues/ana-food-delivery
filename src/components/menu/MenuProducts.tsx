@@ -1,11 +1,10 @@
+// v2.0.0 — Usa ProductAddModal com suporte a complementos
 import { formatCurrency } from "@/lib/currency-formatter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Plus, Image as ImageIcon } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { ProductAddModal, SelectedExtra } from "./ProductAddModal";
 
 interface Product {
   id: string;
@@ -17,18 +16,16 @@ interface Product {
 
 interface MenuProductsProps {
   products: Product[];
-  onAddToCart: (product: Product, quantity: number, observations?: string) => void;
+  companyId: string;
+  onAddToCart: (product: Product, quantity: number, observations?: string, extras?: SelectedExtra[]) => void;
 }
 
-export function MenuProducts({ products, onAddToCart }: MenuProductsProps) {
+export function MenuProducts({ products, companyId, onAddToCart }: MenuProductsProps) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [observations, setObservations] = useState("");
 
-  const handleAddToCart = () => {
+  const handleModalAdd = (extras: SelectedExtra[], quantity: number, observations: string) => {
     if (selectedProduct) {
-      onAddToCart(selectedProduct, 1, observations);
-      setSelectedProduct(null);
-      setObservations("");
+      onAddToCart(selectedProduct, quantity, observations || undefined, extras);
     }
   };
 
@@ -47,7 +44,6 @@ export function MenuProducts({ products, onAddToCart }: MenuProductsProps) {
           <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
             <CardContent className="p-0">
               <div className="flex gap-4 p-4">
-                {/* Image */}
                 <div className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
                   {product.image_url ? (
                     <img
@@ -61,8 +57,6 @@ export function MenuProducts({ products, onAddToCart }: MenuProductsProps) {
                     <ImageIcon className="h-8 w-8 text-muted-foreground" />
                   )}
                 </div>
-
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-lg mb-1 truncate">{product.name}</h3>
                   {product.description && (
@@ -76,7 +70,6 @@ export function MenuProducts({ products, onAddToCart }: MenuProductsProps) {
                 </div>
               </div>
             </CardContent>
-            
             <CardFooter className="p-4 pt-0">
               <Button
                 onClick={() => setSelectedProduct(product)}
@@ -91,50 +84,13 @@ export function MenuProducts({ products, onAddToCart }: MenuProductsProps) {
         ))}
       </div>
 
-      {/* Product Detail Dialog */}
-      <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{selectedProduct?.name}</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            {selectedProduct?.image_url && (
-              <img
-                src={selectedProduct.image_url}
-                alt={selectedProduct.name}
-                className="w-full h-48 object-cover rounded-lg"
-                loading="lazy"
-                decoding="async"
-              />
-            )}
-            
-            {selectedProduct?.description && (
-              <p className="text-muted-foreground">{selectedProduct.description}</p>
-            )}
-
-            <div className="space-y-2">
-              <Label>Observações</Label>
-              <Textarea
-                value={observations}
-                onChange={(e) => setObservations(e.target.value)}
-                placeholder="Ex: Sem cebola, ponto da carne, etc."
-                rows={3}
-              />
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t">
-              <p className="text-2xl font-bold text-primary">
-                {formatCurrency(selectedProduct?.price)}
-              </p>
-              <Button onClick={handleAddToCart}>
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar ao Carrinho
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ProductAddModal
+        product={selectedProduct}
+        companyId={companyId}
+        open={!!selectedProduct}
+        onOpenChange={(open) => { if (!open) setSelectedProduct(null); }}
+        onAddToCart={handleModalAdd}
+      />
     </>
   );
 }

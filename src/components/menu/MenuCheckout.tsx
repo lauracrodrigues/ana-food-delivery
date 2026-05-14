@@ -14,10 +14,21 @@ import { usePIXPolling } from "@/hooks/menu/usePIXPolling";
 import { useOrderCreation } from "@/hooks/menu/useOrderCreation";
 import { Loader2, LocateFixed, Copy, CheckCircle2, Clock } from "lucide-react";
 
+interface SelectedExtra {
+  id: string;
+  name: string;
+  price: number;
+  groupId: string;
+  groupName: string;
+}
+
 interface CartItem {
+  cartItemId: string;
   product: { id: string; name: string; price: number };
   quantity: number;
   observations?: string;
+  extras: SelectedExtra[];
+  extrasTotal: number;
 }
 
 interface Company {
@@ -224,13 +235,19 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
       customer_name: formData.customer_name,
       customer_phone: formData.customer_phone,
       total,
-      items: cart.map(item => ({
-        id: item.product.id,
-        name: item.product.name,
-        price: item.product.price,
-        quantity: item.quantity,
-        observations: item.observations,
-      })),
+      items: cart.map(item => {
+        const extrasDesc = item.extras.length > 0
+          ? `Extras: ${item.extras.map(e => e.name).join(", ")}`
+          : null;
+        const obs = [item.observations, extrasDesc].filter(Boolean).join(" | ");
+        return {
+          id: item.product.id,
+          name: item.product.name,
+          price: item.product.price + item.extrasTotal,
+          quantity: item.quantity,
+          observations: obs || undefined,
+        };
+      }),
       type: isTableOrder ? "table" : formData.type,
       address: formData.address,
       payment_method: formData.payment_method,

@@ -41,10 +41,21 @@ interface Product {
   on_off: boolean;
 }
 
+interface SelectedExtra {
+  id: string;
+  name: string;
+  price: number;
+  groupId: string;
+  groupName: string;
+}
+
 interface CartItem {
+  cartItemId: string;
   product: Product;
   quantity: number;
   observations?: string;
+  extras: SelectedExtra[];
+  extrasTotal: number;
 }
 
 interface PublicMenuProps {
@@ -183,39 +194,36 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
     }
   };
 
-  const addToCart = (product: Product, quantity: number = 1, observations?: string) => {
-    setCart(prev => {
-      const existingItem = prev.find(item => item.product.id === product.id);
-      if (existingItem) {
-        return prev.map(item =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + quantity, observations }
-            : item
-        );
-      }
-      return [...prev, { product, quantity, observations }];
-    });
-
+  const addToCart = (product: Product, quantity: number = 1, observations?: string, extras: SelectedExtra[] = []) => {
+    const extrasTotal = extras.reduce((sum, e) => sum + e.price, 0);
+    setCart(prev => [...prev, {
+      cartItemId: crypto.randomUUID(),
+      product,
+      quantity,
+      observations,
+      extras,
+      extrasTotal,
+    }]);
     toast({
       title: "Produto adicionado",
       description: `${product.name} foi adicionado ao carrinho`,
     });
   };
 
-  const updateCartItem = (productId: string, quantity: number) => {
+  const updateCartItem = (cartItemId: string, quantity: number) => {
     if (quantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(cartItemId);
       return;
     }
     setCart(prev =>
       prev.map(item =>
-        item.product.id === productId ? { ...item, quantity } : item
+        item.cartItemId === cartItemId ? { ...item, quantity } : item
       )
     );
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(prev => prev.filter(item => item.product.id !== productId));
+  const removeFromCart = (cartItemId: string) => {
+    setCart(prev => prev.filter(item => item.cartItemId !== cartItemId));
   };
 
   const clearCart = () => {
@@ -223,7 +231,7 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
   };
 
   const getCartTotal = () => {
-    return cart.reduce((total, item) => total + item.product.price * item.quantity, 0);
+    return cart.reduce((total, item) => total + (item.product.price + item.extrasTotal) * item.quantity, 0);
   };
 
   const filteredProducts = selectedCategory
@@ -322,6 +330,7 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
             
             <MenuProducts
               products={filteredProducts}
+              companyId={company?.id ?? ""}
               onAddToCart={addToCart}
             />
           </div>

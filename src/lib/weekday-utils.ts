@@ -44,3 +44,21 @@ export const isProductAvailableOn = (availableWeekdays: string[] | null, weekday
   }
   return availableWeekdays.includes(weekday);
 };
+
+// Verifica se um adicional está disponível agora (dia da semana + faixa de horário)
+// null/vazio = sem restrição
+export const isExtraAvailable = (
+  availableWeekdays: string[] | null | undefined,
+  availableStartTime: string | null | undefined,
+  availableEndTime: string | null | undefined,
+): boolean => {
+  if (availableWeekdays && availableWeekdays.length > 0) {
+    if (!availableWeekdays.includes(getCurrentWeekday())) return false;
+  }
+  if (availableStartTime && availableEndTime) {
+    const now = new Date();
+    const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    if (hhmm < availableStartTime || hhmm > availableEndTime) return false;
+  }
+  return true;
+};

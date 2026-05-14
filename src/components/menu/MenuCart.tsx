@@ -1,22 +1,31 @@
+// v2.0.0 — Carrinho com suporte a extras/complementos
+import { formatCurrency } from "@/lib/currency-formatter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShoppingCart, Trash2, Plus, Minus } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+interface SelectedExtra {
+  id: string;
+  name: string;
+  price: number;
+  groupId: string;
+  groupName: string;
+}
+
 interface CartItem {
-  product: {
-    id: string;
-    name: string;
-    price: number;
-  };
+  cartItemId: string;
+  product: { id: string; name: string; price: number };
   quantity: number;
   observations?: string;
+  extras: SelectedExtra[];
+  extrasTotal: number;
 }
 
 interface MenuCartProps {
   cart: CartItem[];
-  onUpdateQuantity: (productId: string, quantity: number) => void;
-  onRemoveItem: (productId: string) => void;
+  onUpdateQuantity: (cartItemId: string, quantity: number) => void;
+  onRemoveItem: (cartItemId: string) => void;
   onClearCart: () => void;
   onCheckout: () => void;
   total: number;
@@ -57,11 +66,7 @@ export function MenuCart({
             <ShoppingCart className="h-5 w-5" />
             Carrinho ({cart.length})
           </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClearCart}
-          >
+          <Button variant="ghost" size="sm" onClick={onClearCart}>
             Limpar
           </Button>
         </div>
@@ -72,18 +77,35 @@ export function MenuCart({
           <div className="space-y-4">
             {cart.map((item) => (
               <div
-                key={item.product.id}
+                key={item.cartItemId}
                 className="flex gap-3 pb-4 border-b border-border last:border-0"
               >
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium truncate">{item.product.name}</h4>
+
+                  {/* Extras como chips */}
+                  {item.extras.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {item.extras.map((e) => (
+                        <span
+                          key={e.id}
+                          className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground"
+                        >
+                          {e.name}
+                          {e.price > 0 ? ` +${formatCurrency(e.price)}` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   {item.observations && (
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="text-xs text-muted-foreground truncate mt-1">
                       {item.observations}
                     </p>
                   )}
+
                   <p className="text-sm font-semibold text-primary mt-1">
-                    R$ {(item.product.price * item.quantity).toFixed(2)}
+                    {formatCurrency((item.product.price + item.extrasTotal) * item.quantity)}
                   </p>
                 </div>
 
@@ -93,7 +115,7 @@ export function MenuCart({
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"
-                      onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1)}
+                      onClick={() => onUpdateQuantity(item.cartItemId, item.quantity - 1)}
                     >
                       <Minus className="h-3 w-3" />
                     </Button>
@@ -104,17 +126,17 @@ export function MenuCart({
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"
-                      onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
+                      onClick={() => onUpdateQuantity(item.cartItemId, item.quantity + 1)}
                     >
                       <Plus className="h-3 w-3" />
                     </Button>
                   </div>
-                  
+
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => onRemoveItem(item.product.id)}
+                    onClick={() => onRemoveItem(item.cartItemId)}
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>
@@ -128,14 +150,10 @@ export function MenuCart({
       <CardFooter className="flex-col gap-4">
         <div className="w-full flex items-center justify-between text-lg font-bold">
           <span>Total</span>
-          <span className="text-primary">R$ {total.toFixed(2)}</span>
+          <span className="text-primary">{formatCurrency(total)}</span>
         </div>
-        
-        <Button
-          onClick={onCheckout}
-          className="w-full"
-          size="lg"
-        >
+
+        <Button onClick={onCheckout} className="w-full" size="lg">
           Finalizar Pedido
         </Button>
       </CardFooter>
