@@ -14,6 +14,7 @@ import { OrderTracking } from "@/components/menu/OrderTracking";
 import { ProductAddModal, SelectedExtra } from "@/components/menu/ProductAddModal";
 import { CustomerSheet } from "@/components/menu/CustomerSheet";
 import { InstallPrompt } from "@/components/menu/InstallPrompt";
+import { MenuThemeToggle } from "@/components/menu/MenuThemeToggle";
 import { Loader2, ChefHat, Search, X } from "lucide-react";
 import { resetPalette, initializeColorPalette } from "@/hooks/use-color-palette";
 import { useCustomerSession } from "@/hooks/useCustomerSession";
@@ -352,6 +353,7 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
     <div className="min-h-screen bg-background pb-24 lg:pb-0">
       <MenuHeader
         company={company}
+        themeSlot={<MenuThemeToggle />}
         customerSlot={
           <CustomerSheet
             companyId={company.id}
