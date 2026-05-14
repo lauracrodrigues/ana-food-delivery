@@ -33,12 +33,12 @@ interface KanbanColumnProps {
 
 // Mapa de cores light/dark por coluna
 const COLUMN_BG: Record<string, string> = {
-  pending: "bg-blue-50/80 dark:bg-blue-950/30",
+  pending: "bg-red-50/80 dark:bg-red-950/30",
   preparing: "bg-yellow-50/80 dark:bg-yellow-950/30",
   ready: "bg-green-50/80 dark:bg-green-950/30",
   delivering: "bg-purple-50/80 dark:bg-purple-950/30",
-  completed: "bg-gray-50/80 dark:bg-gray-900/30",
-  cancelled: "bg-red-50/80 dark:bg-red-950/30",
+  completed: "bg-blue-50/80 dark:bg-blue-950/30",
+  cancelled: "bg-gray-50/80 dark:bg-gray-900/30",
 };
 
 export function KanbanColumn({
