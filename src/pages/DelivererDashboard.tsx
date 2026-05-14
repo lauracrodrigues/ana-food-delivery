@@ -695,7 +695,7 @@ export default function DelivererDashboard() {
       if (event === 'SIGNED_OUT') { setAuthState('unauthenticated'); setMustChangePassword(null); }
     });
     return () => subscription.unsubscribe();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   const dashboardActive = authState === 'authenticated' && mustChangePassword === false;
 
@@ -704,7 +704,7 @@ export default function DelivererDashboard() {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) return null;
-      // @ts-ignore
+      // @ts-expect-error -- Supabase generated types don't include this table yet
       const { data } = await supabase
         .from("deliverers")
         .select("id, name, phone, company_id, email, daily_rate")
@@ -744,7 +744,7 @@ export default function DelivererDashboard() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [deliverer?.id, queryClient]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [deliverer?.id, queryClient]);  
 
   const { data: completions = [] } = useQuery({
     queryKey: ["delivery-completions", deliverer?.id],
@@ -778,7 +778,7 @@ export default function DelivererDashboard() {
     queryKey: ["deliverer-peers", deliverer?.company_id],
     queryFn: async () => {
       if (!deliverer?.company_id) return [];
-      // @ts-ignore
+      // @ts-expect-error -- Supabase generated types don't include this table yet
       const { data } = await supabase
         .from("deliverers")
         .select("id, name, phone")
@@ -835,7 +835,7 @@ export default function DelivererDashboard() {
           && now - lastUpdateTime < MIN_INTERVAL_MS) return;
       lastUpdateTime = now;
       lastSentLocationRef.current = { lat, lng };
-      // @ts-ignore
+      // @ts-expect-error -- Supabase generated types don't include this table yet
       await supabase.from('deliverers').update({
         lat, lng, last_location_at: new Date().toISOString(),
       }).eq('id', deliverer.id);
@@ -853,7 +853,7 @@ export default function DelivererDashboard() {
         gpsWatchIdRef.current = null;
       }
     };
-  }, [dashboardActive, deliverer?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dashboardActive, deliverer?.id]);  
 
   // Early returns DEPOIS de todos os hooks
   if (authState === 'loading') return null;
@@ -873,7 +873,7 @@ export default function DelivererDashboard() {
   const toggleExpand = (orderId: string) => {
     setExpandedOrders(prev => {
       const n = new Set(prev);
-      n.has(orderId) ? n.delete(orderId) : n.add(orderId);
+      if (n.has(orderId)) { n.delete(orderId); } else { n.add(orderId); }
       return n;
     });
   };

@@ -60,7 +60,7 @@ export function DeliveryMap({ onClose }: DeliveryMapProps) {
     queryKey: ["deliverers-map", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      // @ts-ignore
+      // @ts-expect-error -- Supabase generated types don't include this table yet
       const { data } = await supabase
         .from("deliverers")
         .select("id, name, lat, lng, last_location_at")

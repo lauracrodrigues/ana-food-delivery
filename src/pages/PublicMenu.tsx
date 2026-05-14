@@ -1,3 +1,4 @@
+// v2.0.0 — Menu redesign Phase 1: novo header, categorias anchor, seções destaque, cart mobile
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -5,10 +6,13 @@ import { useToast } from "@/hooks/use-toast";
 import { MenuHeader } from "@/components/menu/MenuHeader";
 import { MenuCategories } from "@/components/menu/MenuCategories";
 import { MenuProducts } from "@/components/menu/MenuProducts";
+import { MenuSections } from "@/components/menu/MenuSections";
 import { MenuCart } from "@/components/menu/MenuCart";
+import { CartBottomBar } from "@/components/menu/CartBottomBar";
 import { MenuCheckout } from "@/components/menu/MenuCheckout";
 import { OrderTracking } from "@/components/menu/OrderTracking";
-import { Loader2, ChefHat } from "lucide-react";
+import { ProductAddModal, SelectedExtra } from "@/components/menu/ProductAddModal";
+import { Loader2, ChefHat, Search, X } from "lucide-react";
 import { resetPalette, initializeColorPalette } from "@/hooks/use-color-palette";
 
 interface Company {
@@ -23,6 +27,11 @@ interface Company {
   schedule: any;
   is_active: boolean;
   delivery_mode: string;
+  delivery_fee?: number | null;
+  avg_delivery_minutes?: number | null;
+  rating?: number | null;
+  instagram?: string | null;
+  min_order_value?: number | null;
 }
 
 interface Category {
@@ -39,14 +48,9 @@ interface Product {
   image_url: string | null;
   category_id: string;
   on_off: boolean;
-}
-
-interface SelectedExtra {
-  id: string;
-  name: string;
-  price: number;
-  groupId: string;
-  groupName: string;
+  promotional_price?: number | null;
+  badges?: string[] | null;
+  is_featured?: boolean;
 }
 
 interface CartItem {
@@ -71,25 +75,23 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
   const [company, setCompany] = useState<Company | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
   const [activeOrderBanner, setActiveOrderBanner] = useState<{ orderId: string; status: string } | null>(null);
   const [banners, setBanners] = useState<{ id: string; image_url: string; link_type: string | null; link_value: string | null }[]>([]);
   const [activeBanner, setActiveBanner] = useState(0);
+  const [quickAddProduct, setQuickAddProduct] = useState<Product | null>(null);
 
-  // Table identification from QR code
   const tableNumber = searchParams.get('mesa');
   const [tableInfo, setTableInfo] = useState<{ id: string; table_number: string } | null>(null);
 
-  // Garante que a paleta do admin não vaze para o menu público
   useEffect(() => {
     resetPalette();
     return () => initializeColorPalette();
   }, []);
 
-  // Auto-rotação dos banners a cada 5s
   useEffect(() => {
     if (banners.length <= 1) return;
     const t = setInterval(() => setActiveBanner(i => (i + 1) % banners.length), 5000);
@@ -104,7 +106,6 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
     try {
       setLoading(true);
 
-      // Buscar empresa pelo subdomínio
       const { data: companyData, error: companyError } = await supabase
         .from('companies')
         .select('*')
@@ -113,34 +114,29 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
 
       if (companyError) throw companyError;
       if (!companyData) {
-        toast({
-          title: "Erro",
-          description: "Estabelecimento não encontrado",
-          variant: "destructive",
-        });
+        toast({ title: "Erro", description: "Estabelecimento não encontrado", variant: "destructive" });
         return;
       }
 
       setCompany(companyData);
 
-      // Verifica pedido ativo salvo no localStorage para este cliente/empresa
+      // Verifica pedido ativo salvo para este cliente/empresa
       const storageKey = `anafood_order_${companyData.id}`;
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         try {
           const { orderId } = JSON.parse(saved);
           const { data: orderStatus } = await supabase.rpc("get_order_tracking", { p_order_id: orderId });
-          if (orderStatus && !["delivered","cancelled"].includes(orderStatus.status)) {
+          if (orderStatus && !["delivered", "cancelled"].includes(orderStatus.status)) {
             setActiveOrderBanner({ orderId, status: orderStatus.status });
           } else {
-            localStorage.removeItem(storageKey); // pedido finalizado — limpa
+            localStorage.removeItem(storageKey);
           }
         } catch {
           localStorage.removeItem(storageKey);
         }
       }
 
-      // Se tem mesa na URL, buscar informações da mesa
       if (tableNumber) {
         const { data: tableData } = await supabase
           .from('tables')
@@ -148,13 +144,9 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
           .eq('company_id', companyData.id)
           .eq('table_number', tableNumber)
           .maybeSingle();
-        
-        if (tableData) {
-          setTableInfo(tableData);
-        }
+        if (tableData) setTableInfo(tableData);
       }
 
-      // Buscar categorias
       const { data: categoriesData } = await supabase
         .from('categories')
         .select('*')
@@ -164,7 +156,6 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
 
       setCategories(categoriesData || []);
 
-      // Buscar produtos
       const { data: productsData } = await supabase
         .from('products')
         .select('*')
@@ -174,7 +165,6 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
 
       setProducts(productsData || []);
 
-      // Buscar banners ativos
       const { data: bannersData } = await supabase
         .from('menu_banners')
         .select('id, image_url, link_type, link_value')
@@ -184,11 +174,7 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
       setBanners(bannersData || []);
     } catch (error) {
       console.error('Error loading menu:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar cardápio",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Erro ao carregar cardápio", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -204,39 +190,43 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
       extras,
       extrasTotal,
     }]);
-    toast({
-      title: "Produto adicionado",
-      description: `${product.name} foi adicionado ao carrinho`,
-    });
+    toast({ title: "Produto adicionado", description: `${product.name} foi adicionado ao carrinho` });
   };
 
   const updateCartItem = (cartItemId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(cartItemId);
-      return;
-    }
-    setCart(prev =>
-      prev.map(item =>
-        item.cartItemId === cartItemId ? { ...item, quantity } : item
-      )
-    );
+    if (quantity <= 0) { removeFromCart(cartItemId); return; }
+    setCart(prev => prev.map(item => item.cartItemId === cartItemId ? { ...item, quantity } : item));
   };
 
   const removeFromCart = (cartItemId: string) => {
     setCart(prev => prev.filter(item => item.cartItemId !== cartItemId));
   };
 
-  const clearCart = () => {
-    setCart([]);
+  const clearCart = () => setCart([]);
+
+  const getCartTotal = () =>
+    cart.reduce((total, item) => total + (item.product.price + item.extrasTotal) * item.quantity, 0);
+
+  const handleBannerClick = (banner: typeof banners[0]) => {
+    if (!banner.link_type || banner.link_type === "none") return;
+    if (banner.link_type === "url" && banner.link_value) {
+      window.open(banner.link_value, "_blank");
+    } else if (banner.link_type === "whatsapp" && banner.link_value) {
+      window.open(`https://wa.me/${banner.link_value.replace(/\D/g, "")}`, "_blank");
+    } else if (banner.link_type === "category" && banner.link_value) {
+      // Anchor-based: scroll to section instead of filtering
+      const cat = categories.find(c => c.id === banner.link_value || c.name === banner.link_value);
+      if (cat) {
+        const el = document.getElementById(`section-${cat.id}`);
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }
+    }
   };
 
-  const getCartTotal = () => {
-    return cart.reduce((total, item) => total + (item.product.price + item.extrasTotal) * item.quantity, 0);
+  // Produto para adição rápida (MenuSections — sem modal de extras, abre ProductAddModal)
+  const handleQuickAdd = (product: Product) => {
+    setQuickAddProduct(product);
   };
-
-  const filteredProducts = selectedCategory
-    ? products.filter(p => p.category_id === selectedCategory)
-    : products;
 
   if (loading) {
     return (
@@ -251,32 +241,19 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">Estabelecimento não encontrado</h1>
-          <p className="text-muted-foreground">
-            Verifique se o link está correto
-          </p>
+          <p className="text-muted-foreground">Verifique se o link está correto</p>
         </div>
       </div>
     );
   }
 
-  const handleBannerClick = (banner: typeof banners[0]) => {
-    if (!banner.link_type || banner.link_type === "none") return;
-    if (banner.link_type === "url" && banner.link_value) {
-      window.open(banner.link_value, "_blank");
-    } else if (banner.link_type === "whatsapp" && banner.link_value) {
-      window.open(`https://wa.me/${banner.link_value.replace(/\D/g, "")}`, "_blank");
-    } else if (banner.link_type === "category" && banner.link_value) {
-      const cat = categories.find(c => c.id === banner.link_value || c.name === banner.link_value);
-      if (cat) setSelectedCategory(cat.id);
-    }
-    // product link type handled elsewhere
-  };
+  const activeCategories = categories.filter(c => c.on_off);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-24 lg:pb-0">
       <MenuHeader company={company} />
 
-      {/* Table identification banner */}
+      {/* Banner de mesa via QR Code */}
       {tableInfo && (
         <div className="bg-primary text-primary-foreground py-2 px-4 text-center">
           <span className="font-medium">Mesa {tableInfo.table_number}</span>
@@ -304,7 +281,6 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
               </div>
             ))}
           </div>
-          {/* Indicadores (dots) */}
           {banners.length > 1 && (
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
               {banners.map((_, idx) => (
@@ -319,23 +295,53 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
         </div>
       )}
 
+      {/* Barra de busca */}
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur px-4 py-2 border-b border-border">
+        <div className="relative max-w-2xl mx-auto">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Buscar produto..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-9 py-2 text-sm bg-muted rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Navegação de categorias sticky */}
+      <MenuCategories
+        categories={activeCategories}
+        searchActive={!!searchQuery}
+      />
+
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <MenuCategories
-              categories={categories}
-              selectedCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
-            />
-            
+            {/* Seções de destaque (Promoções, Mais Vendidos, Novidades) — só no modo normal */}
+            {!searchQuery && (
+              <MenuSections products={products} onAdd={handleQuickAdd} />
+            )}
+
             <MenuProducts
-              products={filteredProducts}
-              companyId={company?.id ?? ""}
+              products={products}
+              categories={activeCategories}
+              companyId={company.id}
+              searchQuery={searchQuery}
               onAddToCart={addToCart}
             />
           </div>
 
-          <div className="lg:col-span-1">
+          {/* Carrinho desktop (escondido em mobile — CartBottomBar cuida do mobile) */}
+          <div className="hidden lg:block lg:col-span-1">
             <MenuCart
               cart={cart}
               onUpdateQuantity={updateCartItem}
@@ -347,6 +353,27 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
           </div>
         </div>
       </div>
+
+      {/* Barra do carrinho fixa no rodapé (mobile only) */}
+      <CartBottomBar
+        cart={cart}
+        total={getCartTotal()}
+        onUpdateQuantity={updateCartItem}
+        onRemoveItem={removeFromCart}
+        onClearCart={clearCart}
+        onCheckout={() => setShowCheckout(true)}
+      />
+
+      {/* Modal de extras para adição rápida (MenuSections) */}
+      <ProductAddModal
+        product={quickAddProduct}
+        companyId={company.id}
+        open={!!quickAddProduct}
+        onOpenChange={(open) => { if (!open) setQuickAddProduct(null); }}
+        onAddToCart={(extras, quantity, observations) => {
+          if (quickAddProduct) addToCart(quickAddProduct, quantity, observations || undefined, extras);
+        }}
+      />
 
       {showCheckout && (
         <MenuCheckout
@@ -367,7 +394,7 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
         />
       )}
 
-      {/* Banner pedido ativo — aparece quando cliente já tem pedido em andamento */}
+      {/* Banner de pedido ativo */}
       {activeOrderBanner && !trackingOrderId && (
         <div
           className="fixed bottom-20 left-0 right-0 z-40 mx-4 cursor-pointer"
@@ -393,7 +420,6 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
             company={{ ...company, id: company.id }}
             onClose={() => {
               setTrackingOrderId(null);
-              // Atualiza banner após fechar
               const storageKey = `anafood_order_${company.id}`;
               const saved = localStorage.getItem(storageKey);
               if (!saved) setActiveOrderBanner(null);
@@ -402,12 +428,8 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
         </div>
       )}
 
-      {/* Discreet admin access footer */}
       <footer className="mt-12 py-4 text-center border-t border-border">
-        <a
-          href="/login"
-          className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-        >
+        <a href="/login" className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors">
           Área do lojista
         </a>
       </footer>

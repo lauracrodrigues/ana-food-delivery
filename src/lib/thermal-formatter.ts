@@ -268,7 +268,7 @@ export function formatReceipt(
     const formatted = align === 'left' ? padRight(content, effectiveWidth) : content.trim();
     
     // Aplicar formatação final
-    let finalText = margin + formatted;
+    const finalText = margin + formatted;
     
     lines.push({
       text: finalText,
@@ -320,9 +320,8 @@ function getElementContent(
     case '{telefone_empresa}':
       content = `Tel: ${companyData?.phone || order.company_phone || ''}`;
       break;
-    case '{endereco_empresa}':
+    case '{endereco_empresa}': {
       const companyAddr = companyData?.address || order.company_address;
-      
       if (!companyAddr) {
         content = '';
       } else if (typeof companyAddr === 'string') {
@@ -333,18 +332,15 @@ function getElementContent(
         content = '';
       }
       break;
+    }
     case '{email_empresa}':
       content = companyData?.email ? `Email: ${companyData.email}` : '';
       break;
-    case '{cnpj}':
+    case '{cnpj}': {
       const cnpj = companyData?.cnpj || order.company_cnpj;
-      console.log('🔍 CNPJ debug:', { 
-        fromCompanyData: companyData?.cnpj, 
-        fromOrder: order.company_cnpj,
-        final: cnpj 
-      });
       content = cnpj ? `CNPJ: ${cnpj}` : '';
       break;
+    }
     case '{numero_pedido}':
       content = `Pedido #${order.order_number || '000'}`;
       break;
@@ -374,10 +370,11 @@ function getElementContent(
     case '{observacoes_pedido}':
       content = order.observations || '';
       break;
-    case '{subtotal}':
+    case '{subtotal}': {
       const subtotal = order.total - (order.delivery_fee || 0);
       content = `Subtotal::${formatCurrency(subtotal)}`;
       break;
+    }
     case '{taxa_entrega}':
       content = order.delivery_fee > 0 ? `Taxa Entrega::${formatCurrency(order.delivery_fee)}` : '';
       break;

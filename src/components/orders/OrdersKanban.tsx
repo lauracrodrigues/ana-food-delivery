@@ -285,7 +285,8 @@ export function OrdersKanban() {
         description: "Pedidos de retirada foram movidos de volta para Pronto.",
       });
     }
-  }, [orders]); // eslint-disable-line react-hooks/exhaustive-deps — updateOrderMutation declarado após este hook (TDZ se incluído)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders]);
 
   // NOTA: Lógica de auto-completar pedidos foi removida do frontend
   // Recomenda-se implementar no backend com Cron Job para melhor performance e confiabilidade

@@ -1,4 +1,5 @@
-import { Button } from "@/components/ui/button";
+// v2.0.0 — Sticky horizontal com IntersectionObserver e auto-scroll
+import { useEffect, useRef, useState } from "react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface Category {
@@ -8,39 +9,78 @@ interface Category {
 
 interface MenuCategoriesProps {
   categories: Category[];
-  selectedCategory: string | null;
-  onSelectCategory: (categoryId: string | null) => void;
+  searchActive?: boolean;
 }
 
-export function MenuCategories({
-  categories,
-  selectedCategory,
-  onSelectCategory,
-}: MenuCategoriesProps) {
+export function MenuCategories({ categories, searchActive }: MenuCategoriesProps) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  // IntersectionObserver: detecta qual seção está visível
+  useEffect(() => {
+    if (searchActive) return;
+    const observers: IntersectionObserver[] = [];
+
+    categories.forEach((cat) => {
+      const el = document.getElementById(`section-${cat.id}`);
+      if (!el) return;
+      const obs = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            setActiveId(cat.id);
+          }
+        },
+        { rootMargin: "-30% 0px -60% 0px", threshold: 0 }
+      );
+      obs.observe(el);
+      observers.push(obs);
+    });
+
+    return () => observers.forEach((o) => o.disconnect());
+  }, [categories, searchActive]);
+
+  // Centraliza botão ativo no scroll horizontal
+  useEffect(() => {
+    if (!activeId) return;
+    const btn = btnRefs.current[activeId];
+    btn?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [activeId]);
+
+  const scrollToSection = (categoryId: string) => {
+    const el = document.getElementById(`section-${categoryId}`);
+    if (el) {
+      const offset = 80; // altura do sticky bar
+      const y = el.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    }
+  };
+
+  if (categories.length === 0) return null;
+
   return (
-    <div className="bg-card rounded-lg border border-border p-4">
-      <h2 className="text-lg font-semibold mb-4">Categorias</h2>
-      <ScrollArea className="w-full whitespace-nowrap">
-        <div className="flex gap-2">
-          <Button
-            variant={selectedCategory === null ? "default" : "outline"}
-            onClick={() => onSelectCategory(null)}
-            size="sm"
-          >
-            Todos
-          </Button>
-          {categories.map((category) => (
-            <Button
-              key={category.id}
-              variant={selectedCategory === category.id ? "default" : "outline"}
-              onClick={() => onSelectCategory(category.id)}
-              size="sm"
-            >
-              {category.name}
-            </Button>
-          ))}
+    <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b border-border">
+      <ScrollArea className="w-full" ref={scrollRef as any}>
+        <div className="flex gap-1 px-4 py-2.5">
+          {categories.map((cat) => {
+            const active = activeId === cat.id && !searchActive;
+            return (
+              <button
+                key={cat.id}
+                ref={(el) => { btnRefs.current[cat.id] = el; }}
+                onClick={() => scrollToSection(cat.id)}
+                className={`whitespace-nowrap px-3 py-1.5 rounded-full text-sm font-medium transition-all shrink-0 ${
+                  active
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                {cat.name}
+              </button>
+            );
+          })}
         </div>
-        <ScrollBar orientation="horizontal" />
+        <ScrollBar orientation="horizontal" className="h-0" />
       </ScrollArea>
     </div>
   );

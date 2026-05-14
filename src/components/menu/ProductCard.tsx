@@ -1,0 +1,107 @@
+// v1.0.0 — Card de produto com badge, preço promocional e desconto %
+import { formatCurrency } from "@/lib/currency-formatter";
+import { Plus, Image as ImageIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string | null;
+  promotional_price?: number | null;
+  badges?: string[] | null;
+  is_featured?: boolean;
+}
+
+const BADGE_CONFIG: Record<string, { label: string; className: string }> = {
+  popular:    { label: "⭐ Mais Vendido", className: "bg-amber-100 text-amber-800 border-amber-200" },
+  new:        { label: "✨ Novidade",    className: "bg-blue-100 text-blue-800 border-blue-200" },
+  promo:      { label: "🔥 Promoção",    className: "bg-red-100 text-red-800 border-red-200" },
+  happy_hour: { label: "🎉 Happy Hour",  className: "bg-purple-100 text-purple-800 border-purple-200" },
+  vegan:      { label: "🌱 Vegano",      className: "bg-green-100 text-green-800 border-green-200" },
+  spicy:      { label: "🌶️ Picante",    className: "bg-orange-100 text-orange-800 border-orange-200" },
+};
+
+interface ProductCardProps {
+  product: Product;
+  onAdd: () => void;
+}
+
+export function ProductCard({ product, onAdd }: ProductCardProps) {
+  const hasPromo = product.promotional_price != null && product.promotional_price < product.price;
+  const discount = hasPromo
+    ? Math.round((1 - product.promotional_price! / product.price) * 100)
+    : 0;
+  const primaryBadge = product.badges?.[0];
+  const badgeCfg = primaryBadge ? BADGE_CONFIG[primaryBadge] : null;
+
+  return (
+    <div className="group relative bg-card rounded-xl border border-border hover:shadow-md transition-all overflow-hidden flex flex-col">
+      {/* Badge */}
+      {badgeCfg && (
+        <div className="absolute top-2 left-2 z-10">
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${badgeCfg.className}`}>
+            {badgeCfg.label}
+          </span>
+        </div>
+      )}
+
+      {/* Imagem */}
+      <div className="w-full h-36 bg-muted overflow-hidden shrink-0">
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <ImageIcon className="h-10 w-10 text-muted-foreground/40" />
+          </div>
+        )}
+      </div>
+
+      {/* Conteúdo */}
+      <div className="p-3 flex flex-col flex-1">
+        <h3 className="font-semibold text-sm leading-tight mb-1 line-clamp-2">{product.name}</h3>
+        {product.description && (
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-2 flex-1">{product.description}</p>
+        )}
+
+        {/* Preço */}
+        <div className="flex items-end justify-between mt-auto">
+          <div>
+            {hasPromo ? (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base font-bold text-primary">
+                    {formatCurrency(product.promotional_price!)}
+                  </span>
+                  <span className="text-xs bg-red-100 text-red-700 px-1 rounded font-medium">
+                    -{discount}%
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground line-through">
+                  {formatCurrency(product.price)}
+                </span>
+              </>
+            ) : (
+              <span className="text-base font-bold text-primary">{formatCurrency(product.price)}</span>
+            )}
+          </div>
+
+          <Button
+            size="icon"
+            className="h-8 w-8 rounded-full shrink-0"
+            onClick={onAdd}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
