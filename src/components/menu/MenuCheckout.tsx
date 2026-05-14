@@ -15,6 +15,7 @@ import { useOrderCreation } from "@/hooks/menu/useOrderCreation";
 import { Loader2, LocateFixed, Copy, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { CouponInput } from "./CouponInput";
 import { CouponData, CouponValidationResult } from "@/lib/coupon-validator";
+import type { CustomerSession } from "@/hooks/useCustomerSession";
 
 interface SelectedExtra {
   id: string;
@@ -47,8 +48,10 @@ interface MenuCheckoutProps {
   company: Company;
   tableInfo?: { id: string; table_number: string } | null;
   requireCustomerInfo?: boolean;
+  session?: CustomerSession | null;
   onClose: () => void;
   onSuccess: (orderId?: string) => void;
+  onSaveAddress?: (address: string) => void;
 }
 
 // Tela do QR code PIX — compacta para mobile
@@ -155,7 +158,7 @@ function PixQrScreen({
   );
 }
 
-export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerInfo, onClose, onSuccess }: MenuCheckoutProps) {
+export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerInfo, session, onClose, onSuccess, onSaveAddress }: MenuCheckoutProps) {
   const { toast } = useToast();
   const { createOrder, loading, pixData } = useOrderCreation();
   const [locating, setLocating] = useState(false);
@@ -164,10 +167,10 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
   const [couponResult, setCouponResult] = useState<CouponValidationResult | null>(null);
 
   const [formData, setFormData] = useState({
-    customer_name: "",
-    customer_phone: "",
+    customer_name: session?.name ?? "",
+    customer_phone: session?.phone ?? "",
     type: tableInfo ? "table" : "delivery",
-    address: "",
+    address: session?.lastAddress ?? "",
     payment_method: "dinheiro",
     observations: "",
   });
@@ -285,6 +288,10 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
             .from("coupons")
             .update({ uses_count: (appliedCoupon.uses_count ?? 0) + 1 })
             .eq("id", appliedCoupon.id);
+        }
+        // Salva endereço na sessão do cliente
+        if (formData.type === "delivery" && formData.address && onSaveAddress) {
+          onSaveAddress(formData.address);
         }
         toast({ title: "Pedido realizado!", description: "Aguarde a confirmação." });
         onSuccess(orderId);

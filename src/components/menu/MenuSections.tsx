@@ -17,6 +17,8 @@ interface Product {
 interface MenuSectionsProps {
   products: Product[];
   onAdd: (product: Product) => void;
+  favorites?: string[];
+  onToggleFavorite?: (productId: string) => void;
 }
 
 interface SectionConfig {
@@ -48,15 +50,14 @@ const SECTIONS: SectionConfig[] = [
 ];
 
 function SectionStrip({
-  title,
-  emoji,
-  products,
-  onAdd,
+  title, emoji, products, onAdd, favorites, onToggleFavorite,
 }: {
   title: string;
   emoji: string;
   products: Product[];
   onAdd: (p: Product) => void;
+  favorites?: string[];
+  onToggleFavorite?: (id: string) => void;
 }) {
   if (products.length === 0) return null;
 
@@ -70,7 +71,12 @@ function SectionStrip({
         <div className="flex gap-3 pb-2">
           {products.slice(0, 10).map((p) => (
             <div key={p.id} className="w-44 shrink-0">
-              <ProductCard product={p} onAdd={() => onAdd(p)} />
+              <ProductCard
+                product={p}
+                onAdd={() => onAdd(p)}
+                isFavorite={favorites?.includes(p.id)}
+                onToggleFavorite={onToggleFavorite ? () => onToggleFavorite(p.id) : undefined}
+              />
             </div>
           ))}
         </div>
@@ -80,7 +86,7 @@ function SectionStrip({
   );
 }
 
-export function MenuSections({ products, onAdd }: MenuSectionsProps) {
+export function MenuSections({ products, onAdd, favorites, onToggleFavorite }: MenuSectionsProps) {
   const hasSections = SECTIONS.some((s) => products.some(s.filter));
   if (!hasSections) return null;
 
@@ -95,6 +101,8 @@ export function MenuSections({ products, onAdd }: MenuSectionsProps) {
             emoji={section.emoji}
             products={sectionProducts}
             onAdd={onAdd}
+            favorites={favorites}
+            onToggleFavorite={onToggleFavorite}
           />
         );
       })}

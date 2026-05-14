@@ -1,6 +1,6 @@
-// v1.0.0 — Card de produto com badge, preço promocional e desconto %
+// v1.1.0 — Card de produto com badge, preço promocional, desconto % e favorito
 import { formatCurrency } from "@/lib/currency-formatter";
-import { Plus, Image as ImageIcon } from "lucide-react";
+import { Plus, Image as ImageIcon, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Product {
@@ -26,9 +26,11 @@ const BADGE_CONFIG: Record<string, { label: string; className: string }> = {
 interface ProductCardProps {
   product: Product;
   onAdd: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
 }
 
-export function ProductCard({ product, onAdd }: ProductCardProps) {
+export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite }: ProductCardProps) {
   const hasPromo = product.promotional_price != null && product.promotional_price < product.price;
   const discount = hasPromo
     ? Math.round((1 - product.promotional_price! / product.price) * 100)
@@ -45,6 +47,17 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
             {badgeCfg.label}
           </span>
         </div>
+      )}
+
+      {/* Botão favorito */}
+      {onToggleFavorite && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
+          className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
+          aria-label={isFavorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+        >
+          <Heart className={`h-4 w-4 transition-colors ${isFavorite ? "fill-red-500 text-red-500" : "text-gray-400"}`} />
+        </button>
       )}
 
       {/* Imagem */}

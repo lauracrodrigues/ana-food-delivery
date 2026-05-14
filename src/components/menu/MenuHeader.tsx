@@ -1,4 +1,5 @@
-// v2.0.0 — Header moderno: status, tempo, taxa, WhatsApp, Instagram
+// v2.1.0 — Header moderno: status, tempo, taxa, WhatsApp, Instagram + slot conta cliente
+import React from "react";
 import { Clock, Star, MessageCircle, Instagram, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ interface Company {
 
 interface MenuHeaderProps {
   company: Company;
+  customerSlot?: React.ReactNode; // botão de conta do cliente
 }
 
 function calcIsOpen(company: Company): boolean {
@@ -35,7 +37,7 @@ function calcIsOpen(company: Company): boolean {
   return cur >= toMin(schedule.open || "00:00") && cur <= toMin(schedule.close || "23:59");
 }
 
-export function MenuHeader({ company }: MenuHeaderProps) {
+export function MenuHeader({ company, customerSlot }: MenuHeaderProps) {
   const open = calcIsOpen(company);
   const displayName = company.fantasy_name || company.name;
 
@@ -121,8 +123,9 @@ export function MenuHeader({ company }: MenuHeaderProps) {
             </div>
           </div>
 
-          {/* Botões sociais */}
-          <div className="flex gap-2 shrink-0">
+          {/* Botões sociais + conta do cliente */}
+          <div className="flex gap-2 shrink-0 items-start">
+            {customerSlot}
             {company.whatsapp && (
               <Button
                 size="icon"

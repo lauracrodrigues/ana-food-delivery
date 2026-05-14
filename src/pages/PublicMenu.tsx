@@ -1,4 +1,4 @@
-// v2.0.0 — Menu redesign Phase 1: novo header, categorias anchor, seções destaque, cart mobile
+// v3.0.0 — Phase 3: conta do cliente, favoritos, histórico de pedidos
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,8 +12,12 @@ import { CartBottomBar } from "@/components/menu/CartBottomBar";
 import { MenuCheckout } from "@/components/menu/MenuCheckout";
 import { OrderTracking } from "@/components/menu/OrderTracking";
 import { ProductAddModal, SelectedExtra } from "@/components/menu/ProductAddModal";
+import { CustomerSheet } from "@/components/menu/CustomerSheet";
 import { Loader2, ChefHat, Search, X } from "lucide-react";
 import { resetPalette, initializeColorPalette } from "@/hooks/use-color-palette";
+import { useCustomerSession } from "@/hooks/useCustomerSession";
+import { useFavorites } from "@/hooks/useFavorites";
+import { useOrderHistory } from "@/hooks/useOrderHistory";
 
 interface Company {
   id: string;
@@ -86,6 +90,11 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
 
   const tableNumber = searchParams.get('mesa');
   const [tableInfo, setTableInfo] = useState<{ id: string; table_number: string } | null>(null);
+
+  // Sessão do cliente, favoritos e histórico (company.id disponível após load)
+  const { session, identify, saveAddress, clearSession } = useCustomerSession();
+  const { favorites, toggle: toggleFavorite } = useFavorites(company?.id ?? "");
+  const { history, addOrder, refreshStatuses } = useOrderHistory(company?.id ?? "");
 
   useEffect(() => {
     resetPalette();
@@ -207,6 +216,43 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
   const getCartTotal = () =>
     cart.reduce((total, item) => total + (item.product.price + item.extrasTotal) * item.quantity, 0);
 
+  // Repetir pedido: re-adiciona itens ao carrinho cruzando com produtos atuais
+  const handleRepeatOrder = (items: Array<{ name: string; quantity: number; price: number }>) => {
+    let added = 0;
+    items.forEach(item => {
+      const product = products.find(p => p.name === item.name);
+      if (product) {
+        addToCart(product, item.quantity);
+        added++;
+      }
+    });
+    if (added > 0) {
+      toast({ title: "Itens adicionados!", description: `${added} produto(s) adicionado(s) ao carrinho` });
+    } else {
+      toast({ title: "Produtos indisponíveis", description: "Nenhum item do pedido anterior está disponível", variant: "destructive" });
+    }
+  };
+
+  // Salva pedido no histórico local após confirmação
+  const handleOrderSuccess = (orderId?: string) => {
+    // Captura dados do carrinho ANTES de limpar
+    const orderTotal = getCartTotal();
+    const orderItems = cart.map(i => ({ name: i.product.name, quantity: i.quantity, price: i.product.price + i.extrasTotal }));
+    clearCart();
+    setShowCheckout(false);
+    if (orderId && company) {
+      localStorage.setItem(`anafood_order_${company.id}`, JSON.stringify({ orderId }));
+      setTrackingOrderId(orderId);
+      addOrder({
+        orderId,
+        date: new Date().toISOString(),
+        total: orderTotal,
+        items: orderItems,
+        status: "pending",
+      });
+    }
+  };
+
   const handleBannerClick = (banner: typeof banners[0]) => {
     if (!banner.link_type || banner.link_type === "none") return;
     if (banner.link_type === "url" && banner.link_value) {
@@ -251,7 +297,23 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
 
   return (
     <div className="min-h-screen bg-background pb-24 lg:pb-0">
-      <MenuHeader company={company} />
+      <MenuHeader
+        company={company}
+        customerSlot={
+          <CustomerSheet
+            companyId={company.id}
+            session={session}
+            history={history}
+            favorites={favorites}
+            products={products}
+            onIdentify={identify}
+            onClearSession={clearSession}
+            onRefreshHistory={refreshStatuses}
+            onRepeatOrder={handleRepeatOrder}
+            onViewOrder={(orderId) => setTrackingOrderId(orderId)}
+          />
+        }
+      />
 
       {/* Banner de mesa via QR Code */}
       {tableInfo && (
@@ -326,9 +388,14 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {/* Seções de destaque (Promoções, Mais Vendidos, Novidades) — só no modo normal */}
+            {/* Seções de destaque — só no modo normal */}
             {!searchQuery && (
-              <MenuSections products={products} onAdd={handleQuickAdd} />
+              <MenuSections
+                products={products}
+                onAdd={handleQuickAdd}
+                favorites={favorites}
+                onToggleFavorite={toggleFavorite}
+              />
             )}
 
             <MenuProducts
@@ -337,6 +404,8 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
               companyId={company.id}
               searchQuery={searchQuery}
               onAddToCart={addToCart}
+              favorites={favorites}
+              onToggleFavorite={toggleFavorite}
             />
           </div>
 
@@ -383,15 +452,10 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
           company={company}
           tableInfo={tableInfo}
           requireCustomerInfo={!!tableInfo}
+          session={session}
           onClose={() => setShowCheckout(false)}
-          onSuccess={(orderId) => {
-            clearCart();
-            setShowCheckout(false);
-            if (orderId && company) {
-              localStorage.setItem(`anafood_order_${company.id}`, JSON.stringify({ orderId }));
-              setTrackingOrderId(orderId);
-            }
-          }}
+          onSuccess={handleOrderSuccess}
+          onSaveAddress={saveAddress}
         />
       )}
 

@@ -28,6 +28,8 @@ interface MenuProductsProps {
   companyId: string;
   searchQuery: string;
   onAddToCart: (product: Product, quantity: number, observations?: string, extras?: SelectedExtra[]) => void;
+  favorites?: string[];
+  onToggleFavorite?: (productId: string) => void;
 }
 
 export function MenuProducts({
@@ -36,6 +38,8 @@ export function MenuProducts({
   companyId,
   searchQuery,
   onAddToCart,
+  favorites = [],
+  onToggleFavorite,
 }: MenuProductsProps) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
@@ -69,7 +73,13 @@ export function MenuProducts({
   const ProductGrid = ({ items }: { items: Product[] }) => (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-3">
       {items.map((p) => (
-        <ProductCard key={p.id} product={p} onAdd={() => setSelectedProduct(p)} />
+        <ProductCard
+          key={p.id}
+          product={p}
+          onAdd={() => setSelectedProduct(p)}
+          isFavorite={favorites.includes(p.id)}
+          onToggleFavorite={onToggleFavorite ? () => onToggleFavorite(p.id) : undefined}
+        />
       ))}
     </div>
   );
