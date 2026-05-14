@@ -464,6 +464,8 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
               onClearCart={clearCart}
               onCheckout={() => setShowCheckout(true)}
               total={getCartTotal()}
+              allProducts={decoratedProducts}
+              onUpsellSelect={handleQuickAdd}
             />
           </div>
         </div>
@@ -478,6 +480,8 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
         onRemoveItem={removeFromCart}
         onClearCart={clearCart}
         onCheckout={() => setShowCheckout(true)}
+        allProducts={decoratedProducts}
+        onUpsellSelect={handleQuickAdd}
       />
 
       {/* Modal de extras para adição rápida (MenuSections) */}

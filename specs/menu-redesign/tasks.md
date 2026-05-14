@@ -69,8 +69,8 @@
 - [ ] Criar `CouponsManager.tsx` no admin (CRUD de cupons)
 
 ### Upsell
-- [ ] No carrinho: sugerir 1-3 produtos relacionados (por categoria)
-- [ ] "Adicionar ao carrinho" direto da sugestão (sem abrir modal se não tem extras)
+- [x] No carrinho: sugerir 4 produtos da mesma categoria (priorizado por badges popular/new/promo)
+- [x] Click abre modal de adição rápida (extras se houver)
 
 ### Valor Mínimo
 - [ ] Validar `companies.min_order_value` antes de mostrar botão "Finalizar"

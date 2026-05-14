@@ -1,11 +1,11 @@
-// v1.1.0 — Barra do carrinho fixa no rodapé (mobile) + barra progresso valor mínimo
+// v1.2.0 — Carrinho mobile + barra progresso valor mínimo + upsell sugerido
 import { useState } from "react";
 import { formatCurrency } from "@/lib/currency-formatter";
-import { ShoppingCart, X, Plus, Minus, Trash2 } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { CartUpsell } from "./CartUpsell";
 
 interface SelectedExtra {
   id: string;
@@ -24,6 +24,17 @@ interface CartItem {
   extrasTotal: number;
 }
 
+interface UpsellProduct {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string | null;
+  category_id: string;
+  promotional_price?: number | null;
+  badges?: string[] | null;
+}
+
 interface CartBottomBarProps {
   cart: CartItem[];
   total: number;
@@ -32,6 +43,8 @@ interface CartBottomBarProps {
   onRemoveItem: (cartItemId: string) => void;
   onClearCart: () => void;
   onCheckout: () => void;
+  allProducts?: UpsellProduct[];
+  onUpsellSelect?: (p: UpsellProduct) => void;
 }
 
 export function CartBottomBar({
@@ -42,6 +55,8 @@ export function CartBottomBar({
   onRemoveItem,
   onClearCart,
   onCheckout,
+  allProducts,
+  onUpsellSelect,
 }: CartBottomBarProps) {
   const [open, setOpen] = useState(false);
 
@@ -144,6 +159,15 @@ export function CartBottomBar({
                   </div>
                 </div>
               ))}
+
+              {/* Upsell: sugestões de produtos relacionados */}
+              {allProducts && onUpsellSelect && (
+                <CartUpsell
+                  cart={cart}
+                  allProducts={allProducts}
+                  onSelect={(p) => { setOpen(false); onUpsellSelect(p); }}
+                />
+              )}
             </div>
           </ScrollArea>
 

@@ -1,9 +1,10 @@
-// v2.0.0 — Carrinho com suporte a extras/complementos
+// v2.1.0 — Carrinho desktop com extras/complementos + upsell sugerido
 import { formatCurrency } from "@/lib/currency-formatter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShoppingCart, Trash2, Plus, Minus } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { CartUpsell } from "./CartUpsell";
 
 interface SelectedExtra {
   id: string;
@@ -22,6 +23,17 @@ interface CartItem {
   extrasTotal: number;
 }
 
+interface UpsellProduct {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string | null;
+  category_id: string;
+  promotional_price?: number | null;
+  badges?: string[] | null;
+}
+
 interface MenuCartProps {
   cart: CartItem[];
   onUpdateQuantity: (cartItemId: string, quantity: number) => void;
@@ -29,6 +41,8 @@ interface MenuCartProps {
   onClearCart: () => void;
   onCheckout: () => void;
   total: number;
+  allProducts?: UpsellProduct[];
+  onUpsellSelect?: (p: UpsellProduct) => void;
 }
 
 export function MenuCart({
@@ -38,6 +52,8 @@ export function MenuCart({
   onClearCart,
   onCheckout,
   total,
+  allProducts,
+  onUpsellSelect,
 }: MenuCartProps) {
   if (cart.length === 0) {
     return (
@@ -145,6 +161,13 @@ export function MenuCart({
             ))}
           </div>
         </ScrollArea>
+
+        {/* Upsell: sugestões */}
+        {allProducts && onUpsellSelect && (
+          <div className="mt-4">
+            <CartUpsell cart={cart} allProducts={allProducts} onSelect={onUpsellSelect} />
+          </div>
+        )}
       </CardContent>
 
       <CardFooter className="flex-col gap-4">
