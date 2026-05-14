@@ -115,7 +115,7 @@
 - [x] `manifest.json` com ícones, theme_color, display standalone
 - [x] Service Worker (Workbox) para cache
 - [x] Prompt "Adicionar à tela inicial"
-- [ ] Push notifications para status do pedido
+- [x] Push notifications para status do pedido (VAPID + edge function send-push)
 
 ### Fidelidade
 - [x] Criar tabela `loyalty_points` + `loyalty_transactions`

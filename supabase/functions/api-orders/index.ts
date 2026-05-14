@@ -247,12 +247,18 @@ Deno.serve(async (req: Request) => {
         const timer = setTimeout(async () => {
           _notificationTimers.delete(timerKey);
           try {
-            console.log(`📱 Chamando orders-status para pedido ${body.order_id} (após 10s debounce)`);
+            console.log(`📱 Chamando orders-status + send-push para pedido ${body.order_id} (após 10s debounce)`);
             const supabaseAuth = createClient(supabaseUrl, supabaseKey);
-            await supabaseAuth.functions.invoke('orders-status', {
-              body: { order_id: body.order_id, status: body.status }
-            });
-            console.log('✅ orders-status chamado com sucesso');
+            // WhatsApp + Push notification em paralelo
+            await Promise.allSettled([
+              supabaseAuth.functions.invoke('orders-status', {
+                body: { order_id: body.order_id, status: body.status }
+              }),
+              supabaseAuth.functions.invoke('send-push', {
+                body: { order_id: body.order_id, status: body.status }
+              }),
+            ]);
+            console.log('✅ orders-status + send-push disparados');
           } catch (statusError) {
             console.error('⚠️ Erro ao enviar notificação WhatsApp:', statusError);
           }

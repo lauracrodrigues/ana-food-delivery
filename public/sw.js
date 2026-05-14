@@ -1,5 +1,5 @@
-// v1.2.0 — Limpa cache automaticamente a cada versão
-const CACHE_NAME = 'anafood-v3';
+// v1.3.0 — Cache + push notifications (Web Push API)
+const CACHE_NAME = 'anafood-v4';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -59,4 +59,75 @@ self.addEventListener('fetch', (e) => {
       fetch(e.request).catch(() => caches.match('/'))
     );
   }
+});
+
+// === PUSH NOTIFICATIONS ===
+
+// Recebe push do servidor (Edge Function send-push)
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: 'AnaFood', body: event.data ? event.data.text() : 'Atualização do pedido' };
+  }
+
+  const title = data.title || 'AnaFood';
+  const options = {
+    body: data.body || 'Você tem uma atualização do pedido',
+    icon: data.icon || '/icons/icon-192.png',
+    badge: data.badge || '/icons/icon-192.png',
+    tag: data.tag || 'order-update',
+    renotify: true,
+    data: {
+      url: data.url || '/',
+      orderId: data.orderId,
+      subdomain: data.subdomain,
+    },
+    actions: data.actions || [
+      { action: 'view', title: 'Ver pedido' },
+    ],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Click na notificação: abre/foca cardápio + tracking do pedido
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const data = event.notification.data || {};
+  const targetUrl = data.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      // Se já tem aba aberta, foca e navega
+      for (const client of clients) {
+        if ('focus' in client) {
+          client.focus();
+          if ('navigate' in client && data.orderId) {
+            try { client.navigate(targetUrl); } catch { /* navigate falhou */ }
+          }
+          return;
+        }
+      }
+      // Sem aba aberta: abre nova
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
+// Subscription expirada/cancelada — tenta renovar (best-effort)
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(
+    self.registration.pushManager.subscribe(event.oldSubscription.options)
+      .then((newSub) => {
+        // Envia nova subscription ao app via postMessage
+        return self.clients.matchAll().then((clients) => {
+          clients.forEach((c) => c.postMessage({ type: 'pushSubscriptionRenewed', subscription: newSub }));
+        });
+      })
+      .catch((err) => console.warn('Renovação de push falhou', err))
+  );
 });

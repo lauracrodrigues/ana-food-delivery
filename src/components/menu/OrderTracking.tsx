@@ -1,9 +1,10 @@
-// Tela de acompanhamento de pedido para cliente — polling a cada 15s
+// v1.1.0 — Tela acompanhamento pedido + banner opt-in push
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Clock, ChefHat, Package, Bike, Star, Phone, ReceiptText } from "lucide-react";
+import { PushOptInBanner } from "./PushOptInBanner";
 
 interface OrderTrackingProps {
   orderId: string;
@@ -99,6 +100,11 @@ export function OrderTracking({ orderId, company, onClose }: OrderTrackingProps)
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 max-w-md mx-auto w-full">
+
+        {/* Banner opt-in push — só pra pedidos não finalizados */}
+        {order.customer_phone && company.id && !isDelivered && !isCancelled && (
+          <PushOptInBanner companyId={company.id} customerPhone={order.customer_phone} />
+        )}
 
         {/* Status atual — destaque */}
         {!isCancelled ? (
