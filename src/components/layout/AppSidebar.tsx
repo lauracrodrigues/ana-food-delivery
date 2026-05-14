@@ -36,6 +36,7 @@ import {
   Ticket,
   BarChart3,
   Sparkles,
+  Megaphone,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { saveUserTheme } from "@/components/layout/UserThemeSync";
@@ -115,6 +116,11 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
     title: "Fidelidade",
     url: "/loyalty",
     icon: Sparkles,
+  },
+  {
+    title: "Marketing",
+    url: "/marketing",
+    icon: Megaphone,
   },
   {
     title: "Pedidos",

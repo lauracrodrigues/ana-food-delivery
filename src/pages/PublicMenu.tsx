@@ -15,6 +15,7 @@ import { ProductAddModal, SelectedExtra } from "@/components/menu/ProductAddModa
 import { CustomerSheet } from "@/components/menu/CustomerSheet";
 import { InstallPrompt } from "@/components/menu/InstallPrompt";
 import { MenuThemeToggle } from "@/components/menu/MenuThemeToggle";
+import { TrackingScripts, trackEvent } from "@/components/menu/TrackingScripts";
 import { Loader2, ChefHat, Search, X } from "lucide-react";
 import { resetPalette, initializeColorPalette } from "@/hooks/use-color-palette";
 import { useCustomerSession } from "@/hooks/useCustomerSession";
@@ -45,6 +46,11 @@ interface Company {
   loyalty_points_per_real?: number | null;
   loyalty_min_redeem?: number | null;
   loyalty_redeem_value?: number | null;
+  google_analytics_id?: string | null;
+  facebook_pixel_id?: string | null;
+  meta_verification_tags?: Array<{ name: string; content: string }> | null;
+  custom_domain?: string | null;
+  custom_domain_status?: string | null;
 }
 
 interface Category {
@@ -77,11 +83,13 @@ interface CartItem {
 
 interface PublicMenuProps {
   subdomainOverride?: string;
+  customDomainOverride?: string;
 }
 
-export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) {
+export default function PublicMenu({ subdomainOverride, customDomainOverride }: PublicMenuProps = {}) {
   const params = useParams();
   const subdomain = subdomainOverride || params.subdomain;
+  const customDomain = customDomainOverride;
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -151,17 +159,22 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
 
   useEffect(() => {
     loadMenuData();
-  }, [subdomain]);
+  }, [subdomain, customDomain]);
 
   const loadMenuData = async () => {
     try {
       setLoading(true);
 
-      const { data: companyData, error: companyError } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('subdomain', subdomain)
-        .maybeSingle();
+      // Resolve empresa por subdomain OU custom_domain (Caminho C VPS proxy)
+      let companyQuery = supabase.from('companies').select('*');
+      if (customDomain) {
+        companyQuery = companyQuery
+          .eq('custom_domain', customDomain)
+          .eq('custom_domain_status', 'active');
+      } else {
+        companyQuery = companyQuery.eq('subdomain', subdomain);
+      }
+      const { data: companyData, error: companyError } = await companyQuery.maybeSingle();
 
       if (companyError) throw companyError;
       if (!companyData) {
@@ -246,7 +259,13 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
       extrasTotal,
     }]);
     toast({ title: "Produto adicionado", description: `${product.name} foi adicionado ao carrinho` });
-    // Analytics: registra add_to_cart (fire-and-forget, não bloqueia UX)
+    // GA/FB: evento add_to_cart com valor e items
+    trackEvent("add_to_cart", {
+      currency: "BRL",
+      value: effectivePrice * quantity,
+      items: [{ item_id: product.id, item_name: product.name, price: effectivePrice, quantity }],
+    });
+    // Analytics interno: registra add_to_cart (fire-and-forget, não bloqueia UX)
     if (company?.id) {
       supabase.from("product_events" as any).insert({
         company_id: company.id,
@@ -292,6 +311,18 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
     // Captura dados do carrinho ANTES de limpar
     const orderTotal = getCartTotal();
     const orderItems = cart.map(i => ({ name: i.product.name, quantity: i.quantity, price: i.product.price + i.extrasTotal }));
+    // GA/FB: evento purchase com valor e itens
+    trackEvent("purchase", {
+      transaction_id: orderId,
+      currency: "BRL",
+      value: orderTotal,
+      items: cart.map(i => ({
+        item_id: i.product.id,
+        item_name: i.product.name,
+        price: i.product.price + i.extrasTotal,
+        quantity: i.quantity,
+      })),
+    });
     clearCart();
     setShowCheckout(false);
     if (orderId && company) {
@@ -475,7 +506,7 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
               onUpdateQuantity={updateCartItem}
               onRemoveItem={removeFromCart}
               onClearCart={clearCart}
-              onCheckout={() => setShowCheckout(true)}
+              onCheckout={() => { trackEvent("begin_checkout", { currency: "BRL", value: getCartTotal() }); setShowCheckout(true); }}
               total={getCartTotal()}
               allProducts={decoratedProducts}
               onUpsellSelect={handleQuickAdd}
@@ -506,6 +537,13 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
         onAddToCart={(extras, quantity, observations) => {
           if (quickAddProduct) addToCart(quickAddProduct, quantity, observations || undefined, extras);
         }}
+      />
+
+      {/* Injeta scripts de tracking (GA, FB Pixel, meta verification) */}
+      <TrackingScripts
+        googleAnalyticsId={company.google_analytics_id}
+        facebookPixelId={company.facebook_pixel_id}
+        metaVerificationTags={company.meta_verification_tags}
       />
 
       {showCheckout && (

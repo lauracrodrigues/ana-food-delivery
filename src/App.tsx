@@ -52,6 +52,7 @@ const Analytics = lazy(() => import("./pages/Analytics"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
 const Loyalty = lazy(() => import("./pages/Loyalty"));
 const MenuPrint = lazy(() => import("./pages/MenuPrint"));
+const Marketing = lazy(() => import("./pages/Marketing"));
 const Deliverers = lazy(() => import("./pages/Deliverers").then(m => ({ default: m.Deliverers })));
 const DelivererDashboard = lazy(() => import("./pages/DelivererDashboard"));
 const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
@@ -61,21 +62,29 @@ const KanbanPreviewA = lazy(() => import("./pages/KanbanPreviewA"));
 const KanbanPreviewB = lazy(() => import("./pages/KanbanPreviewB"));
 const KanbanPreviewC = lazy(() => import("./pages/KanbanPreviewC"));
 
-// v1.1.0 — Detecta subdomain pra renderizar PublicMenu direto na raiz
+// v1.2.0 — Detecta subdomain OU custom domain pra renderizar PublicMenu na raiz
 function getSubdomain(): string | null {
   if (typeof window === "undefined") return null;
   const host = window.location.hostname;
-  // Skip localhost / IP
   if (host === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return null;
-  // Skip URLs de preview/admin do Cloudflare (workers.dev, pages.dev)
   if (host.endsWith(".workers.dev") || host.endsWith(".pages.dev")) return null;
   const parts = host.split(".");
-  // anafood.vip = 2 parts, pizzaria.anafood.vip = 3 parts
   if (parts.length < 3) return null;
   const sub = parts[0];
-  // Skip www e subdomains de sistema
   if (["www", "api", "evo", "admin"].includes(sub)) return null;
-  return sub;
+  // Subdomain anafood.vip
+  if (host.endsWith(".anafood.vip")) return sub;
+  return null;
+}
+
+// Detecta domínio próprio (não-anafood.vip, não-workers.dev, não-localhost)
+function getCustomDomain(): string | null {
+  if (typeof window === "undefined") return null;
+  const host = window.location.hostname;
+  if (host === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return null;
+  if (host.endsWith(".workers.dev") || host.endsWith(".pages.dev")) return null;
+  if (host.endsWith(".anafood.vip") || host === "anafood.vip") return null;
+  return host;
 }
 
 const queryClient = new QueryClient({
@@ -134,6 +143,7 @@ function HashErrorRedirect() {
 
 const App = () => {
   const subdomain = getSubdomain();
+  const customDomain = getCustomDomain();
   return (
   <ErrorBoundary>
   <QueryClientProvider client={queryClient}>
@@ -146,11 +156,11 @@ const App = () => {
           <BrowserRouter>
             <HashErrorRedirect />
             <Routes>
-            {/* Subdomain ativo: rota raiz renderiza menu público direto */}
+            {/* Subdomain ou domínio próprio: rota raiz renderiza menu público direto */}
             <Route path="/" element={
-              subdomain ? (
+              (subdomain || customDomain) ? (
                 <Suspense fallback={<FullLoadingFallback />}>
-                  <PublicMenu subdomainOverride={subdomain} />
+                  <PublicMenu subdomainOverride={subdomain ?? undefined} customDomainOverride={customDomain ?? undefined} />
                 </Suspense>
               ) : <Index />
             } />
@@ -210,6 +220,7 @@ const App = () => {
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/campaigns" element={<Campaigns />} />
               <Route path="/loyalty" element={<Loyalty />} />
+              <Route path="/marketing" element={<Marketing />} />
 
               {/* Protected admin-only routes */}
               <Route path="/users" element={
