@@ -112,6 +112,11 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
     icon: BarChart3,
   },
   {
+    title: "Fidelidade",
+    url: "/loyalty",
+    icon: Sparkles,
+  },
+  {
     title: "Pedidos",
     url: "/orders",
     icon: ShoppingBag,
