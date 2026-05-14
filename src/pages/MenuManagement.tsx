@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, ExternalLink } from "lucide-react";
+import { Copy, ExternalLink, Printer } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { CompanyLogoUpload } from "@/components/company/CompanyLogoUpload";
 import { CompanyBannerUpload } from "@/components/company/CompanyBannerUpload";
@@ -135,6 +135,16 @@ export default function MenuManagement() {
           <p className="text-sm text-muted-foreground">
             Os clientes poderão acessar seu cardápio e fazer pedidos através deste link
           </p>
+          {/* Botão imprimir cardápio (PDF via diálogo do navegador) */}
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => window.open(`/menu/${subdomain}/print?auto=1`, "_blank")}
+            disabled={!subdomain}
+          >
+            <Printer className="h-4 w-4" />
+            Imprimir / Salvar PDF
+          </Button>
         </CardContent>
       </Card>
 

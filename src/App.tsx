@@ -51,6 +51,7 @@ const Coupons = lazy(() => import("./pages/Coupons"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
 const Loyalty = lazy(() => import("./pages/Loyalty"));
+const MenuPrint = lazy(() => import("./pages/MenuPrint"));
 const Deliverers = lazy(() => import("./pages/Deliverers").then(m => ({ default: m.Deliverers })));
 const DelivererDashboard = lazy(() => import("./pages/DelivererDashboard"));
 const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
@@ -238,6 +239,11 @@ const App = () => {
             <Route path="/menu/:subdomain" element={
               <Suspense fallback={<FullLoadingFallback />}>
                 <PublicMenu />
+              </Suspense>
+            } />
+            <Route path="/menu/:subdomain/print" element={
+              <Suspense fallback={<FullLoadingFallback />}>
+                <MenuPrint />
               </Suspense>
             } />
             <Route path="*" element={
