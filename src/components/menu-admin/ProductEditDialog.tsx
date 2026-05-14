@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Tag } from "lucide-react";
 import { ProductGroupsTab } from "./ProductGroupsTab";
 import { Checkbox } from "@/components/ui/checkbox";
 import { WEEKDAYS, ALL_WEEKDAYS } from "@/lib/weekday-utils";
@@ -57,6 +57,8 @@ export function ProductEditDialog({
     internal_code: product?.internal_code || "",
     on_off: product?.on_off ?? true,
     available_weekdays: product?.available_weekdays || ALL_WEEKDAYS,
+    promotional_price: product?.promotional_price?.toString() || "",
+    badges: (product?.badges || []) as string[],
   });
   const [imagePreview, setImagePreview] = useState<string | null>(product?.image_url || null);
   const [uploading, setUploading] = useState(false);
@@ -73,6 +75,8 @@ export function ProductEditDialog({
         internal_code: product.internal_code || "",
         on_off: product.on_off ?? true,
         available_weekdays: product.available_weekdays || ALL_WEEKDAYS,
+        promotional_price: product.promotional_price?.toString() || "",
+        badges: (product.badges || []) as string[],
       });
       setImagePreview(product.image_url || null);
     }
@@ -145,9 +149,13 @@ export function ProductEditDialog({
         throw new Error("Selecione pelo menos um dia da semana");
       }
 
+      const promoPrice = formData.promotional_price ? parseFloat(formData.promotional_price) : null;
+
       const dataToSave = {
         ...formData,
         price,
+        promotional_price: promoPrice && !isNaN(promoPrice) ? promoPrice : null,
+        badges: formData.badges.length > 0 ? formData.badges : null,
         company_id: companyId,
       };
 
@@ -241,17 +249,68 @@ export function ProductEditDialog({
                   placeholder="0.00"
                 />
               </div>
-              
+
               <div className="space-y-2">
-                <Label htmlFor="internal_code">Código Interno</Label>
+                <Label htmlFor="promotional_price">Preço Promocional</Label>
                 <Input
-                  id="internal_code"
-                  value={formData.internal_code}
+                  id="promotional_price"
+                  type="number"
+                  step="0.01"
+                  value={formData.promotional_price}
                   onChange={(e) =>
-                    setFormData({ ...formData, internal_code: e.target.value })
+                    setFormData({ ...formData, promotional_price: e.target.value })
                   }
-                  placeholder="Ex: P001"
+                  placeholder="Opcional"
                 />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="internal_code">Código Interno</Label>
+              <Input
+                id="internal_code"
+                value={formData.internal_code}
+                onChange={(e) =>
+                  setFormData({ ...formData, internal_code: e.target.value })
+                }
+                placeholder="Ex: P001"
+              />
+            </div>
+
+            {/* Badges */}
+            <div className="space-y-3 border-t pt-4">
+              <Label className="flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5" />
+                Badges (destaques visuais)
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "popular",    label: "⭐ Mais Vendido" },
+                  { value: "new",        label: "✨ Novidade" },
+                  { value: "promo",      label: "🔥 Promoção" },
+                  { value: "happy_hour", label: "🎉 Happy Hour" },
+                  { value: "vegan",      label: "🌱 Vegano" },
+                  { value: "spicy",      label: "🌶️ Picante" },
+                ].map((badge) => (
+                  <div key={badge.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`badge-${badge.value}`}
+                      checked={formData.badges.includes(badge.value)}
+                      onCheckedChange={(checked) => {
+                        const updated = checked
+                          ? [...formData.badges, badge.value]
+                          : formData.badges.filter((b) => b !== badge.value);
+                        setFormData({ ...formData, badges: updated });
+                      }}
+                    />
+                    <Label
+                      htmlFor={`badge-${badge.value}`}
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {badge.label}
+                    </Label>
+                  </div>
+                ))}
               </div>
             </div>
 
