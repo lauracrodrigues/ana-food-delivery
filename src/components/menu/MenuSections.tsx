@@ -1,4 +1,4 @@
-// v1.0.0 — Seções de destaque: Promoções, Mais Vendidos, Novidades
+// v1.1.0 — Seções destaque + view tracking
 import { formatCurrency } from "@/lib/currency-formatter";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { ProductCard } from "./ProductCard";
@@ -19,6 +19,7 @@ interface MenuSectionsProps {
   onAdd: (product: Product) => void;
   favorites?: string[];
   onToggleFavorite?: (productId: string) => void;
+  onProductView?: (productId: string) => void;
 }
 
 interface SectionConfig {
@@ -50,7 +51,7 @@ const SECTIONS: SectionConfig[] = [
 ];
 
 function SectionStrip({
-  title, emoji, products, onAdd, favorites, onToggleFavorite,
+  title, emoji, products, onAdd, favorites, onToggleFavorite, onProductView,
 }: {
   title: string;
   emoji: string;
@@ -58,6 +59,7 @@ function SectionStrip({
   onAdd: (p: Product) => void;
   favorites?: string[];
   onToggleFavorite?: (id: string) => void;
+  onProductView?: (id: string) => void;
 }) {
   if (products.length === 0) return null;
 
@@ -76,6 +78,7 @@ function SectionStrip({
                 onAdd={() => onAdd(p)}
                 isFavorite={favorites?.includes(p.id)}
                 onToggleFavorite={onToggleFavorite ? () => onToggleFavorite(p.id) : undefined}
+                onView={onProductView ? () => onProductView(p.id) : undefined}
               />
             </div>
           ))}
@@ -86,7 +89,7 @@ function SectionStrip({
   );
 }
 
-export function MenuSections({ products, onAdd, favorites, onToggleFavorite }: MenuSectionsProps) {
+export function MenuSections({ products, onAdd, favorites, onToggleFavorite, onProductView }: MenuSectionsProps) {
   const hasSections = SECTIONS.some((s) => products.some(s.filter));
   if (!hasSections) return null;
 
@@ -103,6 +106,7 @@ export function MenuSections({ products, onAdd, favorites, onToggleFavorite }: M
             onAdd={onAdd}
             favorites={favorites}
             onToggleFavorite={onToggleFavorite}
+            onProductView={onProductView}
           />
         );
       })}

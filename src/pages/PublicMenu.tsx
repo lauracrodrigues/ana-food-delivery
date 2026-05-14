@@ -20,6 +20,7 @@ import { useCustomerSession } from "@/hooks/useCustomerSession";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useOrderHistory } from "@/hooks/useOrderHistory";
 import { useLoyaltyPoints } from "@/hooks/useLoyaltyPoints";
+import { useProductViewTracker } from "@/hooks/useProductViewTracker";
 
 interface Company {
   id: string;
@@ -101,6 +102,7 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
   const { favorites, toggle: toggleFavorite } = useFavorites(company?.id ?? "");
   const { history, addOrder, refreshStatuses } = useOrderHistory(company?.id ?? "");
   const { points: loyaltyPoints, fetchPoints: refreshLoyalty } = useLoyaltyPoints(company?.id ?? "", session?.phone);
+  const { trackView } = useProductViewTracker(company?.id ?? "");
 
   // Config fidelidade extraída da empresa
   const loyaltyConfig = company ? {
@@ -418,6 +420,7 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
                 onAdd={handleQuickAdd}
                 favorites={favorites}
                 onToggleFavorite={toggleFavorite}
+                onProductView={trackView}
               />
             )}
 
@@ -429,6 +432,7 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
               onAddToCart={addToCart}
               favorites={favorites}
               onToggleFavorite={toggleFavorite}
+              onProductView={trackView}
             />
           </div>
 

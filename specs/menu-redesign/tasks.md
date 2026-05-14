@@ -126,7 +126,7 @@
 ### Analytics
 - [x] Registrar add-to-cart e order via `product_events`
 - [x] Dashboard no admin: mais adicionados, conversão, pedidos
-- [ ] Registrar views de produto (impressões)
+- [x] Registrar views de produto via IntersectionObserver (dedup por sessão)
 
 ### Campanhas
 - [ ] Promoção automática por horário (happy hour configurável)

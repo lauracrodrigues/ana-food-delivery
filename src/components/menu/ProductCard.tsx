@@ -1,4 +1,5 @@
-// v1.1.0 — Card de produto com badge, preço promocional, desconto % e favorito
+// v1.2.0 — Card produto com badge, promo, favorito + tracking view via IntersectionObserver
+import { useEffect, useRef } from "react";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { Plus, Image as ImageIcon, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,9 +29,10 @@ interface ProductCardProps {
   onAdd: () => void;
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
+  onView?: () => void;
 }
 
-export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite }: ProductCardProps) {
+export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onView }: ProductCardProps) {
   const hasPromo = product.promotional_price != null && product.promotional_price < product.price;
   const discount = hasPromo
     ? Math.round((1 - product.promotional_price! / product.price) * 100)
@@ -38,8 +40,32 @@ export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite }: Pr
   const primaryBadge = product.badges?.[0];
   const badgeCfg = primaryBadge ? BADGE_CONFIG[primaryBadge] : null;
 
+  // Tracking de view: dispara quando card fica >=50% visível por 800ms
+  const cardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!onView) return;
+    const el = cardRef.current;
+    if (!el) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          // Delay 800ms evita contar scroll rápido como view real
+          timer = setTimeout(() => { onView(); obs.disconnect(); }, 800);
+        } else if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      },
+      { threshold: [0.5] }
+    );
+    obs.observe(el);
+    return () => { obs.disconnect(); if (timer) clearTimeout(timer); };
+  }, [onView]);
+
   return (
-    <div className="group relative bg-card rounded-xl border border-border hover:shadow-md transition-all overflow-hidden flex flex-col">
+    <div ref={cardRef} className="group relative bg-card rounded-xl border border-border hover:shadow-md transition-all overflow-hidden flex flex-col">
       {/* Badge */}
       {badgeCfg && (
         <div className="absolute top-2 left-2 z-10">

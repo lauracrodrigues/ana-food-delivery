@@ -1,4 +1,4 @@
-// v3.0.0 — Agrupado por categoria com âncoras, busca e ProductCard moderno
+// v3.2.0 — Agrupado por categoria, busca, ProductCard moderno + view tracking
 import { useMemo } from "react";
 import { ProductCard } from "./ProductCard";
 import { ProductAddModal, SelectedExtra } from "./ProductAddModal";
@@ -30,6 +30,7 @@ interface MenuProductsProps {
   onAddToCart: (product: Product, quantity: number, observations?: string, extras?: SelectedExtra[]) => void;
   favorites?: string[];
   onToggleFavorite?: (productId: string) => void;
+  onProductView?: (productId: string) => void;
 }
 
 export function MenuProducts({
@@ -40,6 +41,7 @@ export function MenuProducts({
   onAddToCart,
   favorites = [],
   onToggleFavorite,
+  onProductView,
 }: MenuProductsProps) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
@@ -79,6 +81,7 @@ export function MenuProducts({
           onAdd={() => setSelectedProduct(p)}
           isFavorite={favorites.includes(p.id)}
           onToggleFavorite={onToggleFavorite ? () => onToggleFavorite(p.id) : undefined}
+          onView={onProductView ? () => onProductView(p.id) : undefined}
         />
       ))}
     </div>
