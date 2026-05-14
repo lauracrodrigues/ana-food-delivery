@@ -129,5 +129,5 @@
 - [x] Registrar views de produto via IntersectionObserver (dedup por sessão)
 
 ### Campanhas
-- [ ] Promoção automática por horário (happy hour configurável)
+- [x] Promoção automática por horário (happy hour configurável) + CRUD admin
 - [ ] Notificação push: "Você tem itens no carrinho!"

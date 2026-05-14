@@ -1,5 +1,5 @@
 // v4.0.0 — Phase 4: PWA install prompt, programa fidelidade, analytics tracking
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,7 @@ import { useFavorites } from "@/hooks/useFavorites";
 import { useOrderHistory } from "@/hooks/useOrderHistory";
 import { useLoyaltyPoints } from "@/hooks/useLoyaltyPoints";
 import { useProductViewTracker } from "@/hooks/useProductViewTracker";
+import { useActiveCampaigns } from "@/hooks/useActiveCampaigns";
 
 interface Company {
   id: string;
@@ -103,6 +104,20 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
   const { history, addOrder, refreshStatuses } = useOrderHistory(company?.id ?? "");
   const { points: loyaltyPoints, fetchPoints: refreshLoyalty } = useLoyaltyPoints(company?.id ?? "", session?.phone);
   const { trackView } = useProductViewTracker(company?.id ?? "");
+  const { getDiscount: getCampaignDiscount } = useActiveCampaigns(company?.id ?? "");
+
+  // Decora produtos com desconto de campanha (sobrescreve promotional_price + badge happy_hour)
+  const decoratedProducts = useMemo(() => {
+    return products.map(p => {
+      const disc = getCampaignDiscount(p);
+      if (!disc) return p;
+      return {
+        ...p,
+        promotional_price: disc.effectivePrice,
+        badges: ["happy_hour", ...(p.badges?.filter(b => b !== "happy_hour") || [])],
+      };
+    });
+  }, [products, getCampaignDiscount]);
 
   // Config fidelidade extraída da empresa
   const loyaltyConfig = company ? {
@@ -206,9 +221,13 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
 
   const addToCart = (product: Product, quantity: number = 1, observations?: string, extras: SelectedExtra[] = []) => {
     const extrasTotal = extras.reduce((sum, e) => sum + e.price, 0);
+    // Preço efetivo: usa promotional_price quando definido (cobre promo normal + campanha happy hour)
+    const effectivePrice = product.promotional_price != null && product.promotional_price < product.price
+      ? product.promotional_price
+      : product.price;
     setCart(prev => [...prev, {
       cartItemId: crypto.randomUUID(),
-      product,
+      product: { ...product, price: effectivePrice },
       quantity,
       observations,
       extras,
@@ -416,7 +435,7 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
             {/* Seções de destaque — só no modo normal */}
             {!searchQuery && (
               <MenuSections
-                products={products}
+                products={decoratedProducts}
                 onAdd={handleQuickAdd}
                 favorites={favorites}
                 onToggleFavorite={toggleFavorite}
@@ -425,7 +444,7 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
             )}
 
             <MenuProducts
-              products={products}
+              products={decoratedProducts}
               categories={activeCategories}
               companyId={company.id}
               searchQuery={searchQuery}

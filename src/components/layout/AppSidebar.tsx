@@ -35,6 +35,7 @@ import {
   Truck,
   Ticket,
   BarChart3,
+  Sparkles,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { saveUserTheme } from "@/components/layout/UserThemeSync";
@@ -133,6 +134,7 @@ const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
       { title: "Taxas de Entrega", url: "/delivery-fees", icon: MapPin },
       { title: "Formas de Pagamento", url: "/payment-methods", icon: CreditCard },
       { title: "Cupons", url: "/coupons", icon: Ticket },
+      { title: "Campanhas", url: "/campaigns", icon: Sparkles },
     ],
   },
   {
