@@ -58,12 +58,14 @@ const KanbanPreviewA = lazy(() => import("./pages/KanbanPreviewA"));
 const KanbanPreviewB = lazy(() => import("./pages/KanbanPreviewB"));
 const KanbanPreviewC = lazy(() => import("./pages/KanbanPreviewC"));
 
-// v1.0.0 — Detecta subdomain pra renderizar PublicMenu direto na raiz
+// v1.1.0 — Detecta subdomain pra renderizar PublicMenu direto na raiz
 function getSubdomain(): string | null {
   if (typeof window === "undefined") return null;
   const host = window.location.hostname;
   // Skip localhost / IP
   if (host === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return null;
+  // Skip URLs de preview/admin do Cloudflare (workers.dev, pages.dev)
+  if (host.endsWith(".workers.dev") || host.endsWith(".pages.dev")) return null;
   const parts = host.split(".");
   // anafood.vip = 2 parts, pizzaria.anafood.vip = 3 parts
   if (parts.length < 3) return null;
