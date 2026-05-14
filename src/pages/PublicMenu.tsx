@@ -358,6 +358,7 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
       <CartBottomBar
         cart={cart}
         total={getCartTotal()}
+        minOrderValue={company.min_order_value}
         onUpdateQuantity={updateCartItem}
         onRemoveItem={removeFromCart}
         onClearCart={clearCart}

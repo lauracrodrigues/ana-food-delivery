@@ -47,6 +47,7 @@ const Billing = lazy(() => import("./pages/Billing"));
 const Estoque = lazy(() => import("./pages/Estoque"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
 const Distribuidoras = lazy(() => import("./pages/Distribuidoras"));
+const Coupons = lazy(() => import("./pages/Coupons"));
 const Deliverers = lazy(() => import("./pages/Deliverers").then(m => ({ default: m.Deliverers })));
 const DelivererDashboard = lazy(() => import("./pages/DelivererDashboard"));
 const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
@@ -199,6 +200,7 @@ const App = () => {
               <Route path="/billing" element={<Billing />} />
               <Route path="/financeiro" element={<Financeiro />} />
               <Route path="/distribuidoras" element={<Distribuidoras />} />
+              <Route path="/coupons" element={<Coupons />} />
               
               {/* Protected admin-only routes */}
               <Route path="/users" element={

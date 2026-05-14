@@ -1,4 +1,4 @@
-// v2.2 — Hooks useOrderCreation e usePIXPolling extraídos
+// v2.3 — Cupom + valor mínimo + taxa de entrega da empresa
 import { formatCurrency } from "@/lib/currency-formatter";
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,7 +12,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { usePIXPolling } from "@/hooks/menu/usePIXPolling";
 import { useOrderCreation } from "@/hooks/menu/useOrderCreation";
-import { Loader2, LocateFixed, Copy, CheckCircle2, Clock } from "lucide-react";
+import { Loader2, LocateFixed, Copy, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { CouponInput } from "./CouponInput";
+import { CouponData, CouponValidationResult } from "@/lib/coupon-validator";
 
 interface SelectedExtra {
   id: string;
@@ -35,6 +37,8 @@ interface Company {
   id: string;
   name: string;
   fantasy_name: string;
+  delivery_fee?: number | null;
+  min_order_value?: number | null;
 }
 
 interface MenuCheckoutProps {
@@ -156,6 +160,8 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
   const { createOrder, loading, pixData } = useOrderCreation();
   const [locating, setLocating] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponData | null>(null);
+  const [couponResult, setCouponResult] = useState<CouponValidationResult | null>(null);
 
   const [formData, setFormData] = useState({
     customer_name: "",
@@ -167,6 +173,13 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
   });
 
   const isTableOrder = !!tableInfo;
+
+  // Taxa de entrega: aplica só em modo delivery; zera se cupom tem freeShipping
+  const deliveryFee = !isTableOrder && formData.type === "delivery"
+    ? (couponResult?.freeShipping ? 0 : (company.delivery_fee ?? 0))
+    : 0;
+  const couponDiscount = couponResult?.discount ?? 0;
+  const finalTotal = Math.max(0, total + deliveryFee - couponDiscount);
 
   // Verifica se empresa tem MP configurado via função segura (não expõe credenciais ao anon)
   const { data: hasMpActive } = useQuery({
@@ -229,12 +242,16 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
       toast({ title: "Atenção", description: "Informe o endereço de entrega", variant: "destructive" });
       return;
     }
+    if (company.min_order_value && total < company.min_order_value && !isTableOrder) {
+      toast({ title: "Pedido mínimo não atingido", description: `Mínimo de ${formatCurrency(company.min_order_value)}`, variant: "destructive" });
+      return;
+    }
 
     const payload = {
       company_id: company.id,
       customer_name: formData.customer_name,
       customer_phone: formData.customer_phone,
-      total,
+      total: finalTotal,
       items: cart.map(item => {
         const extrasDesc = item.extras.length > 0
           ? `Extras: ${item.extras.map(e => e.name).join(", ")}`
@@ -253,14 +270,22 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
       payment_method: formData.payment_method,
       observations: formData.observations,
       status: "pending",
-      delivery_fee: 0,
+      delivery_fee: deliveryFee,
       estimated_time: 30,
       source: tableInfo ? "qr_code" : "digital_menu",
       ...(tableInfo && { table_id: tableInfo.id, table_number: tableInfo.table_number }),
+      ...(appliedCoupon && { coupon_id: appliedCoupon.id }),
     };
 
     try {
-      await createOrder(payload, (orderId) => {
+      await createOrder(payload, async (orderId) => {
+        // Incrementa uso do cupom após pedido criado
+        if (appliedCoupon) {
+          await supabase
+            .from("coupons")
+            .update({ uses_count: (appliedCoupon.uses_count ?? 0) + 1 })
+            .eq("id", appliedCoupon.id);
+        }
         toast({ title: "Pedido realizado!", description: "Aguarde a confirmação." });
         onSuccess(orderId);
       });
@@ -297,7 +322,7 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
               qrCode={pixData.qrCode}
               qrCodeBase64={pixData.qrCodeBase64}
               expiresAt={pixData.expiresAt}
-              total={total}
+              total={finalTotal}
               onConfirmed={handlePixConfirmed}
               onClose={onClose}
             />
@@ -442,19 +467,69 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
             />
           </div>
 
+          {/* Cupom de desconto */}
+          {!isTableOrder && (
+            <div className="space-y-2">
+              <Label>Cupom de desconto</Label>
+              <CouponInput
+                companyId={company.id}
+                cartTotal={total}
+                appliedCoupon={appliedCoupon}
+                appliedResult={couponResult}
+                onApply={(coupon, result) => {
+                  setAppliedCoupon(coupon);
+                  setCouponResult(result);
+                  toast({ title: "Cupom aplicado!", description: `-${formatCurrency(result.discount)}${result.freeShipping ? " + frete grátis" : ""}` });
+                }}
+                onRemove={() => { setAppliedCoupon(null); setCouponResult(null); }}
+              />
+            </div>
+          )}
+
+          {/* Aviso valor mínimo */}
+          {company.min_order_value != null && total < company.min_order_value && !isTableOrder && (
+            <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <div className="flex-1">
+                <span>Pedido mínimo: {formatCurrency(company.min_order_value)}</span>
+                <div className="mt-1 h-1.5 bg-amber-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-500 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, (total / company.min_order_value) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-xs">Faltam {formatCurrency(company.min_order_value - total)}</span>
+              </div>
+            </div>
+          )}
+
           {/* Resumo */}
           <div className="p-4 bg-muted rounded-lg space-y-2">
-            <div className="flex justify-between">
+            <div className="flex justify-between text-sm">
               <span>Subtotal</span>
               <span>{formatCurrency(total)}</span>
             </div>
-            <div className="flex justify-between">
-              <span>Taxa de Entrega</span>
-              <span>R$ 0,00</span>
-            </div>
+            {deliveryFee > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Taxa de Entrega</span>
+                <span>{formatCurrency(deliveryFee)}</span>
+              </div>
+            )}
+            {couponResult?.freeShipping && company.delivery_fee && company.delivery_fee > 0 && (
+              <div className="flex justify-between text-sm text-green-700">
+                <span>Frete (cupom)</span>
+                <span>-{formatCurrency(company.delivery_fee)}</span>
+              </div>
+            )}
+            {couponDiscount > 0 && (
+              <div className="flex justify-between text-sm text-green-700">
+                <span>Desconto ({appliedCoupon?.code})</span>
+                <span>-{formatCurrency(couponDiscount)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-lg font-bold pt-2 border-t">
               <span>Total</span>
-              <span className="text-primary">{formatCurrency(total)}</span>
+              <span className="text-primary">{formatCurrency(finalTotal)}</span>
             </div>
           </div>
 
@@ -463,7 +538,11 @@ export function MenuCheckout({ cart, total, company, tableInfo, requireCustomerI
             <Button type="button" variant="outline" onClick={onClose} disabled={loading} className="flex-1">
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
+            <Button
+              type="submit"
+              disabled={loading || (!!company.min_order_value && total < company.min_order_value && !isTableOrder)}
+              className="flex-1"
+            >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {formData.payment_method === "pix_mp" ? "Gerar QR Code PIX" : "Confirmar Pedido"}
             </Button>

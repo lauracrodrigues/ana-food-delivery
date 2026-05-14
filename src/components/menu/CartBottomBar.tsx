@@ -1,4 +1,4 @@
-// v1.0.0 — Barra do carrinho fixa no rodapé (mobile)
+// v1.1.0 — Barra do carrinho fixa no rodapé (mobile) + barra progresso valor mínimo
 import { useState } from "react";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { ShoppingCart, X, Plus, Minus, Trash2 } from "lucide-react";
@@ -27,6 +27,7 @@ interface CartItem {
 interface CartBottomBarProps {
   cart: CartItem[];
   total: number;
+  minOrderValue?: number | null;
   onUpdateQuantity: (cartItemId: string, quantity: number) => void;
   onRemoveItem: (cartItemId: string) => void;
   onClearCart: () => void;
@@ -36,6 +37,7 @@ interface CartBottomBarProps {
 export function CartBottomBar({
   cart,
   total,
+  minOrderValue,
   onUpdateQuantity,
   onRemoveItem,
   onClearCart,
@@ -47,10 +49,24 @@ export function CartBottomBar({
 
   const itemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
 
+  const belowMin = minOrderValue != null && total < minOrderValue;
+  const minProgress = minOrderValue ? Math.min(100, (total / minOrderValue) * 100) : 100;
+
   return (
     <>
       {/* Barra fixa */}
       <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
+        {/* Barra de progresso valor mínimo */}
+        {belowMin && (
+          <div className="bg-amber-500 text-white px-4 py-1.5 flex items-center gap-2 text-xs">
+            <div className="flex-1 bg-amber-300/50 rounded-full h-1.5 overflow-hidden">
+              <div className="h-full bg-white rounded-full transition-all" style={{ width: `${minProgress}%` }} />
+            </div>
+            <span className="shrink-0 font-medium">
+              Faltam {formatCurrency(minOrderValue! - total)} para pedido mínimo
+            </span>
+          </div>
+        )}
         <div className="bg-primary text-primary-foreground px-4 py-3 flex items-center gap-3 shadow-lg">
           <button
             onClick={() => setOpen(true)}
@@ -136,9 +152,15 @@ export function CartBottomBar({
               <span>Total</span>
               <span className="text-primary">{formatCurrency(total)}</span>
             </div>
+            {belowMin && (
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 text-center">
+                Faltam {formatCurrency(minOrderValue! - total)} para o pedido mínimo
+              </div>
+            )}
             <Button
               className="w-full h-12 text-base font-semibold"
               onClick={() => { setOpen(false); onCheckout(); }}
+              disabled={belowMin}
             >
               Finalizar Pedido
             </Button>
