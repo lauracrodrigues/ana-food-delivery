@@ -1,0 +1,9 @@
+# Cloudflare Workers — serve frontend AnaFood como static assets
+# Workers Builds detecta automaticamente e roda npm run build antes
+name = "ana-food-delivery"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "./dist"
+# SPA fallback: rotas client-side (React Router) sempre servem index.html
+not_found_handling = "single-page-application"
