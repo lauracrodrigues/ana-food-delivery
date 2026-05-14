@@ -22,6 +22,7 @@ import { useOrderHistory } from "@/hooks/useOrderHistory";
 import { useLoyaltyPoints } from "@/hooks/useLoyaltyPoints";
 import { useProductViewTracker } from "@/hooks/useProductViewTracker";
 import { useActiveCampaigns } from "@/hooks/useActiveCampaigns";
+import { useDocumentMeta } from "@/hooks/useDocumentMeta";
 
 interface Company {
   id: string;
@@ -105,6 +106,16 @@ export default function PublicMenu({ subdomainOverride }: PublicMenuProps = {}) 
   const { points: loyaltyPoints, fetchPoints: refreshLoyalty } = useLoyaltyPoints(company?.id ?? "", session?.phone);
   const { trackView } = useProductViewTracker(company?.id ?? "");
   const { getDiscount: getCampaignDiscount } = useActiveCampaigns(company?.id ?? "");
+
+  // Meta tags pra SEO + WhatsApp/social preview
+  useDocumentMeta({
+    title: company ? `${company.fantasy_name || company.name} — Cardápio Online` : "Cardápio",
+    description: company?.description || `Faça seu pedido online em ${company?.fantasy_name || company?.name || "AnaFood"}`,
+    image: company?.banner_url || company?.logo_url || null,
+    url: typeof window !== "undefined" ? window.location.href : undefined,
+    type: "website",
+    siteName: "AnaFood",
+  });
 
   // Decora produtos com desconto de campanha (sobrescreve promotional_price + badge happy_hour)
   const decoratedProducts = useMemo(() => {
