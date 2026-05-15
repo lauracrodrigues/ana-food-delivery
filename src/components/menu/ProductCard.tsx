@@ -1,8 +1,9 @@
-// v1.2.0 — Card produto com badge, promo, favorito + tracking view via IntersectionObserver
+// v1.3.0 — Card produto + tracking view + OptimizedImage (lazy + aspect-ratio anti-CLS)
 import { useEffect, useRef } from "react";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { Plus, Image as ImageIcon, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { OptimizedImage } from "@/components/ui/optimized-image";
 
 interface Product {
   id: string;
@@ -88,19 +89,17 @@ export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onVi
 
       {/* Imagem */}
       <div className="w-full h-36 bg-muted overflow-hidden shrink-0">
-        {product.image_url ? (
-          <img
-            src={product.image_url}
-            alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <ImageIcon className="h-10 w-10 text-muted-foreground/40" />
-          </div>
-        )}
+        <OptimizedImage
+          src={product.image_url}
+          alt={product.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          aspectRatio="16/10"
+          fallback={
+            <div className="w-full h-full flex items-center justify-center bg-muted">
+              <ImageIcon className="h-10 w-10 text-muted-foreground/40" />
+            </div>
+          }
+        />
       </div>
 
       {/* Conteúdo */}

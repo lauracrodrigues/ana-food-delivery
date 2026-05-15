@@ -70,6 +70,16 @@ Deno.serve(async (req: Request) => {
       return json({ error: error.message }, 500);
     }
 
+    // Auto-resposta: dispara orders-status com 'pending' pra mandar WhatsApp de confirmação
+    // (template configurado pelo dono em whatsapp_config com config_type='status_message' status='pending')
+    try {
+      await supabase.functions.invoke('orders-status', {
+        body: { order_id: order.id, status: 'pending' },
+      });
+    } catch (e) {
+      console.warn('Auto-resposta WhatsApp falhou (não bloqueia pedido):', e);
+    }
+
     return json({ id: order.id });
 
   } catch (err: any) {

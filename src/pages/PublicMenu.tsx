@@ -16,6 +16,7 @@ import { CustomerSheet } from "@/components/menu/CustomerSheet";
 import { InstallPrompt } from "@/components/menu/InstallPrompt";
 import { MenuThemeToggle } from "@/components/menu/MenuThemeToggle";
 import { TrackingScripts, trackEvent } from "@/components/menu/TrackingScripts";
+import { useAbandonedCartReminder } from "@/hooks/useAbandonedCartReminder";
 import { Loader2, ChefHat, Search, X } from "lucide-react";
 import { resetPalette, initializeColorPalette } from "@/hooks/use-color-palette";
 import { useCustomerSession } from "@/hooks/useCustomerSession";
@@ -51,6 +52,7 @@ interface Company {
   meta_verification_tags?: Array<{ name: string; content: string }> | null;
   custom_domain?: string | null;
   custom_domain_status?: string | null;
+  subdomain?: string | null;
 }
 
 interface Category {
@@ -115,6 +117,14 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
   const { points: loyaltyPoints, fetchPoints: refreshLoyalty } = useLoyaltyPoints(company?.id ?? "", session?.phone);
   const { trackView } = useProductViewTracker(company?.id ?? "");
   const { getDiscount: getCampaignDiscount } = useActiveCampaigns(company?.id ?? "");
+
+  // Push de carrinho abandonado: agenda 10min após última mudança no cart
+  useAbandonedCartReminder({
+    hasItems: cart.length > 0,
+    customerPhone: session?.phone,
+    companyId: company?.id,
+    companySubdomain: company?.subdomain ?? undefined,
+  });
 
   // Meta tags pra SEO + WhatsApp/social preview
   useDocumentMeta({
