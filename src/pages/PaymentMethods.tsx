@@ -72,7 +72,7 @@ const PaymentMethods = () => {
     queryKey: ["payment-methods", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      
+
       const { data, error } = await supabase
         .from('payment_methods')
         .select('*')
@@ -81,6 +81,17 @@ const PaymentMethods = () => {
 
       if (error) throw error;
       return data as PaymentMethod[];
+    },
+    enabled: !!companyId,
+  });
+
+  // Mercado Pago integrado? PIX manual bloqueado quando ativo
+  const { data: hasMp = false } = useQuery({
+    queryKey: ["has-mp", companyId],
+    queryFn: async () => {
+      if (!companyId) return false;
+      const { data } = await supabase.rpc("company_has_mp", { p_company_id: companyId });
+      return !!data;
     },
     enabled: !!companyId,
   });
@@ -179,9 +190,17 @@ const PaymentMethods = () => {
   });
 
   const handleAdd = () => {
-    if (newMethod.trim()) {
-      addMutation.mutate({ name: newMethod.trim(), type: newType });
+    if (!newMethod.trim()) return;
+    // Bloqueia adicionar PIX manual quando MP ativo (PIX automático via MP cobre)
+    if (newType === 'pix' && hasMp) {
+      toast({
+        title: "PIX automático já ativo",
+        description: "Você já tem Mercado Pago integrado. O PIX será gerado automaticamente como QR Code para os clientes — não precisa cadastrar PIX manual.",
+        variant: "destructive",
+      });
+      return;
     }
+    addMutation.mutate({ name: newMethod.trim(), type: newType });
   };
 
   const handleToggleActive = (id: string, is_active: boolean) => {
@@ -207,6 +226,23 @@ const PaymentMethods = () => {
 
   return (
     <PageLayout title="Formas de Pagamento">
+      {/* Aviso MP ativo */}
+      {hasMp && (
+        <Card className="border-green-300 bg-green-50 dark:bg-green-950/20">
+          <CardContent className="p-4 flex gap-3 items-start">
+            <div className="text-2xl">⚡</div>
+            <div className="text-sm">
+              <p className="font-semibold text-green-900">Mercado Pago integrado</p>
+              <p className="text-green-800 mt-0.5">
+                O *PIX* já é gerado automaticamente como QR Code para o cliente no checkout.
+                Não é necessário cadastrar uma forma de pagamento PIX manual — o sistema
+                já trata isso automaticamente.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Add new payment method */}
       <Card>
         <CardHeader>
