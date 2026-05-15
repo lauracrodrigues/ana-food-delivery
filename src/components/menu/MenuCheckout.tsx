@@ -565,7 +565,7 @@ export function MenuCheckout({
             </div>
           )}
 
-          {/* Forma de pagamento */}
+          {/* Forma de pagamento — UMA opção PIX só (sistema decide entre QR/manual) */}
           <div className="space-y-4">
             <h3 className="font-semibold">Forma de Pagamento</h3>
             <RadioGroup
@@ -574,32 +574,38 @@ export function MenuCheckout({
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="dinheiro" id="dinheiro" />
-                <Label htmlFor="dinheiro">Dinheiro</Label>
+                <Label htmlFor="dinheiro">💵 Dinheiro</Label>
               </div>
+              {/* PIX unificado: usa pix_mp se MP ativo, senão pix manual */}
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="pix" id="pix" />
-                <Label htmlFor="pix">PIX (manual)</Label>
+                <RadioGroupItem
+                  value={hasMpActive ? "pix_mp" : "pix"}
+                  id="pix_unificado"
+                />
+                <Label htmlFor="pix_unificado" className="flex items-center gap-2">
+                  📱 PIX
+                  {hasMpActive && (
+                    <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
+                      QR Code automático
+                    </span>
+                  )}
+                </Label>
               </div>
-              {/* Opção MP PIX aparece só se empresa configurou */}
-              {hasMpActive && (
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="pix_mp" id="pix_mp" />
-                  <Label htmlFor="pix_mp" className="flex items-center gap-2">
-                    <span>PIX automático</span>
-                    <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">QR Code</span>
-                  </Label>
-                </div>
-              )}
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="cartao" id="cartao" />
-                <Label htmlFor="cartao">Cartão</Label>
+                <Label htmlFor="cartao">💳 Cartão</Label>
               </div>
             </RadioGroup>
 
             {/* Aviso quando PIX automático selecionado */}
             {formData.payment_method === "pix_mp" && (
               <p className="text-xs text-muted-foreground bg-blue-50 border border-blue-100 rounded px-3 py-2">
-                Após confirmar, você receberá um QR code para pagar via PIX. O pedido é confirmado automaticamente após o pagamento.
+                Após confirmar, você receberá um QR Code pra pagar via PIX. O pedido é confirmado automaticamente após o pagamento.
+              </p>
+            )}
+            {formData.payment_method === "pix" && (
+              <p className="text-xs text-muted-foreground bg-blue-50 border border-blue-100 rounded px-3 py-2">
+                Após confirmar, a chave PIX será enviada pra você pagar manualmente.
               </p>
             )}
           </div>
