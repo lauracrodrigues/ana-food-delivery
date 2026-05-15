@@ -15,7 +15,7 @@ import { usePIXPolling } from "@/hooks/menu/usePIXPolling";
 import { useOrderCreation } from "@/hooks/menu/useOrderCreation";
 import { Loader2, LocateFixed, Copy, CheckCircle2, Clock, AlertCircle, Sparkles } from "lucide-react";
 import { CouponInput } from "./CouponInput";
-import { CouponData, CouponValidationResult } from "@/lib/coupon-validator";
+import { CouponData, CouponValidationResult, validateCoupon } from "@/lib/coupon-validator";
 import type { CustomerSession } from "@/hooks/useCustomerSession";
 import type { LoyaltyConfig } from "@/hooks/useLoyaltyPoints";
 
@@ -56,6 +56,7 @@ interface MenuCheckoutProps {
   session?: CustomerSession | null;
   loyaltyPoints?: number;
   loyaltyConfig?: LoyaltyConfig;
+  prefilledCouponCode?: string | null;
   onClose: () => void;
   onSuccess: (orderId?: string) => void;
   onSaveAddress?: (address: string) => void;
@@ -168,7 +169,7 @@ function PixQrScreen({
 
 export function MenuCheckout({
   cart, total, company, tableInfo, requireCustomerInfo, session,
-  loyaltyPoints = 0, loyaltyConfig,
+  loyaltyPoints = 0, loyaltyConfig, prefilledCouponCode,
   onClose, onSuccess, onSaveAddress, onLoyaltyChange,
 }: MenuCheckoutProps) {
   const { toast } = useToast();
@@ -206,6 +207,30 @@ export function MenuCheckout({
   const redeemDiscount = redeemPointsActive ? redeemBlocks * redeemValue : 0;
 
   const finalTotal = Math.max(0, total + deliveryFee - couponDiscount - redeemDiscount);
+
+  // Pré-aplica cupom passado via link compartilhado (?cupom=CODE)
+  useEffect(() => {
+    if (!prefilledCouponCode || appliedCoupon || isTableOrder) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from("coupons")
+        .select("*")
+        .eq("company_id", company.id)
+        .eq("code", prefilledCouponCode.toUpperCase())
+        .eq("is_active", true)
+        .maybeSingle();
+      if (error || !data) return;
+      const result = validateCoupon(data as CouponData, total);
+      if (result.valid) {
+        setAppliedCoupon(data as CouponData);
+        setCouponResult(result);
+        toast({
+          title: "Cupom aplicado automaticamente! 🎟️",
+          description: `${data.code} — desconto de ${formatCurrency(result.discount)}${result.freeShipping ? " + frete grátis" : ""}`,
+        });
+      }
+    })();
+  }, [prefilledCouponCode, company.id, total, isTableOrder, appliedCoupon, toast]);
 
   // Verifica se empresa tem MP configurado via função segura (não expõe credenciais ao anon)
   const { data: hasMpActive } = useQuery({

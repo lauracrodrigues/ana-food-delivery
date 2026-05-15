@@ -108,6 +108,17 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
   const [quickAddProduct, setQuickAddProduct] = useState<Product | null>(null);
 
   const tableNumber = searchParams.get('mesa');
+  // Cupom pré-aplicado via link compartilhado (?cupom=CODE)
+  const prefilledCoupon = searchParams.get('cupom') ?? searchParams.get('coupon') ?? null;
+
+  // Feedback imediato: avisa user que cupom será aplicado no checkout
+  useEffect(() => {
+    if (!prefilledCoupon || !company) return;
+    toast({
+      title: `Cupom ${prefilledCoupon.toUpperCase()} pronto pra usar! 🎟️`,
+      description: "Será aplicado automaticamente no checkout.",
+    });
+  }, [prefilledCoupon, company?.id]);
   const [tableInfo, setTableInfo] = useState<{ id: string; table_number: string } | null>(null);
 
   // Sessão do cliente, favoritos, histórico e fidelidade (company.id disponível após load)
@@ -566,6 +577,7 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
           session={session}
           loyaltyPoints={loyaltyPoints}
           loyaltyConfig={loyaltyConfig}
+          prefilledCouponCode={prefilledCoupon}
           onClose={() => setShowCheckout(false)}
           onSuccess={handleOrderSuccess}
           onSaveAddress={saveAddress}

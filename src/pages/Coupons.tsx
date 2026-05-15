@@ -19,7 +19,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Ticket, Plus, Pencil, Trash2, Copy } from "lucide-react";
+import { Ticket, Plus, Pencil, Trash2, Copy, Share2 } from "lucide-react";
 import { WEEKDAYS } from "@/lib/weekday-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -175,6 +175,29 @@ export default function Coupons() {
     toast({ title: "Código copiado!" });
   };
 
+  // Busca subdomain da empresa pra montar link compartilhável
+  const { data: company } = useQuery({
+    queryKey: ["coupon-company-subdomain", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const { data } = await supabase.from("companies")
+        .select("subdomain, fantasy_name, name").eq("id", companyId).single();
+      return data;
+    },
+    enabled: !!companyId,
+  });
+
+  // Link compartilhável: cliente abre, cupom aplica automaticamente
+  const copyShareLink = (code: string) => {
+    if (!company?.subdomain) {
+      toast({ title: "Empresa sem subdomain configurado", variant: "destructive" });
+      return;
+    }
+    const url = `https://${company.subdomain}.anafood.vip/?cupom=${code}`;
+    navigator.clipboard.writeText(url);
+    toast({ title: "Link copiado!", description: "Compartilhe com seus clientes" });
+  };
+
   const toggleWeekday = (day: number) => {
     const current = form.valid_days_of_week;
     const updated = current.includes(day) ? current.filter(d => d !== day) : [...current, day];
@@ -285,6 +308,10 @@ export default function Coupons() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Copiar link compartilhável"
+                        onClick={() => copyShareLink(c.code)}>
+                        <Share2 className="h-3.5 w-3.5" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(c)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
