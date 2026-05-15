@@ -3,6 +3,7 @@ import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { optimizeImage } from "@/lib/image-optimizer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -170,14 +171,15 @@ export function MenuBannersAdmin({ companyId }: Props) {
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // Upload de imagem
+  // Upload de imagem (otimiza antes: banners até 1600px wide)
   const handleFileUpload = async (file: File) => {
     if (!file) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      const optimized = await optimizeImage(file, { maxWidth: 1600, maxHeight: 600, quality: 0.82 });
+      const ext = optimized.name.split(".").pop();
       const path = `${companyId}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("menu-banners").upload(path, file, { upsert: true });
+      const { error: upErr } = await supabase.storage.from("menu-banners").upload(path, optimized, { upsert: true });
       if (upErr) throw upErr;
       const { data: { publicUrl } } = supabase.storage.from("menu-banners").getPublicUrl(path);
       setEditState(prev => ({ ...prev, image_url: publicUrl }));

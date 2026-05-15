@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { optimizeImage } from "@/lib/image-optimizer";
 import {
   Dialog,
   DialogContent,
@@ -88,12 +89,15 @@ export function ProductEditDialog({
 
     setUploading(true);
     try {
-      const fileExt = file.name.split(".").pop();
+      // Otimiza foto do produto: até 1200px, JPEG comprimido
+      const optimized = await optimizeImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.85 });
+
+      const fileExt = optimized.name.split(".").pop();
       const fileName = `${companyId}/${Math.random()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("company-logos")
-        .upload(fileName, file, { upsert: true });
+        .upload(fileName, optimized, { upsert: true });
 
       if (uploadError) throw uploadError;
 

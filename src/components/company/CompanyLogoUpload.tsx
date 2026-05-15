@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { optimizeImage } from "@/lib/image-optimizer";
 
 interface CompanyLogoUploadProps {
   companyId: string;
@@ -54,17 +55,20 @@ export function CompanyLogoUpload({
     setUploading(true);
 
     try {
+      // Otimiza antes do upload: logo até 400px, mantém PNG pra transparência
+      const optimized = await optimizeImage(file, { maxWidth: 400, maxHeight: 400, quality: 0.9, preferWebP: false });
+
       // Create preview
-      const objectUrl = URL.createObjectURL(file);
+      const objectUrl = URL.createObjectURL(optimized);
       setPreviewUrl(objectUrl);
 
       // Upload to Supabase Storage
-      const fileExt = file.name.split('.').pop();
+      const fileExt = optimized.name.split('.').pop();
       const fileName = `${companyId}/logo.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('company-logos')
-        .upload(fileName, file, { upsert: true });
+        .upload(fileName, optimized, { upsert: true });
 
       if (uploadError) throw uploadError;
 

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyId } from "@/hooks/useCompanyId";
 import { useToast } from "@/hooks/use-toast";
+import { optimizeImage } from "@/lib/image-optimizer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -191,9 +192,10 @@ export function Products() {
     if (!file || !companyId) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      const optimized = await optimizeImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.85 });
+      const ext = optimized.name.split(".").pop();
       const fileName = `${companyId}/products/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("company-logos").upload(fileName, file, { upsert: true });
+      const { error: upErr } = await supabase.storage.from("company-logos").upload(fileName, optimized, { upsert: true });
       if (upErr) throw upErr;
       const { data: { publicUrl } } = supabase.storage.from("company-logos").getPublicUrl(fileName);
       setFormData(f => ({ ...f, image_url: publicUrl }));
