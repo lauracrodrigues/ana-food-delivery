@@ -29,6 +29,11 @@ interface CustomerSheetProps {
   products: Product[];
   loyaltyPoints?: number;
   loyaltyConfig?: LoyaltyConfig;
+  // Controle externo opcional — quando setado, sobrescreve estado interno
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
+  defaultTab?: "orders" | "favorites" | "points";
   onIdentify: (name: string, phone: string) => void;
   onClearSession: () => void;
   onRefreshHistory: () => void;
@@ -76,9 +81,16 @@ export function CustomerSheetTrigger({ session, favoritesCount, onClick }: {
 
 export function CustomerSheet({
   companyId, session, history, favorites, products, loyaltyPoints = 0, loyaltyConfig,
+  open: externalOpen, onOpenChange: externalOnOpenChange, hideTrigger, defaultTab = "orders",
   onIdentify, onClearSession, onRefreshHistory, onRepeatOrder, onViewOrder,
 }: CustomerSheetProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  // Modo controlado se props externas presentes
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (externalOnOpenChange) externalOnOpenChange(v);
+    else setInternalOpen(v);
+  };
   const [identifyForm, setIdentifyForm] = useState({ name: "", phone: "" });
   const [refreshing, setRefreshing] = useState(false);
   const [lookupDone, setLookupDone] = useState(false);
@@ -122,11 +134,13 @@ export function CustomerSheet({
 
   return (
     <>
-      <CustomerSheetTrigger
-        session={session}
-        favoritesCount={favorites.length}
-        onClick={() => setOpen(true)}
-      />
+      {!hideTrigger && (
+        <CustomerSheetTrigger
+          session={session}
+          favoritesCount={favorites.length}
+          onClick={() => setOpen(true)}
+        />
+      )}
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl px-0">
           <SheetHeader className="px-4 pb-3 border-b">
@@ -180,7 +194,7 @@ export function CustomerSheet({
             </div>
           ) : (
             /* Conta identificada: tabs Pedidos + Favoritos + Pontos */
-            <Tabs defaultValue="orders" className="flex flex-col h-[calc(80vh-80px)]">
+            <Tabs defaultValue={defaultTab} className="flex flex-col h-[calc(80vh-80px)]">
               <TabsList className="mx-4 mt-3 grid grid-cols-3">
                 <TabsTrigger value="orders" className="flex items-center gap-1.5">
                   <ShoppingBag className="h-3.5 w-3.5" />

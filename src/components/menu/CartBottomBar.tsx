@@ -45,6 +45,10 @@ interface CartBottomBarProps {
   onCheckout: () => void;
   allProducts?: UpsellProduct[];
   onUpsellSelect?: (p: UpsellProduct) => void;
+  // Controle externo opcional
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideBar?: boolean; // esconde barra inferior fixa (quando MenuBottomNav presente)
 }
 
 export function CartBottomBar({
@@ -57,10 +61,19 @@ export function CartBottomBar({
   onCheckout,
   allProducts,
   onUpsellSelect,
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
+  hideBar,
 }: CartBottomBarProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (externalOnOpenChange) externalOnOpenChange(v);
+    else setInternalOpen(v);
+  };
 
-  if (cart.length === 0) return null;
+  // Sem itens: nenhuma UI (mas mantém renderização do Sheet vazio se controlado)
+  if (cart.length === 0 && !externalOpen) return null;
 
   const itemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
 
@@ -70,7 +83,7 @@ export function CartBottomBar({
   return (
     <>
       {/* Barra fixa */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
+      {!hideBar && <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
         {/* Barra de progresso valor mínimo */}
         {belowMin && (
           <div className="bg-amber-500 text-white px-4 py-1.5 flex items-center gap-2 text-xs">
@@ -100,7 +113,7 @@ export function CartBottomBar({
             <span className="font-bold text-base">{formatCurrency(total)}</span>
           </button>
         </div>
-      </div>
+      </div>}
 
       {/* Sheet — detalhe do carrinho */}
       <Sheet open={open} onOpenChange={setOpen}>

@@ -15,6 +15,8 @@ import { ProductAddModal, SelectedExtra } from "@/components/menu/ProductAddModa
 import { CustomerSheet } from "@/components/menu/CustomerSheet";
 import { InstallPrompt } from "@/components/menu/InstallPrompt";
 import { MenuThemeToggle } from "@/components/menu/MenuThemeToggle";
+import { MenuBottomNav, type MenuView } from "@/components/menu/MenuBottomNav";
+import { PromosSheet } from "@/components/menu/PromosSheet";
 import { TrackingScripts, trackEvent } from "@/components/menu/TrackingScripts";
 import { useAbandonedCartReminder } from "@/hooks/useAbandonedCartReminder";
 import { Loader2, ChefHat, Search, X } from "lucide-react";
@@ -106,6 +108,11 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
   const [banners, setBanners] = useState<{ id: string; image_url: string; link_type: string | null; link_value: string | null }[]>([]);
   const [activeBanner, setActiveBanner] = useState(0);
   const [quickAddProduct, setQuickAddProduct] = useState<Product | null>(null);
+  // Navegação 4 abas estilo Anota.AI (mobile)
+  const [activeView, setActiveView] = useState<MenuView>("home");
+  const [showCustomerSheet, setShowCustomerSheet] = useState(false);
+  const [showPromosSheet, setShowPromosSheet] = useState(false);
+  const [showCartSheet, setShowCartSheet] = useState(false);
 
   const tableNumber = searchParams.get('mesa');
   // Cupom pré-aplicado via link compartilhado (?cupom=CODE)
@@ -380,6 +387,32 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
     setQuickAddProduct(product);
   };
 
+  // Handler do menu inferior — cada aba abre sheet correspondente
+  const handleBottomNavChange = (view: MenuView) => {
+    setActiveView(view);
+    if (view === "home") {
+      // Fecha sheets abertos + scroll topo
+      setShowCustomerSheet(false);
+      setShowPromosSheet(false);
+      setShowCartSheet(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (view === "orders") {
+      setShowCustomerSheet(true);
+      setShowPromosSheet(false);
+      setShowCartSheet(false);
+    } else if (view === "promos") {
+      setShowPromosSheet(true);
+      setShowCustomerSheet(false);
+      setShowCartSheet(false);
+    } else if (view === "cart") {
+      setShowCartSheet(true);
+      setShowCustomerSheet(false);
+      setShowPromosSheet(false);
+    }
+  };
+
+  const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -402,7 +435,7 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
   const activeCategories = categories.filter(c => c.on_off);
 
   return (
-    <div className="min-h-screen bg-background pb-24 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <MenuHeader
         company={company}
         themeSlot={<MenuThemeToggle />}
@@ -420,6 +453,8 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
             onRefreshHistory={refreshStatuses}
             onRepeatOrder={handleRepeatOrder}
             onViewOrder={(orderId) => setTrackingOrderId(orderId)}
+            open={showCustomerSheet}
+            onOpenChange={(o) => { setShowCustomerSheet(o); if (!o && activeView === "orders") setActiveView("home"); }}
           />
         }
       />
@@ -547,6 +582,26 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
         onCheckout={() => setShowCheckout(true)}
         allProducts={decoratedProducts}
         onUpsellSelect={handleQuickAdd}
+        open={showCartSheet}
+        onOpenChange={(o) => { setShowCartSheet(o); if (!o && activeView === "cart") setActiveView("home"); }}
+        hideBar
+      />
+
+      {/* Sheet de Promoções (cupons + pontos + combos) */}
+      <PromosSheet
+        open={showPromosSheet}
+        onOpenChange={(o) => { setShowPromosSheet(o); if (!o && activeView === "promos") setActiveView("home"); }}
+        companyId={company.id}
+        customerPhone={session?.phone}
+        loyaltyPoints={loyaltyPoints}
+        loyaltyConfig={loyaltyConfig}
+      />
+
+      {/* Menu inferior fixo (4 abas, mobile-only) */}
+      <MenuBottomNav
+        active={activeView}
+        cartCount={totalCartItems}
+        onChange={handleBottomNavChange}
       />
 
       {/* Modal de extras para adição rápida (MenuSections) */}
