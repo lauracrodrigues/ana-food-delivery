@@ -1,9 +1,10 @@
-// v1.3.0 — UserThemeSync aplica tema por usuário, nunca vaza para login
+// v1.4.0 — UserThemeSync + sino de notificações globais
 import { ReactNode, useEffect } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { initializeColorPalette, resetPalette } from "@/hooks/use-color-palette";
 import { UserThemeSync } from "@/components/layout/UserThemeSync";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -30,6 +31,12 @@ export function DashboardLayout({ children, fullScreen }: DashboardLayoutProps) 
       <UserThemeSync />
       <div className={`relative flex w-full bg-background ${fullScreen ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
         <AppSidebar />
+        {/* Sino de notificações — fixo top-right em todas páginas admin */}
+        <div className="fixed top-3 right-3 lg:right-4 z-40">
+          <div className="bg-background/90 backdrop-blur rounded-full shadow-sm border">
+            <NotificationBell />
+          </div>
+        </div>
         <main className={`flex-1 transition-all duration-300 lg:ml-0 pt-16 lg:pt-0 ${fullScreen ? 'overflow-hidden flex flex-col' : 'overflow-auto'}`}>
           {fullScreen ? (
             children
