@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppSessionList } from "@/components/whatsapp/WhatsAppSessionList";
 import { WhatsAppTestMessage } from "@/components/whatsapp/WhatsAppTestMessage";
+import { WelcomeMessageEditor } from "@/components/whatsapp/WelcomeMessageEditor";
 import { WhatsAppStatusMessages } from "@/components/whatsapp/WhatsAppStatusMessages";
 import { WhatsAppSessionDialog } from "@/components/whatsapp/WhatsAppSessionDialog";
 import { WhatsAppQRCodeDialog } from "@/components/whatsapp/WhatsAppQRCodeDialog";
@@ -644,14 +645,15 @@ export default function WhatsApp() {
       </div>
 
       <Tabs defaultValue="sessions" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="sessions">Sessões</TabsTrigger>
           <TabsTrigger value="bot">
             <Bot className="h-4 w-4 mr-1" />
             Bot
           </TabsTrigger>
-          <TabsTrigger value="test">Teste de Envio</TabsTrigger>
-          <TabsTrigger value="status">Mensagens de Status</TabsTrigger>
+          <TabsTrigger value="welcome">Boas-vindas</TabsTrigger>
+          <TabsTrigger value="test">Teste</TabsTrigger>
+          <TabsTrigger value="status">Status</TabsTrigger>
         </TabsList>
 
         <TabsContent value="sessions">
@@ -978,6 +980,10 @@ export default function WhatsApp() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="welcome">
+          <WelcomeMessageEditor />
         </TabsContent>
 
         <TabsContent value="test">

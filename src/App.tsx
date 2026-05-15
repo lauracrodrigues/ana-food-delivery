@@ -54,6 +54,7 @@ const Loyalty = lazy(() => import("./pages/Loyalty"));
 const MenuPrint = lazy(() => import("./pages/MenuPrint"));
 const Marketing = lazy(() => import("./pages/Marketing"));
 const Combos = lazy(() => import("./pages/Combos"));
+const DailyMenu = lazy(() => import("./pages/DailyMenu"));
 const Deliverers = lazy(() => import("./pages/Deliverers").then(m => ({ default: m.Deliverers })));
 const DelivererDashboard = lazy(() => import("./pages/DelivererDashboard"));
 const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
@@ -223,6 +224,7 @@ const App = () => {
               <Route path="/loyalty" element={<Loyalty />} />
               <Route path="/marketing" element={<Marketing />} />
               <Route path="/combos" element={<Combos />} />
+              <Route path="/daily-menu" element={<DailyMenu />} />
 
               {/* Protected admin-only routes */}
               <Route path="/users" element={

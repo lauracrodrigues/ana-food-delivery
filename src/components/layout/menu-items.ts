@@ -2,7 +2,7 @@
 import {
   ShoppingBag, Settings, Package, Users, Tag, MessageSquare, Building2, MapPin,
   Store, CreditCard, Menu, LayoutGrid, Wallet, Receipt, Clock,
-  TrendingUp, Truck, Ticket, BarChart3, Sparkles, Megaphone, LayoutDashboard, Gift,
+  TrendingUp, Truck, Ticket, BarChart3, Sparkles, Megaphone, LayoutDashboard, Gift, Calendar,
 } from "lucide-react";
 import { MotoIcon } from "@/components/ui/moto-icon";
 
@@ -59,8 +59,9 @@ export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuIte
     {
       title: "WhatsApp", icon: MessageSquare,
       subItems: [
-        { title: "Conversas",     url: "/whatsapp-chat", icon: MessageSquare },
-        { title: "Configurações", url: "/whatsapp",      icon: Settings },
+        { title: "Conversas",       url: "/whatsapp-chat", icon: MessageSquare },
+        { title: "Configurações",   url: "/whatsapp",      icon: Settings },
+        { title: "Cardápio do Dia", url: "/daily-menu",    icon: Calendar },
       ],
     },
     {
