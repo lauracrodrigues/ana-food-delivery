@@ -10,26 +10,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Save, MessageSquare, UserPlus, UserCheck, ExternalLink, Info } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const DEFAULT_NEW = `Olá! Seja bem-vindo(a) ao {empresa} 👋
+const DEFAULT_NEW = `Olá! Seja bem-vindo(a) à *{empresa}* 🍱
 
-Hoje nosso cardápio é:
-
+Hoje temos:
 {cardapio_dia}
 
-Para fazer seu pedido, nos informe:
-🍱 Tamanho da marmita
-📍 Seu endereço completo
-💳 Forma de pagamento
+Temos também bebidas 🥤 e sobremesas 🍰 — é só pedir!
 
-Logo iremos te atender!`;
+O que vai querer?`;
 
-const DEFAULT_RETURNING = `Olá, {nome}! Que bom te ver de novo no {empresa} 👋
+const DEFAULT_RETURNING = `Olá, *{nome}*! Bom te ver de volta na *{empresa}* 👋
 
-Hoje nosso cardápio é:
-
+Hoje temos:
 {cardapio_dia}
 
-Qual marmita você quer hoje?`;
+Temos também bebidas 🥤 e sobremesas 🍰 — é só pedir!
+
+O que vai querer hoje?`;
 
 interface WelcomeForm {
   welcome_message_new: string;
@@ -124,8 +121,13 @@ export function WelcomeMessageEditor() {
           />
           <div className="text-xs text-muted-foreground space-y-1">
             <p className="font-medium">Variáveis disponíveis:</p>
-            <code className="bg-muted px-1 rounded">{"{empresa}"}</code> — nome fantasia ou razão social<br/>
-            <code className="bg-muted px-1 rounded">{"{cardapio_dia}"}</code> — cardápio do dia formatado (gerencie em <Link to="/daily-menu" className="text-primary underline">Cardápio do Dia <ExternalLink className="h-3 w-3 inline" /></Link>)
+            <code className="bg-muted px-1 rounded">{"{empresa}"}</code> — nome fantasia da loja<br/>
+            <code className="bg-muted px-1 rounded">{"{cardapio_dia}"}</code> — cardápio formatado automaticamente:<br/>
+            <span className="ml-4 text-[10px] font-mono whitespace-pre">{`🍱 Marmitas: Pequena R$20 / Grande R$22
+🥩 Proteínas: Frango, Churrasco, ...
+🍚 Acompanhamentos: Arroz, Feijão, ...
+🥗 Saladas: Beterraba, Alface, ...`}</span><br/>
+            Editar itens em <Link to="/daily-menu" className="text-primary underline">Cardápio do Dia <ExternalLink className="h-3 w-3 inline" /></Link>
           </div>
         </CardContent>
       </Card>
