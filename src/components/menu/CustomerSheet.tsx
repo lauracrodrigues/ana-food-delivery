@@ -1,5 +1,7 @@
-// v1.1.0 — Sheet de conta do cliente: identificação, histórico, favoritos, pontos fidelidade
-import { useState } from "react";
+// v1.2.0 — Sheet conta + lookup automático por telefone (reconhece em aparelho novo)
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { useCustomerLookup } from "@/hooks/useCustomerLookup";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -73,17 +75,41 @@ export function CustomerSheetTrigger({ session, favoritesCount, onClick }: {
 }
 
 export function CustomerSheet({
-  session, history, favorites, products, loyaltyPoints = 0, loyaltyConfig,
+  companyId, session, history, favorites, products, loyaltyPoints = 0, loyaltyConfig,
   onIdentify, onClearSession, onRefreshHistory, onRepeatOrder, onViewOrder,
 }: CustomerSheetProps) {
   const [open, setOpen] = useState(false);
   const [identifyForm, setIdentifyForm] = useState({ name: "", phone: "" });
   const [refreshing, setRefreshing] = useState(false);
+  const [lookupDone, setLookupDone] = useState(false);
+  const { toast } = useToast();
+  const { lookupByPhone } = useCustomerLookup(companyId);
+
+  // Auto-lookup: ao digitar telefone (10+ dígitos) sem nome, busca cliente existente
+  useEffect(() => {
+    if (lookupDone) return;
+    const phoneDigits = identifyForm.phone.replace(/\D/g, "");
+    if (phoneDigits.length < 10) return;
+    if (identifyForm.name.trim()) return; // já preencheu nome
+
+    const timer = setTimeout(async () => {
+      const result = await lookupByPhone(identifyForm.phone);
+      if (!result.found) { setLookupDone(true); return; }
+      setIdentifyForm(prev => ({ ...prev, name: prev.name.trim() || result.name || "" }));
+      setLookupDone(true);
+      toast({
+        title: `Bem-vindo de volta! 👋`,
+        description: `${result.name} — ${result.totalOrders} pedido(s) anteriores`,
+      });
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [identifyForm.phone, identifyForm.name, lookupDone, lookupByPhone, toast]);
 
   const handleIdentify = () => {
     if (!identifyForm.name.trim() || !identifyForm.phone.trim()) return;
     onIdentify(identifyForm.name.trim(), identifyForm.phone.trim());
     setIdentifyForm({ name: "", phone: "" });
+    setLookupDone(false);
   };
 
   const handleRefresh = async () => {

@@ -18,6 +18,7 @@ import { CouponInput } from "./CouponInput";
 import { CouponData, CouponValidationResult, validateCoupon } from "@/lib/coupon-validator";
 import type { CustomerSession } from "@/hooks/useCustomerSession";
 import type { LoyaltyConfig } from "@/hooks/useLoyaltyPoints";
+import { useCustomerLookup } from "@/hooks/useCustomerLookup";
 
 interface SelectedExtra {
   id: string;
@@ -179,6 +180,8 @@ export function MenuCheckout({
   const [appliedCoupon, setAppliedCoupon] = useState<CouponData | null>(null);
   const [couponResult, setCouponResult] = useState<CouponValidationResult | null>(null);
   const [redeemPointsActive, setRedeemPointsActive] = useState(false);
+  const [lookupDone, setLookupDone] = useState(false); // evita lookup repetido
+  const { lookupByPhone } = useCustomerLookup(company.id);
 
   const [formData, setFormData] = useState({
     customer_name: session?.name ?? "",
@@ -207,6 +210,34 @@ export function MenuCheckout({
   const redeemDiscount = redeemPointsActive ? redeemBlocks * redeemValue : 0;
 
   const finalTotal = Math.max(0, total + deliveryFee - couponDiscount - redeemDiscount);
+
+  // Lookup automático por telefone: ao digitar 10+ dígitos sem nome preenchido,
+  // busca dados do cliente em pedidos anteriores e auto-preenche
+  useEffect(() => {
+    if (lookupDone || isTableOrder) return;
+    const phoneDigits = formData.customer_phone.replace(/\D/g, "");
+    if (phoneDigits.length < 10) return;
+    // Já tem nome preenchido (provavelmente veio da session)? não sobrescreve
+    if (formData.customer_name.trim() && formData.address.trim()) return;
+
+    const timer = setTimeout(async () => {
+      const result = await lookupByPhone(formData.customer_phone);
+      if (!result.found) { setLookupDone(true); return; }
+
+      setFormData(prev => ({
+        ...prev,
+        customer_name: prev.customer_name.trim() || result.name || "",
+        address: prev.address.trim() || result.lastAddress || "",
+      }));
+      setLookupDone(true);
+      toast({
+        title: `Bem-vindo de volta! 👋`,
+        description: `${result.name || "Cliente"} — você já fez ${result.totalOrders} pedido(s) aqui.`,
+      });
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [formData.customer_phone, formData.customer_name, formData.address, lookupDone, isTableOrder, lookupByPhone, toast]);
 
   // Pré-aplica cupom passado via link compartilhado (?cupom=CODE)
   useEffect(() => {
