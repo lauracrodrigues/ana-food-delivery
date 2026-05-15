@@ -1,5 +1,6 @@
 // v3.2.0 — Financeiro: usa status-helpers, useStoreSettings, useWhatsAppSend centralizados
 import { useState, useMemo } from 'react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompanyId } from '@/hooks/useCompanyId';
@@ -82,6 +83,20 @@ type BillStatus = 'all' | 'pending' | 'overdue' | 'paid';
 
 // ────────────────────────────────────────────────────────────
 // Constantes
+
+// Cores semânticas por forma de pagamento (consistência visual donut + barras)
+const PAY_COLORS: Record<string, string> = {
+  pix: '#10b981',        // verde — PIX
+  pix_mp: '#10b981',
+  cartao: '#3b82f6',     // azul — cartão
+  cartao_credito: '#3b82f6',
+  cartao_debito: '#6366f1',
+  dinheiro: '#f59e0b',   // âmbar — dinheiro
+  vale_refeicao: '#8b5cf6',
+  vale_alimentacao: '#a855f7',
+  fiado: '#ef4444',      // vermelho — fiado
+  default: '#94a3b8',    // cinza — outros
+};
 
 const EXPENSE_CATEGORIES = [
   { value: 'insumos', label: 'Insumos / Matéria-Prima' },
@@ -522,27 +537,67 @@ function RelatoriosTab({ start, end, periodLabel }: { start: Date; end: Date; pe
             ) : summary.by_payment.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">Nenhuma venda no período</p>
             ) : (
-              <div className="space-y-3">
-                {summary.by_payment.map(p => {
-                  const Icon = getPaymentIcon(p.method);
-                  const pct = summary.gross_revenue > 0 ? (p.total / summary.gross_revenue) * 100 : 0;
-                  return (
-                    <div key={p.method}>
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4 text-muted-foreground" />
-                          <span>{getPaymentLabel(p.method)}</span>
-                          <span className="text-xs text-muted-foreground">({p.count}x)</span>
+              <>
+                {/* Donut chart: distribuição percentual por método */}
+                <div className="h-44 mb-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={summary.by_payment.map(p => ({ name: getPaymentLabel(p.method), value: p.total, method: p.method }))}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={70}
+                        paddingAngle={2}
+                      >
+                        {summary.by_payment.map((p) => (
+                          <Cell
+                            key={p.method}
+                            fill={PAY_COLORS[p.method] || PAY_COLORS.default}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number) => formatCurrency(value)}
+                        contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                      />
+                      <Legend
+                        layout="horizontal"
+                        verticalAlign="bottom"
+                        align="center"
+                        iconSize={8}
+                        wrapperStyle={{ fontSize: 11 }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Barras detalhadas com count */}
+                <div className="space-y-3">
+                  {summary.by_payment.map(p => {
+                    const Icon = getPaymentIcon(p.method);
+                    const pct = summary.gross_revenue > 0 ? (p.total / summary.gross_revenue) * 100 : 0;
+                    const color = PAY_COLORS[p.method] || PAY_COLORS.default;
+                    return (
+                      <div key={p.method}>
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <div className="flex items-center gap-2">
+                            <Icon className="w-4 h-4 text-muted-foreground" />
+                            <span>{getPaymentLabel(p.method)}</span>
+                            <span className="text-xs text-muted-foreground">({p.count}x · {pct.toFixed(1)}%)</span>
+                          </div>
+                          <span className="font-medium">{formatCurrency(p.total)}</span>
                         </div>
-                        <span className="font-medium">{formatCurrency(p.total)}</span>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+                        </div>
                       </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
