@@ -2,7 +2,7 @@
 import {
   ShoppingBag, Settings, Package, Users, Tag, MessageSquare, Building2, MapPin,
   Store, CreditCard, Menu, LayoutGrid, Wallet, Receipt, Clock,
-  TrendingUp, Truck, Ticket, BarChart3, Sparkles, Megaphone, LayoutDashboard,
+  TrendingUp, Truck, Ticket, BarChart3, Sparkles, Megaphone, LayoutDashboard, Gift,
 } from "lucide-react";
 import { MotoIcon } from "@/components/ui/moto-icon";
 
@@ -53,6 +53,7 @@ export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuIte
         { title: "Formas de Pagamento", url: "/payment-methods",  icon: CreditCard },
         { title: "Cupons",              url: "/coupons",          icon: Ticket },
         { title: "Campanhas",           url: "/campaigns",        icon: Sparkles },
+        { title: "Combos",              url: "/combos",           icon: Gift },
       ],
     },
     {

@@ -27,6 +27,8 @@ import { useOrderHistory } from "@/hooks/useOrderHistory";
 import { useLoyaltyPoints } from "@/hooks/useLoyaltyPoints";
 import { useProductViewTracker } from "@/hooks/useProductViewTracker";
 import { useActiveCampaigns } from "@/hooks/useActiveCampaigns";
+import { usePopularProducts } from "@/hooks/usePopularProducts";
+import { OrderAgainSection } from "@/components/menu/OrderAgainSection";
 import { useDocumentMeta } from "@/hooks/useDocumentMeta";
 
 interface Company {
@@ -135,6 +137,7 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
   const { points: loyaltyPoints, fetchPoints: refreshLoyalty } = useLoyaltyPoints(company?.id ?? "", session?.phone);
   const { trackView } = useProductViewTracker(company?.id ?? "");
   const { getDiscount: getCampaignDiscount } = useActiveCampaigns(company?.id ?? "");
+  const { popularIds } = usePopularProducts(company?.id ?? "");
 
   // Push de carrinho abandonado: agenda 10min após última mudança no cart
   useAbandonedCartReminder({
@@ -534,12 +537,23 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
           <div className="lg:col-span-2 space-y-6">
             {/* Seções de destaque — só no modo normal */}
             {!searchQuery && (
+              {/* Peça novamente — só pra clientes com histórico */}
+              {session && history.length > 0 && (
+                <OrderAgainSection
+                  history={history}
+                  allProducts={decoratedProducts}
+                  onAdd={handleQuickAdd}
+                  favorites={favorites}
+                  onToggleFavorite={toggleFavorite}
+                />
+              )}
               <MenuSections
                 products={decoratedProducts}
                 onAdd={handleQuickAdd}
                 favorites={favorites}
                 onToggleFavorite={toggleFavorite}
                 onProductView={trackView}
+                popularProductIds={popularIds}
               />
             )}
 

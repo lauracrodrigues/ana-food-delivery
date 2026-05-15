@@ -1,4 +1,4 @@
-// v1.1.0 — Seções destaque + view tracking
+// v1.2.0 — Seções destaque + view tracking + mais pedidos automático
 import { formatCurrency } from "@/lib/currency-formatter";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { ProductCard } from "./ProductCard";
@@ -20,6 +20,7 @@ interface MenuSectionsProps {
   favorites?: string[];
   onToggleFavorite?: (productId: string) => void;
   onProductView?: (productId: string) => void;
+  popularProductIds?: string[]; // calculados via RPC get_popular_products
 }
 
 interface SectionConfig {
@@ -89,12 +90,32 @@ function SectionStrip({
   );
 }
 
-export function MenuSections({ products, onAdd, favorites, onToggleFavorite, onProductView }: MenuSectionsProps) {
-  const hasSections = SECTIONS.some((s) => products.some(s.filter));
+export function MenuSections({ products, onAdd, favorites, onToggleFavorite, onProductView, popularProductIds }: MenuSectionsProps) {
+  // Mais pedidos: ordena produtos pelo ranking da RPC
+  const popularProducts = popularProductIds
+    ? popularProductIds
+        .map(id => products.find(p => p.id === id))
+        .filter((p): p is Product => !!p)
+    : [];
+
+  const hasSections = SECTIONS.some((s) => products.some(s.filter)) || popularProducts.length > 0;
   if (!hasSections) return null;
 
   return (
     <div className="mb-2">
+      {/* Seção Mais Pedidos — primeiro, antes de promoções/badges manuais */}
+      {popularProducts.length > 0 && (
+        <SectionStrip
+          title="Os mais pedidos"
+          emoji="🏆"
+          products={popularProducts}
+          onAdd={onAdd}
+          favorites={favorites}
+          onToggleFavorite={onToggleFavorite}
+          onProductView={onProductView}
+        />
+      )}
+
       {SECTIONS.map((section) => {
         const sectionProducts = products.filter(section.filter);
         return (

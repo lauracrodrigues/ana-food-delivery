@@ -23,6 +23,19 @@ interface PublicCoupon {
   is_active: boolean;
 }
 
+interface ComboCampaign {
+  id: string;
+  name: string;
+  description: string | null;
+  trigger_type: "qty_get" | "min_value";
+  trigger_qty: number | null;
+  trigger_value: number | null;
+  reward_discount_pct: number;
+  valid_until: string | null;
+  reward_product?: { name: string } | null;
+  trigger_product?: { name: string } | null;
+}
+
 interface PromosSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -38,27 +51,37 @@ export function PromosSheet({
 }: PromosSheetProps) {
   const { toast } = useToast();
   const [coupons, setCoupons] = useState<PublicCoupon[]>([]);
+  const [combos, setCombos] = useState<ComboCampaign[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Carrega cupons disponíveis quando sheet abre
+  // Carrega cupons + combos quando sheet abre
   useEffect(() => {
     if (!open || !companyId) return;
     (async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("coupons")
-        .select("*")
-        .eq("company_id", companyId)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
-      // Filtra expirados e exauridos client-side
+      const [couponsRes, combosRes] = await Promise.all([
+        supabase.from("coupons").select("*").eq("company_id", companyId).eq("is_active", true).order("created_at", { ascending: false }),
+        supabase.from("combo_campaigns" as any).select(`
+          *,
+          reward_product:products!combo_campaigns_reward_product_id_fkey(name),
+          trigger_product:products!combo_campaigns_trigger_product_id_fkey(name)
+        `).eq("company_id", companyId).eq("is_active", true).order("created_at", { ascending: false }),
+      ]);
+      // Cupons: filtra expirados/exauridos client-side
       const now = new Date();
-      const available = (data || []).filter((c: any) => {
+      const availableCoupons = (couponsRes.data || []).filter((c: any) => {
         if (c.valid_until && new Date(c.valid_until) < now) return false;
         if (c.max_uses != null && (c.uses_count ?? 0) >= c.max_uses) return false;
         return true;
       });
-      setCoupons(available as PublicCoupon[]);
+      setCoupons(availableCoupons as PublicCoupon[]);
+      // Combos: filtra expirados
+      const today = now.toISOString().slice(0, 10);
+      const availableCombos = (combosRes.data || []).filter((c: any) => {
+        if (c.valid_until && c.valid_until < today) return false;
+        return true;
+      });
+      setCombos(availableCombos as ComboCampaign[]);
       setLoading(false);
     })();
   }, [open, companyId]);
@@ -93,7 +116,7 @@ export function PromosSheet({
               {coupons.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1 rounded-full">{coupons.length}</span>}
             </TabsTrigger>
             <TabsTrigger value="cashback" className="gap-1.5">
-              <Sparkles className="h-3.5 w-3.5" /> Pontos
+              <Sparkles className="h-3.5 w-3.5" /> Cashback
             </TabsTrigger>
             <TabsTrigger value="combos" className="gap-1.5">
               <Gift className="h-3.5 w-3.5" /> Combos
@@ -204,11 +227,47 @@ export function PromosSheet({
           {/* === COMBOS / COMPRE E GANHE === */}
           <TabsContent value="combos" className="flex-1 overflow-hidden mt-0">
             <ScrollArea className="h-full px-4 pt-2">
-              <div className="text-center py-12 text-muted-foreground">
-                <Gift className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm font-medium">Em breve</p>
-                <p className="text-xs mt-1">Combos especiais e promoções compre-e-ganhe</p>
-              </div>
+              {loading ? (
+                <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : combos.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Gift className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm font-medium">Sem combos no momento</p>
+                  <p className="text-xs mt-1">Volte em breve! 🎁</p>
+                </div>
+              ) : (
+                <div className="space-y-3 pb-4">
+                  {combos.map(c => {
+                    const isQty = c.trigger_type === "qty_get";
+                    const triggerLabel = isQty
+                      ? `Compre ${c.trigger_qty} ${c.trigger_product?.name || "produtos selecionados"}`
+                      : `Gaste ${formatCurrency(c.trigger_value || 0)}`;
+                    const rewardLabel = c.reward_discount_pct === 100
+                      ? `Ganhe ${c.reward_product?.name || "produto"} grátis`
+                      : `Ganhe ${c.reward_discount_pct}% off em ${c.reward_product?.name || "produto"}`;
+                    return (
+                      <div key={c.id} className="border-2 border-purple-300 bg-purple-50 dark:bg-purple-950/20 rounded-xl p-3">
+                        <div className="flex items-start gap-2 mb-2">
+                          <Gift className="h-5 w-5 text-purple-600 shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="font-bold text-purple-900">{c.name}</p>
+                            {c.description && <p className="text-xs text-purple-700">{c.description}</p>}
+                          </div>
+                        </div>
+                        <div className="bg-white dark:bg-background rounded-lg p-2 space-y-1 text-sm">
+                          <p>📌 {triggerLabel}</p>
+                          <p className="text-green-700 font-medium">🎁 {rewardLabel}</p>
+                        </div>
+                        {c.valid_until && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Válido até {new Date(c.valid_until).toLocaleDateString("pt-BR")}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </ScrollArea>
           </TabsContent>
         </Tabs>

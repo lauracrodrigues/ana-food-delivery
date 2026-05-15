@@ -223,7 +223,12 @@ export function CustomerSheet({
                   {history.length === 0 ? (
                     <div className="text-center py-10 text-muted-foreground">
                       <ShoppingBag className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                      <p className="text-sm">Nenhum pedido ainda</p>
+                      <p className="text-sm font-medium">Você ainda não fez nenhum pedido</p>
+                      <p className="text-xs mb-4">Que tal experimentar nosso cardápio?</p>
+                      <Button onClick={() => setOpen(false)} size="sm" className="gap-1.5">
+                        <ShoppingBag className="h-3.5 w-3.5" />
+                        Adicionar produtos
+                      </Button>
                     </div>
                   ) : (
                     <div className="space-y-3 pb-4">
