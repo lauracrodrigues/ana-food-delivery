@@ -1,0 +1,74 @@
+// v1.0.0 — Definição de items do menu da sidebar (separado pra reduzir AppSidebar.tsx)
+import {
+  ShoppingBag, Settings, Package, Users, Tag, MessageSquare, Building2, MapPin,
+  Store, CreditCard, Menu, LayoutGrid, Wallet, Receipt, Clock,
+  TrendingUp, Truck, Ticket, BarChart3, Sparkles, Megaphone, LayoutDashboard,
+} from "lucide-react";
+import { MotoIcon } from "@/components/ui/moto-icon";
+
+export interface SubMenuItem {
+  title: string;
+  url: string;
+  icon?: React.ComponentType<{ className?: string }>;
+}
+
+export interface MenuItem {
+  title: string;
+  url?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  subItems?: SubMenuItem[];
+}
+
+export interface MenuItemsConfig {
+  isAdmin?: boolean;
+}
+
+export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuItem[] {
+  return [
+    { title: "Dashboard",  url: "/dashboard",  icon: LayoutDashboard },
+    { title: "PDV",        url: "/pdv",        icon: Receipt },
+    {
+      title: "Caixa", icon: Wallet,
+      subItems: [
+        { title: "Sessão Atual", url: "/caixa",           icon: Wallet },
+        { title: "Histórico",    url: "/caixa/historico", icon: Clock },
+      ],
+    },
+    { title: "Financeiro", url: "/financeiro", icon: TrendingUp },
+    { title: "Analytics",  url: "/analytics",  icon: BarChart3 },
+    { title: "Fidelidade", url: "/loyalty",    icon: Sparkles },
+    { title: "Marketing",  url: "/marketing",  icon: Megaphone },
+    { title: "Pedidos",    url: "/orders",     icon: ShoppingBag },
+    { title: "Cardápio",   url: "/menu",       icon: Menu },
+    {
+      title: "Cadastros", icon: Package,
+      subItems: [
+        { title: "Produtos",            url: "/products",         icon: Package },
+        { title: "Categorias",          url: "/categories",       icon: Tag },
+        { title: "Fornecedores",        url: "/distribuidoras",   icon: Truck },
+        ...(isAdmin ? [{ title: "Usuários", url: "/users", icon: Users }] : []),
+        { title: "Clientes",            url: "/customers",        icon: Users },
+        { title: "Entregadores",        url: "/entregadores",     icon: MotoIcon },
+        { title: "Taxas de Entrega",    url: "/delivery-fees",    icon: MapPin },
+        { title: "Formas de Pagamento", url: "/payment-methods",  icon: CreditCard },
+        { title: "Cupons",              url: "/coupons",          icon: Ticket },
+        { title: "Campanhas",           url: "/campaigns",        icon: Sparkles },
+      ],
+    },
+    {
+      title: "WhatsApp", icon: MessageSquare,
+      subItems: [
+        { title: "Conversas",     url: "/whatsapp-chat", icon: MessageSquare },
+        { title: "Configurações", url: "/whatsapp",      icon: Settings },
+      ],
+    },
+    {
+      title: "Configurações", icon: Settings,
+      subItems: [
+        { title: "Perfil da Empresa", url: "/company-profile", icon: Building2 },
+        { title: "Assinatura",        url: "/billing",         icon: CreditCard },
+        { title: "Gerais",            url: "/settings",        icon: Settings },
+      ],
+    },
+  ];
+}

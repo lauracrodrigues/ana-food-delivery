@@ -1,51 +1,17 @@
-// v1.5.0 — toggle tema dark/light no footer (padrão GitHub/Linear/Notion)
+// v1.6.0 — Items extraídos pra menu-items.ts (reduz 80 linhas)
 import { useState, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import {
-  ShoppingBag,
-  Settings,
-  LogOut,
-  LayoutDashboard,
-  Package,
-  Users,
-  ShoppingCart,
-  Tag,
-  Plus,
-  MessageSquare,
-  Building2,
-  MapPin,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Store,
-  Mail,
-  User,
-  CreditCard,
-  Pin,
-  PinOff,
-  X,
-  Menu,
-  LayoutGrid,
-  Wallet,
-  Receipt,
-  Clock,
-  Sun,
-  Moon,
-  TrendingUp,
-  Truck,
-  Ticket,
-  BarChart3,
-  Sparkles,
-  Megaphone,
+  LogOut, ChevronDown, Store, Mail, User, Pin, PinOff, X, Menu, Sun, Moon,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { saveUserTheme } from "@/components/layout/UserThemeSync";
-import { MotoIcon } from "@/components/ui/moto-icon";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useUserRole } from "@/hooks/use-user-role";
+import { getMenuItems } from "@/components/layout/menu-items";
 import {
   Sidebar,
   SidebarContent,
@@ -67,105 +33,6 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-
-interface MenuItem {
-  title: string;
-  url?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  subItems?: {
-    title: string;
-    url: string;
-    icon?: React.ComponentType<{ className?: string }>;
-  }[];
-}
-
-interface MenuItemsProps {
-  isAdmin?: boolean;
-}
-
-const getMenuItems = ({ isAdmin = false }: MenuItemsProps = {}): MenuItem[] => [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "PDV",
-    url: "/pdv",
-    icon: Receipt,
-  },
-  {
-    title: "Caixa",
-    icon: Wallet,
-    subItems: [
-      { title: "Sessão Atual", url: "/caixa", icon: Wallet },
-      { title: "Histórico", url: "/caixa/historico", icon: Clock },
-    ],
-  },
-  {
-    title: "Financeiro",
-    url: "/financeiro",
-    icon: TrendingUp,
-  },
-  {
-    title: "Analytics",
-    url: "/analytics",
-    icon: BarChart3,
-  },
-  {
-    title: "Fidelidade",
-    url: "/loyalty",
-    icon: Sparkles,
-  },
-  {
-    title: "Marketing",
-    url: "/marketing",
-    icon: Megaphone,
-  },
-  {
-    title: "Pedidos",
-    url: "/orders",
-    icon: ShoppingBag,
-  },
-  {
-    title: "Cardápio",
-    url: "/menu",
-    icon: Menu,
-  },
-  {
-    title: "Cadastros",
-    icon: Package,
-    subItems: [
-      { title: "Produtos", url: "/products", icon: Package },
-      { title: "Categorias", url: "/categories", icon: Tag },
-      { title: "Fornecedores", url: "/distribuidoras", icon: Truck },
-...(isAdmin ? [{ title: "Usuários", url: "/users", icon: Users }] : []),
-      { title: "Clientes", url: "/customers", icon: Users },
-      { title: "Entregadores", url: "/entregadores", icon: MotoIcon },
-      { title: "Taxas de Entrega", url: "/delivery-fees", icon: MapPin },
-      { title: "Formas de Pagamento", url: "/payment-methods", icon: CreditCard },
-      { title: "Cupons", url: "/coupons", icon: Ticket },
-      { title: "Campanhas", url: "/campaigns", icon: Sparkles },
-    ],
-  },
-  {
-    title: "WhatsApp",
-    icon: MessageSquare,
-    subItems: [
-      { title: "Conversas", url: "/whatsapp-chat", icon: MessageSquare },
-      { title: "Configurações", url: "/whatsapp", icon: Settings },
-    ],
-  },
-  {
-    title: "Configurações",
-    icon: Settings,
-    subItems: [
-      { title: "Perfil da Empresa", url: "/company-profile", icon: Building2 },
-      { title: "Assinatura", url: "/billing", icon: CreditCard },
-      { title: "Gerais", url: "/settings", icon: Settings },
-    ],
-  },
-];
 
 export function AppSidebar() {
   const { state, toggleSidebar, setOpen } = useSidebar();
