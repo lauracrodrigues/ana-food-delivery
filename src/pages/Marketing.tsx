@@ -225,16 +225,28 @@ export default function Marketing() {
               <CardTitle className="text-base">Domínio próprio</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="space-y-2">
+              {/* Aviso: feature ainda não disponível em produção */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
+                <p className="font-semibold text-amber-900 mb-1">🚧 Em breve</p>
+                <p className="text-amber-800 text-xs">
+                  Funcionalidade preparada mas ainda não liberada. Por enquanto, use seu cardápio
+                  no subdomínio gratuito: <code className="bg-amber-100 px-1 rounded">empresa.anafood.vip</code>.
+                </p>
+                <p className="text-amber-800 text-xs mt-2">
+                  Avise quando seu plano for atualizado para liberar domínio próprio.
+                </p>
+              </div>
+
+              <div className="space-y-2 opacity-60 pointer-events-none">
                 <Label>Seu domínio</Label>
                 <Input value={domain} onChange={e => setDomain(e.target.value)}
-                  placeholder="cardapio.minhaempresa.com.br" />
+                  placeholder="cardapio.minhaempresa.com.br" disabled />
                 <p className="text-xs text-muted-foreground">
                   Use um subdomínio (recomendado): ex. cardapio.suamarca.com.br
                 </p>
               </div>
 
-              <Button onClick={saveDomain} className="gap-2">
+              <Button onClick={saveDomain} className="gap-2 opacity-60" disabled>
                 <Save className="h-4 w-4" /> Salvar domínio
               </Button>
 
