@@ -1,4 +1,4 @@
-// v1.0.0 — Input de cupom com validação em tempo real
+// v1.1.0 — Input cupom + validação async first_order_only
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Tag, X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 interface CouponInputProps {
   companyId: string;
   cartTotal: number;
+  customerPhone?: string | null; // pra validar first_order_only
   onApply: (coupon: CouponData, result: CouponValidationResult) => void;
   onRemove: () => void;
   appliedCoupon: CouponData | null;
@@ -19,6 +20,7 @@ interface CouponInputProps {
 export function CouponInput({
   companyId,
   cartTotal,
+  customerPhone,
   onApply,
   onRemove,
   appliedCoupon,
@@ -48,7 +50,28 @@ export function CouponInput({
         return;
       }
 
-      const coupon = data as unknown as CouponData;
+      const coupon = data as unknown as CouponData & { first_order_only?: boolean };
+
+      // Validação async: cupom de primeira compra
+      if (coupon.first_order_only) {
+        if (!customerPhone) {
+          setError("Cupom só pra primeira compra — identifique-se primeiro");
+          return;
+        }
+        const phoneDigits = customerPhone.replace(/\D/g, "");
+        const { data: previousOrders } = await supabase
+          .from("orders")
+          .select("id")
+          .eq("company_id", companyId)
+          .ilike("customer_phone", `%${phoneDigits}%`)
+          .not("status", "eq", "cancelled")
+          .limit(1);
+        if (previousOrders && previousOrders.length > 0) {
+          setError("Cupom válido apenas pra primeira compra");
+          return;
+        }
+      }
+
       const result = validateCoupon(coupon, cartTotal);
 
       if (!result.valid) {

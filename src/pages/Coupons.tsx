@@ -38,6 +38,7 @@ interface Coupon {
   valid_days_of_week: number[] | null;
   valid_start_time: string | null;
   valid_end_time: string | null;
+  first_order_only?: boolean | null;
 }
 
 const emptyForm = {
@@ -50,6 +51,7 @@ const emptyForm = {
   min_order_value: "",
   discount_limit: "",
   free_shipping: false,
+  first_order_only: false,
   valid_days_of_week: [] as number[],
   valid_start_time: "",
   valid_end_time: "",
@@ -95,6 +97,7 @@ export default function Coupons() {
         min_order_value: form.min_order_value ? parseFloat(form.min_order_value) : null,
         discount_limit: form.discount_limit ? parseFloat(form.discount_limit) : null,
         free_shipping: form.free_shipping,
+        first_order_only: form.first_order_only,
         valid_days_of_week: form.valid_days_of_week.length > 0 ? form.valid_days_of_week : null,
         valid_start_time: form.valid_start_time || null,
         valid_end_time: form.valid_end_time || null,
@@ -157,6 +160,7 @@ export default function Coupons() {
       min_order_value: coupon.min_order_value?.toString() ?? "",
       discount_limit: coupon.discount_limit?.toString() ?? "",
       free_shipping: coupon.free_shipping ?? false,
+      first_order_only: coupon.first_order_only ?? false,
       valid_days_of_week: coupon.valid_days_of_week ?? [],
       valid_start_time: coupon.valid_start_time?.slice(0, 5) ?? "",
       valid_end_time: coupon.valid_end_time?.slice(0, 5) ?? "",
@@ -408,6 +412,18 @@ export default function Coupons() {
               <Switch
                 checked={form.free_shipping}
                 onCheckedChange={(v) => setForm({ ...form, free_shipping: v })}
+              />
+            </div>
+
+            {/* Primeira compra apenas */}
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Apenas primeira compra</Label>
+                <p className="text-xs text-muted-foreground">Cliente não pode ter pedido anterior na loja</p>
+              </div>
+              <Switch
+                checked={form.first_order_only}
+                onCheckedChange={(v) => setForm({ ...form, first_order_only: v })}
               />
             </div>
 

@@ -25,6 +25,7 @@ interface MenuHeaderProps {
   company: Company;
   customerSlot?: React.ReactNode; // botão de conta do cliente
   themeSlot?: React.ReactNode;    // toggle dark/light do cardápio
+  onProfileClick?: () => void;    // click no logo/nome abre StoreProfileSheet
 }
 
 function calcIsOpen(company: Company): boolean {
@@ -38,7 +39,7 @@ function calcIsOpen(company: Company): boolean {
   return cur >= toMin(schedule.open || "00:00") && cur <= toMin(schedule.close || "23:59");
 }
 
-export function MenuHeader({ company, customerSlot, themeSlot }: MenuHeaderProps) {
+export function MenuHeader({ company, customerSlot, themeSlot, onProfileClick }: MenuHeaderProps) {
   const open = calcIsOpen(company);
   const displayName = company.fantasy_name || company.name;
 
@@ -71,15 +72,22 @@ export function MenuHeader({ company, customerSlot, themeSlot }: MenuHeaderProps
 
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-start gap-4">
-          {/* Logo */}
+          {/* Logo — clica pra abrir perfil da loja */}
           {company.logo_url && (
-            <img
-              src={company.logo_url}
-              alt={displayName}
-              className="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-border bg-background shrink-0 shadow-sm"
-              loading="eager"
-              decoding="async"
-            />
+            <button
+              type="button"
+              onClick={onProfileClick}
+              className="shrink-0"
+              aria-label="Ver detalhes da loja"
+            >
+              <img
+                src={company.logo_url}
+                alt={displayName}
+                className="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-border bg-background shadow-sm cursor-pointer hover:scale-105 transition-transform"
+                loading="eager"
+                decoding="async"
+              />
+            </button>
           )}
 
           <div className="flex-1 min-w-0">

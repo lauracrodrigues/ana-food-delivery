@@ -17,6 +17,7 @@ import { InstallPrompt } from "@/components/menu/InstallPrompt";
 import { MenuThemeToggle } from "@/components/menu/MenuThemeToggle";
 import { MenuBottomNav, type MenuView } from "@/components/menu/MenuBottomNav";
 import { PromosSheet } from "@/components/menu/PromosSheet";
+import { StoreProfileSheet } from "@/components/menu/StoreProfileSheet";
 import { TrackingScripts, trackEvent } from "@/components/menu/TrackingScripts";
 import { useAbandonedCartReminder } from "@/hooks/useAbandonedCartReminder";
 import { Loader2, ChefHat, Search, X } from "lucide-react";
@@ -115,6 +116,7 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
   const [showCustomerSheet, setShowCustomerSheet] = useState(false);
   const [showPromosSheet, setShowPromosSheet] = useState(false);
   const [showCartSheet, setShowCartSheet] = useState(false);
+  const [showStoreProfile, setShowStoreProfile] = useState(false);
 
   const tableNumber = searchParams.get('mesa');
   // Cupom pré-aplicado via link compartilhado (?cupom=CODE)
@@ -442,6 +444,7 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
       <MenuHeader
         company={company}
         themeSlot={<MenuThemeToggle />}
+        onProfileClick={() => setShowStoreProfile(true)}
         customerSlot={
           <CustomerSheet
             companyId={company.id}
@@ -599,6 +602,7 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
         open={showCartSheet}
         onOpenChange={(o) => { setShowCartSheet(o); if (!o && activeView === "cart") setActiveView("home"); }}
         hideBar
+        companyId={company.id}
       />
 
       {/* Sheet de Promoções (cupons + pontos + combos) */}
@@ -656,6 +660,13 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
 
       {/* PWA install prompt — só aparece após 8s, dispensável */}
       <InstallPrompt companyName={company.fantasy_name || company.name} />
+
+      {/* Sheet perfil da loja */}
+      <StoreProfileSheet
+        open={showStoreProfile}
+        onOpenChange={setShowStoreProfile}
+        company={company}
+      />
 
       {/* Banner de pedido ativo */}
       {activeOrderBanner && !trackingOrderId && (

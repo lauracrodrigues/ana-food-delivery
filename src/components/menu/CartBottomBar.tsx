@@ -1,4 +1,4 @@
-// v1.2.0 — Carrinho mobile + barra progresso valor mínimo + upsell sugerido
+// v1.3.0 — Carrinho mobile + progresso valor mínimo + upsell + banner benefits combos
 import { useState } from "react";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { ShoppingCart, Plus, Minus, Trash2 } from "lucide-react";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CartUpsell } from "./CartUpsell";
+import { CartBenefitsBanner } from "./CartBenefitsBanner";
 
 interface SelectedExtra {
   id: string;
@@ -49,6 +50,7 @@ interface CartBottomBarProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   hideBar?: boolean; // esconde barra inferior fixa (quando MenuBottomNav presente)
+  companyId?: string; // pra carregar combos no banner de benefits
 }
 
 export function CartBottomBar({
@@ -64,6 +66,7 @@ export function CartBottomBar({
   open: externalOpen,
   onOpenChange: externalOnOpenChange,
   hideBar,
+  companyId,
 }: CartBottomBarProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = externalOpen !== undefined ? externalOpen : internalOpen;
@@ -132,6 +135,11 @@ export function CartBottomBar({
 
           <ScrollArea className="flex-1 h-[calc(80vh-160px)]">
             <div className="px-4 py-3 space-y-4">
+              {/* Banner combos compre-e-ganhe (progresso) */}
+              {companyId && cart.length > 0 && (
+                <CartBenefitsBanner companyId={companyId} cart={cart} cartTotal={total} />
+              )}
+
               {cart.map((item) => (
                 <div key={item.cartItemId} className="flex gap-3">
                   <div className="flex-1 min-w-0">

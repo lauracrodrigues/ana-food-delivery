@@ -623,6 +623,7 @@ export function MenuCheckout({
               <CouponInput
                 companyId={company.id}
                 cartTotal={total}
+                customerPhone={formData.customer_phone || session?.phone}
                 appliedCoupon={appliedCoupon}
                 appliedResult={couponResult}
                 onApply={(coupon, result) => {
