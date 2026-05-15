@@ -141,7 +141,7 @@ export function TablesSettings() {
       if (!companyId) return null;
       const { data, error } = await supabase
         .from('companies')
-        .select('subdomain, name')
+        .select('subdomain, name, fantasy_name, logo_url')
         .eq('id', companyId)
         .single();
       if (error) throw error;
@@ -150,17 +150,30 @@ export function TablesSettings() {
     enabled: !!companyId,
   });
 
+  // Gera URL pública do cardápio com mesa pré-selecionada
+  const getTableUrl = (tableNumber: string) => {
+    if (!company?.subdomain) return '';
+    // Em produção: https://pizzaria.anafood.vip/?mesa=5
+    // Em dev: usa origin atual + path do menu público
+    const isProd = !window.location.hostname.includes('localhost')
+      && !window.location.hostname.includes('workers.dev');
+    return isProd
+      ? `https://${company.subdomain}.anafood.vip/?mesa=${tableNumber}`
+      : `${window.location.origin}/menu/${company.subdomain}?mesa=${tableNumber}`;
+  };
+
   // Generate QR codes for tables
   useEffect(() => {
     if (company?.subdomain && tables.length > 0) {
       const generateQRCodes = async () => {
         const codes: Record<string, string> = {};
         for (const table of tables) {
-          const url = `${window.location.origin}/${company.subdomain}?mesa=${table.table_number}`;
+          const url = getTableUrl(table.table_number);
           try {
             codes[table.id] = await QRCode.toDataURL(url, {
-              width: 200,
-              margin: 1,
+              width: 300,
+              margin: 2,
+              errorCorrectionLevel: 'M',
               color: { dark: '#000000', light: '#ffffff' },
             });
           } catch (err) {
@@ -172,6 +185,7 @@ export function TablesSettings() {
       };
       generateQRCodes();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [company?.subdomain, tables]);
 
   // Create table mutation
@@ -348,47 +362,69 @@ export function TablesSettings() {
     if (!printWindow) return;
 
     const selectedTableData = tables.filter((t) => selectedTables.includes(t.id));
+    const companyName = (company as any)?.fantasy_name || company?.name || '';
+    const logoUrl = (company as any)?.logo_url || '';
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>QR Codes - ${company?.name || 'Mesas'}</title>
+        <meta charset="utf-8">
+        <title>QR Codes Mesa - ${companyName}</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-          .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-          .qr-card { 
-            border: 2px solid #000; 
-            padding: 20px; 
-            text-align: center; 
+          * { box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 12mm; color: #000; }
+          .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8mm; }
+          .qr-card {
+            border: 2px dashed #999;
+            border-radius: 8px;
+            padding: 8mm;
+            text-align: center;
             break-inside: avoid;
+            page-break-inside: avoid;
+            background: #fff;
           }
-          .qr-card img { max-width: 150px; }
-          .table-number { font-size: 24px; font-weight: bold; margin: 10px 0; }
-          .company-name { font-size: 14px; color: #666; }
-          .instructions { font-size: 12px; color: #888; margin-top: 10px; }
+          .logo { max-height: 18mm; max-width: 50mm; object-fit: contain; margin: 0 auto 4mm; display: block; }
+          .company-name { font-size: 13pt; font-weight: 600; color: #333; margin-bottom: 2mm; }
+          .table-label { font-size: 9pt; text-transform: uppercase; letter-spacing: 1.5px; color: #888; margin-bottom: 1mm; }
+          .table-number { font-size: 32pt; font-weight: bold; line-height: 1; margin-bottom: 5mm; color: #000; }
+          .qr-img { width: 55mm; height: 55mm; display: block; margin: 0 auto 5mm; }
+          .instructions { font-size: 11pt; font-weight: 600; color: #000; margin-bottom: 2mm; }
+          .sub-instructions { font-size: 8.5pt; color: #666; line-height: 1.4; }
+          .step { display: inline-block; background: #000; color: #fff; width: 18px; height: 18px; line-height: 18px; border-radius: 50%; font-size: 9pt; margin-right: 4px; font-weight: bold; }
+          @page { size: A4; margin: 8mm; }
           @media print {
-            .grid { grid-template-columns: repeat(3, 1fr); }
+            body { padding: 0; }
+            .grid { grid-template-columns: repeat(2, 1fr); }
+            .qr-card { border-style: dashed; }
           }
         </style>
       </head>
       <body>
         <div class="grid">
-          ${selectedTableData
-            .map(
-              (table) => `
+          ${selectedTableData.map(table => `
             <div class="qr-card">
-              <div class="company-name">${company?.name || ''}</div>
-              <div class="table-number">Mesa ${table.table_number}</div>
-              <img src="${qrCodes[table.id] || ''}" alt="QR Code Mesa ${table.table_number}" />
-              <div class="instructions">Escaneie para fazer seu pedido</div>
+              ${logoUrl ? `<img src="${logoUrl}" class="logo" alt="${companyName}" />` : ''}
+              <div class="company-name">${companyName}</div>
+              <div class="table-label">Mesa</div>
+              <div class="table-number">${table.table_number}</div>
+              <img src="${qrCodes[table.id] || ''}" class="qr-img" alt="QR Mesa ${table.table_number}" />
+              <div class="instructions">Faça seu pedido pelo celular</div>
+              <div class="sub-instructions">
+                <span class="step">1</span>Abra a câmera<br/>
+                <span class="step">2</span>Aponte para o QR Code<br/>
+                <span class="step">3</span>Toque no link
+              </div>
             </div>
-          `
-            )
-            .join('')}
+          `).join('')}
         </div>
         <script>
-          window.onload = function() { window.print(); window.close(); }
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            }, 300);
+          }
         </script>
       </body>
       </html>
