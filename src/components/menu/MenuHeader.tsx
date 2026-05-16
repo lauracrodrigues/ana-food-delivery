@@ -83,7 +83,7 @@ export function MenuHeader({ company, customerSlot, themeSlot, onProfileClick }:
               <img
                 src={company.logo_url}
                 alt={displayName}
-                className="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-border bg-background shadow-sm cursor-pointer hover:scale-105 transition-transform"
+                className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-full border-2 border-border bg-background shadow-sm cursor-pointer hover:scale-105 transition-transform"
                 loading="eager"
                 decoding="async"
               />

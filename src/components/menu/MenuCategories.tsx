@@ -1,4 +1,4 @@
-// v2.0.0 — Sticky horizontal com IntersectionObserver e auto-scroll
+// v2.1.0 — Sticky horizontal embaixo da barra de busca (top-[52px])
 import { useEffect, useRef, useState } from "react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
@@ -50,7 +50,8 @@ export function MenuCategories({ categories, searchActive }: MenuCategoriesProps
   const scrollToSection = (categoryId: string) => {
     const el = document.getElementById(`section-${categoryId}`);
     if (el) {
-      const offset = 80; // altura do sticky bar
+      // Considera altura combinada: busca (~52px) + categorias (~46px) + margem
+      const offset = 110;
       const y = el.getBoundingClientRect().top + window.scrollY - offset;
       window.scrollTo({ top: y, behavior: "smooth" });
     }
@@ -59,7 +60,7 @@ export function MenuCategories({ categories, searchActive }: MenuCategoriesProps
   if (categories.length === 0) return null;
 
   return (
-    <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b border-border">
+    <div className="sticky top-[52px] z-20 bg-background/95 backdrop-blur border-b border-border shadow-sm">
       <ScrollArea className="w-full" ref={scrollRef as any}>
         <div className="flex gap-1 px-4 py-2.5">
           {categories.map((cat) => {
