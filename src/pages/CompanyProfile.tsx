@@ -18,6 +18,7 @@ import {
 import { PageLayout } from "@/components/layout/PageLayout";
 import { CompanyLogoUpload } from "@/components/company/CompanyLogoUpload";
 import { MenuBannersAdmin } from "@/components/company/MenuBannersAdmin";
+import { useUserRole } from "@/hooks/use-user-role";
 import { masks } from "@/lib/masks";
 import { SkeletonCard, SkeletonMetricsGrid } from "@/components/loading";
 
@@ -71,6 +72,7 @@ const EMPTY_FORM: FormData = {
 export default function CompanyProfile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isSuperAdmin } = useUserRole(); // só super_admin pode editar subdomain após criação
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
   const [copied, setCopied] = useState(false);
 
@@ -153,7 +155,8 @@ export default function CompanyProfile() {
           segment: data.segment,
           logo_url: data.logo_url,
           banner_url: data.banner_url,
-          subdomain: data.subdomain || null,
+          // Subdomain editável apenas por super admin (defesa em profundidade)
+          ...(isSuperAdmin ? { subdomain: data.subdomain || null } : {}),
           address: {
             cep: data.address.cep,
             logradouro: data.address.logradouro,
@@ -471,35 +474,47 @@ export default function CompanyProfile() {
                   <Globe className="h-5 w-5 text-primary" />
                   Link do Cardápio
                 </CardTitle>
-                <CardDescription>Endereço público do seu cardápio digital — editável a qualquer momento</CardDescription>
+                <CardDescription>Endereço público do seu cardápio digital</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {/* Campo editável do nome do cardápio (era "subdomínio") */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="subdomain">Nome do cardápio digital</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="subdomain"
-                      value={formData.subdomain}
-                      onChange={(e) => {
-                        // Sanitiza: lowercase, sem espaços/acentos
-                        const clean = e.target.value
-                          .toLowerCase()
-                          .normalize("NFD")
-                          .replace(/[̀-ͯ]/g, "")
-                          .replace(/[^a-z0-9-]/g, "")
-                          .slice(0, 30);
-                        set('subdomain', clean);
-                      }}
-                      placeholder="minhalanchonete"
-                      className="font-mono"
-                    />
-                    <span className="text-sm text-muted-foreground">.anafood.vip</span>
+                {/* Campo nome do cardápio — EDITÁVEL só pra super admin */}
+                {isSuperAdmin ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="subdomain">Nome do cardápio digital</Label>
+                      <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-300">
+                        🔧 Super Admin
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="subdomain"
+                        value={formData.subdomain}
+                        onChange={(e) => {
+                          const clean = e.target.value
+                            .toLowerCase()
+                            .normalize("NFD")
+                            .replace(/[̀-ͯ]/g, "")
+                            .replace(/[^a-z0-9-]/g, "")
+                            .slice(0, 30);
+                          set('subdomain', clean);
+                        }}
+                        placeholder="minhalanchonete"
+                        className="font-mono"
+                      />
+                      <span className="text-sm text-muted-foreground">.anafood.vip</span>
+                    </div>
+                    <p className="text-xs text-amber-700">
+                      ⚠️ Cuidado: mudar quebra links e QR Codes antigos. Use somente quando necessário.
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    💡 Use letras minúsculas, números e hífen. Sem espaços ou acentos.
-                  </p>
-                </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Badge variant="secondary" className="text-xs">Nome do cardápio</Badge>
+                    <span className="font-mono text-muted-foreground">{formData.subdomain || "—"}.anafood.vip</span>
+                    <span className="text-xs text-muted-foreground">(não editável)</span>
+                  </div>
+                )}
 
                 {/* Link completo + ações */}
                 {menuUrl && (
