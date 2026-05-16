@@ -1,4 +1,4 @@
-// v1.1.0 — Checklist de onboarding pós-registro — Fix: payment_methods.is_active, whatsapp_config.connection_status
+// v1.2.0 — Checklist de onboarding — Fix: WhatsApp conta como ok quando sessão existe (não exige open) + refetch on focus
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -49,7 +49,7 @@ const CHECKLIST_ITEMS: ChecklistItem[] = [
   {
     id: "delivery",
     label: "Configurar taxas de entrega",
-    description: "Defina bairros e valores de entrega",
+    description: "Opcional — só se faz delivery",
     icon: MapPin,
     route: "/delivery-fees",
     check: (d) => d.hasDeliveryFees,
@@ -64,8 +64,8 @@ const CHECKLIST_ITEMS: ChecklistItem[] = [
   },
   {
     id: "whatsapp",
-    label: "Conectar WhatsApp",
-    description: "Ative o bot para receber pedidos",
+    label: "Cadastrar WhatsApp",
+    description: "Configure ao menos uma sessão (conexão pode ser depois)",
     icon: MessageSquare,
     route: "/whatsapp",
     check: (d) => d.hasWhatsapp,
@@ -89,7 +89,8 @@ export function OnboardingChecklist({ companyId }: { companyId: string }) {
         supabase.from("categories").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         supabase.from("delivery_fees").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         supabase.from("payment_methods").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("is_active", true),
-        supabase.from("whatsapp_config").select("connection_status").eq("company_id", companyId).eq("config_type", "session").maybeSingle(),
+        // WhatsApp: aceita qualquer sessão cadastrada (não exige connection_status="open" — sessão pode oscilar)
+        supabase.from("whatsapp_config").select("id,connection_status,session_name").eq("company_id", companyId).eq("config_type", "session").limit(1),
       ]);
 
       return {
@@ -97,12 +98,14 @@ export function OnboardingChecklist({ companyId }: { companyId: string }) {
         hasCategories: (categories.count ?? 0) > 0,
         hasDeliveryFees: (deliveryFees.count ?? 0) > 0,
         hasPaymentMethods: (paymentMethods.count ?? 0) > 0,
-        hasWhatsapp: whatsapp.data?.connection_status === "open",
+        // Conta como ok se sessão WhatsApp existe (qualquer status). Conexão real é estado volátil que não deve travar onboarding.
+        hasWhatsapp: !!(whatsapp.data && whatsapp.data.length > 0),
         hasStoreSettings: true,
       };
     },
     enabled: !!companyId,
-    staleTime: 60_000,
+    staleTime: 10_000,        // 10s — detecta mudanças mais rápido quando user volta ao dashboard
+    refetchOnWindowFocus: true, // re-checa quando user volta de outra aba/página
   });
 
   const completedCount = checkData
