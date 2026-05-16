@@ -107,6 +107,20 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Company created:', company.id);
 
+    // Cria formas de pagamento padrão (Dinheiro, Cartão Débito, Cartão Crédito, PIX)
+    // Não-bloqueante: dono pode editar/remover depois em Cadastros → Formas de Pagamento
+    try {
+      await supabase.from('payment_methods').insert([
+        { company_id: company.id, name: 'Dinheiro',       type: 'cash',   is_active: true },
+        { company_id: company.id, name: 'Cartão Débito',  type: 'debit',  is_active: true },
+        { company_id: company.id, name: 'Cartão Crédito', type: 'credit', is_active: true },
+        { company_id: company.id, name: 'PIX',            type: 'pix',    is_active: true, show_pix_copy: true },
+      ]);
+      console.log('Payment methods padrão criados');
+    } catch (e: any) {
+      console.warn('Erro criando payment_methods padrão (não-bloqueante):', e?.message);
+    }
+
     // The trigger will handle:
     // - Setting up the user profile with company_id and role
     // - Creating initial categories

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, ExternalLink, Store, Clock, Key } from "lucide-react";
+import { CheckCircle, ExternalLink, Store, Clock, Key, LogIn } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { CompanyInfoData } from "./CompanyInfoStep";
 import { StoreConfigData } from "./StoreConfigStep";
 import { UserInfoData } from "./UserInfoStep";
@@ -14,6 +15,7 @@ interface RegistrationCompleteProps {
 
 export const RegistrationComplete = ({ companyData, storeConfig, userInfo, onStartOver }: RegistrationCompleteProps) => {
   const storeUrl = `https://${companyData.subdomain}.anafood.vip`;
+  const navigate = useNavigate();
   
   const workingDaysLabels: Record<string, string> = {
     monday: 'Seg',
@@ -130,21 +132,22 @@ export const RegistrationComplete = ({ companyData, storeConfig, userInfo, onSta
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <Button 
-            asChild 
+          <Button
+            onClick={() => navigate('/login')}
             className="flex-1 bg-gradient-primary hover:opacity-90 transition-opacity"
           >
-            <a href={storeUrl} target="_blank" rel="noopener noreferrer">
-              Acessar Minha Loja
-              <ExternalLink className="w-4 h-4 ml-2" />
-            </a>
+            <LogIn className="w-4 h-4 mr-2" />
+            Fazer Login no Painel
           </Button>
-          <Button 
-            variant="outline" 
-            onClick={onStartOver}
+          <Button
+            variant="outline"
+            asChild
             className="flex-1"
           >
-            Cadastrar Nova Empresa
+            <a href={storeUrl} target="_blank" rel="noopener noreferrer">
+              Ver Cardápio Público
+              <ExternalLink className="w-4 h-4 ml-2" />
+            </a>
           </Button>
         </div>
       </CardContent>

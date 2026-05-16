@@ -44,7 +44,25 @@ export const masks = {
       .replace(/[^a-z0-9-]/g, '')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
-  }
+  },
+
+  // Máscara monetária BR: "R$ 0,00" / "R$ 1.234,56" — mantém só dígitos, divide por 100
+  currency: (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    if (!digits) return '';
+    const cents = parseInt(digits, 10);
+    return (cents / 100).toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    });
+  },
+
+  // Converte string mascarada "R$ 12,50" pro número 12.50
+  parseCurrency: (value: string): number => {
+    if (!value) return 0;
+    const digits = value.replace(/\D/g, '');
+    return digits ? parseInt(digits, 10) / 100 : 0;
+  },
 };
 
 // API Functions

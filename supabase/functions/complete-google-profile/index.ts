@@ -113,6 +113,19 @@ serve(async (req) => {
       role: "company_admin",
     }).then(() => {}).catch(() => {});
 
+    // Cria formas de pagamento padrão (Dinheiro, Cartão Débito, Cartão Crédito, PIX)
+    // Não-bloqueante: dono edita depois em Cadastros → Formas de Pagamento
+    try {
+      await admin.from("payment_methods" as any).insert([
+        { company_id: company.id, name: 'Dinheiro',       type: 'cash',   is_active: true },
+        { company_id: company.id, name: 'Cartão Débito',  type: 'debit',  is_active: true },
+        { company_id: company.id, name: 'Cartão Crédito', type: 'credit', is_active: true },
+        { company_id: company.id, name: 'PIX',            type: 'pix',    is_active: true, show_pix_copy: true },
+      ]);
+    } catch (e) {
+      console.warn("Erro payment_methods padrão (não-bloqueante)", e);
+    }
+
     return new Response(JSON.stringify({
       success: true,
       companyId: company.id,

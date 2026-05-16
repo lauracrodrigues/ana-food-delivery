@@ -282,11 +282,16 @@ export default function CompanyProfile() {
 
             <div>
               <Label htmlFor="segment">Categoria *</Label>
-              <Select value={formData.segment} onValueChange={(v) => set('segment', v)}>
+              <Select value={formData.segment || undefined} onValueChange={(v) => set('segment', v)}>
                 <SelectTrigger id="segment">
                   <SelectValue placeholder="Selecione a categoria" />
                 </SelectTrigger>
                 <SelectContent>
+                  {/* Inclui segmento atual no topo se não bater com a lista padrão
+                      (cobre dados legados ou customizados pelo super admin) */}
+                  {formData.segment && !SEGMENTS.includes(formData.segment) && (
+                    <SelectItem value={formData.segment}>{formData.segment}</SelectItem>
+                  )}
                   {SEGMENTS.map(s => (
                     <SelectItem key={s} value={s}>{s}</SelectItem>
                   ))}

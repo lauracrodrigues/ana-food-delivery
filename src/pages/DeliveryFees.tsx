@@ -1,4 +1,5 @@
 import { formatCurrency } from "@/lib/currency-formatter";
+import { masks } from "@/lib/masks";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -403,30 +404,30 @@ export function DeliveryFees() {
               )}
 
               <div>
-                <Label htmlFor="delivery_fee">Taxa de Entrega (R$) *</Label>
+                <Label htmlFor="delivery_fee">Taxa de Entrega *</Label>
                 <Input
                   id="delivery_fee"
-                  type="number"
-                  step="0.01"
-                  value={formData.delivery_fee}
-                  onChange={(e) => setFormData({ ...formData, delivery_fee: parseFloat(e.target.value) })}
-                  placeholder="0.00"
+                  type="text"
+                  inputMode="numeric"
+                  value={formData.delivery_fee != null ? masks.currency(String(Math.round(formData.delivery_fee * 100))) : ''}
+                  onChange={(e) => setFormData({ ...formData, delivery_fee: masks.parseCurrency(e.target.value) })}
+                  placeholder="R$ 0,00"
                   required
                 />
               </div>
 
               <div>
-                <Label htmlFor="min_order_value">Valor Mínimo do Pedido (R$)</Label>
+                <Label htmlFor="min_order_value">Valor Mínimo do Pedido</Label>
                 <Input
                   id="min_order_value"
-                  type="number"
-                  step="0.01"
-                  value={formData.min_order_value || ""}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    min_order_value: e.target.value ? parseFloat(e.target.value) : undefined 
+                  type="text"
+                  inputMode="numeric"
+                  value={formData.min_order_value != null ? masks.currency(String(Math.round(formData.min_order_value * 100))) : ''}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    min_order_value: e.target.value ? masks.parseCurrency(e.target.value) : undefined
                   })}
-                  placeholder="Opcional"
+                  placeholder="Opcional — R$ 0,00"
                 />
               </div>
 
