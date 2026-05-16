@@ -1,16 +1,28 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, ExternalLink, Printer } from "lucide-react";
+import { Copy, ExternalLink, Printer, BarChart3, Sparkles, Megaphone, Calendar, Palette, Loader2 } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { CompanyLogoUpload } from "@/components/company/CompanyLogoUpload";
-import { CompanyBannerUpload } from "@/components/company/CompanyBannerUpload";
+
+// Lazy load das páginas embutidas como abas — só carrega quando aba selecionada
+const DailyMenu  = lazy(() => import("./DailyMenu"));
+const Analytics  = lazy(() => import("./Analytics"));
+const Loyalty    = lazy(() => import("./Loyalty"));
+const Marketing  = lazy(() => import("./Marketing"));
+
+const TabLoading = () => (
+  <div className="flex items-center justify-center py-12">
+    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+  </div>
+);
 
 export default function MenuManagement() {
   const { toast } = useToast();
@@ -109,9 +121,30 @@ export default function MenuManagement() {
   const menuLink = subdomain ? `https://${subdomain}.anafood.vip` : "Aguardando subdomínio...";
 
   return (
-    <PageLayout title="Cardápio Digital" subtitle="Gerencie as configurações do seu cardápio online">
-      {/* Link do Cardápio */}
-      <Card>
+    <PageLayout title="Cardápio Digital" subtitle="Gerencie cardápio, analytics, fidelidade e marketing">
+      <Tabs defaultValue="visual" className="space-y-6">
+        <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full max-w-4xl">
+          <TabsTrigger value="visual" className="gap-1.5">
+            <Palette className="h-3.5 w-3.5" /> Visual
+          </TabsTrigger>
+          <TabsTrigger value="daily" className="gap-1.5">
+            <Calendar className="h-3.5 w-3.5" /> Cardápio do Dia
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="gap-1.5">
+            <BarChart3 className="h-3.5 w-3.5" /> Analytics
+          </TabsTrigger>
+          <TabsTrigger value="loyalty" className="gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" /> Fidelidade
+          </TabsTrigger>
+          <TabsTrigger value="marketing" className="gap-1.5">
+            <Megaphone className="h-3.5 w-3.5" /> Marketing
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ── VISUAL ── */}
+        <TabsContent value="visual" className="space-y-6">
+          {/* Link do Cardápio */}
+          <Card>
         <CardHeader>
           <CardTitle>Link do Cardápio</CardTitle>
           <CardDescription>
@@ -173,21 +206,6 @@ export default function MenuManagement() {
             <p className="text-sm text-muted-foreground">
               Logo exibido no topo do cardápio
             </p>
-          </div>
-
-          <div className="space-y-2">
-            <CompanyBannerUpload
-              companyId={companyId || ""}
-              currentBannerUrl={bannerUrl}
-              companyName={companyData?.fantasy_name || companyData?.name || ""}
-              onBannerUpdate={(url) => {
-                setBannerUrl(url);
-                toast({
-                  title: "Banner atualizado",
-                  description: "O banner foi atualizado com sucesso!",
-                });
-              }}
-            />
           </div>
         </CardContent>
       </Card>
@@ -275,16 +293,38 @@ export default function MenuManagement() {
         </CardContent>
       </Card>
 
-      {/* Botão Salvar */}
-      <div className="flex justify-end">
-        <Button
-          onClick={handleSave}
-          disabled={updateCompany.isPending}
-          size="lg"
-        >
-          {updateCompany.isPending ? "Salvando..." : "Salvar Configurações"}
-        </Button>
-      </div>
+          {/* Botão Salvar (somente tab Visual) */}
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSave}
+              disabled={updateCompany.isPending}
+              size="lg"
+            >
+              {updateCompany.isPending ? "Salvando..." : "Salvar Configurações"}
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* ── CARDÁPIO DO DIA ── */}
+        <TabsContent value="daily">
+          <Suspense fallback={<TabLoading />}><DailyMenu /></Suspense>
+        </TabsContent>
+
+        {/* ── ANALYTICS ── */}
+        <TabsContent value="analytics">
+          <Suspense fallback={<TabLoading />}><Analytics /></Suspense>
+        </TabsContent>
+
+        {/* ── FIDELIDADE ── */}
+        <TabsContent value="loyalty">
+          <Suspense fallback={<TabLoading />}><Loyalty /></Suspense>
+        </TabsContent>
+
+        {/* ── MARKETING ── */}
+        <TabsContent value="marketing">
+          <Suspense fallback={<TabLoading />}><Marketing /></Suspense>
+        </TabsContent>
+      </Tabs>
     </PageLayout>
   );
 }

@@ -35,11 +35,8 @@ export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuIte
       ],
     },
     { title: "Financeiro", url: "/financeiro", icon: TrendingUp },
-    { title: "Analytics",  url: "/analytics",  icon: BarChart3 },
-    { title: "Fidelidade", url: "/loyalty",    icon: Sparkles },
-    { title: "Marketing",  url: "/marketing",  icon: Megaphone },
     { title: "Pedidos",    url: "/orders",     icon: ShoppingBag },
-    { title: "Cardápio",   url: "/menu",       icon: Menu },
+    { title: "Cardápio",   url: "/menu",       icon: Menu }, // tabs internas: Visual, Cardápio do Dia, Analytics, Fidelidade, Marketing
     {
       title: "Cadastros", icon: Package,
       subItems: [
@@ -59,9 +56,8 @@ export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuIte
     {
       title: "WhatsApp", icon: MessageSquare,
       subItems: [
-        { title: "Conversas",       url: "/whatsapp-chat", icon: MessageSquare },
-        { title: "Configurações",   url: "/whatsapp",      icon: Settings },
-        { title: "Cardápio do Dia", url: "/daily-menu",    icon: Calendar },
+        { title: "Conversas",     url: "/whatsapp-chat", icon: MessageSquare },
+        { title: "Configurações", url: "/whatsapp",      icon: Settings },
       ],
     },
     {
