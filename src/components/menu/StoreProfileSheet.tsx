@@ -17,6 +17,8 @@ interface Company {
   schedule: any;
   is_active: boolean;
   subdomain?: string | null;
+  google_maps_url?: string | null;
+  address?: any;
 }
 
 interface StoreProfileSheetProps {
@@ -176,14 +178,38 @@ export function StoreProfileSheet({ open, onOpenChange, company }: StoreProfileS
               </div>
             </div>
 
-            {/* Endereço placeholder */}
-            <div className="bg-card border rounded-xl p-3 flex items-start gap-3">
-              <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Local</p>
-                <p className="text-sm">Atendimento via cardápio digital + entrega</p>
-              </div>
-            </div>
+            {/* Endereço + botão Ver no mapa */}
+            {(() => {
+              const addr = company.address || {};
+              const enderecoTexto = [
+                addr.logradouro || addr.street,
+                addr.numero || addr.number,
+                addr.bairro || addr.neighborhood,
+                addr.cidade || addr.city,
+              ].filter(Boolean).join(", ");
+              return (
+                <div className="bg-card border rounded-xl p-3 space-y-2">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">Localização</p>
+                      <p className="text-sm">
+                        {enderecoTexto || "Atendimento via cardápio digital + entrega"}
+                      </p>
+                    </div>
+                  </div>
+                  {company.google_maps_url && (
+                    <button
+                      onClick={() => window.open(company.google_maps_url!, "_blank")}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors"
+                    >
+                      <MapPin className="h-4 w-4" />
+                      Ver no Google Maps
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </ScrollArea>
       </SheetContent>

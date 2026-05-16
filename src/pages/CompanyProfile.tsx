@@ -57,6 +57,7 @@ interface FormData {
   banner_url: string;
   subdomain: string;
   address: AddressData;
+  google_maps_url: string;
 }
 
 const EMPTY_FORM: FormData = {
@@ -64,6 +65,7 @@ const EMPTY_FORM: FormData = {
   email: '', description: '', segment: '', logo_url: '', banner_url: '',
   subdomain: '',
   address: { cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '' },
+  google_maps_url: '',
 };
 
 export default function CompanyProfile() {
@@ -131,6 +133,7 @@ export default function CompanyProfile() {
         latitude: company.latitude ? Number(company.latitude) : undefined,
         longitude: company.longitude ? Number(company.longitude) : undefined,
       },
+      google_maps_url: (company as any).google_maps_url || '',
     });
   }, [company]);
 
@@ -150,6 +153,7 @@ export default function CompanyProfile() {
           segment: data.segment,
           logo_url: data.logo_url,
           banner_url: data.banner_url,
+          subdomain: data.subdomain || null,
           address: {
             cep: data.address.cep,
             logradouro: data.address.logradouro,
@@ -161,7 +165,8 @@ export default function CompanyProfile() {
           },
           latitude: data.address.latitude,
           longitude: data.address.longitude,
-        })
+          google_maps_url: data.google_maps_url?.trim() || null,
+        } as any)
         .eq("id", profile.company_id);
       if (error) throw error;
     },
@@ -413,6 +418,49 @@ export default function CompanyProfile() {
                 </Suspense>
               </CardContent>
             </Card>
+
+            {/* Link Google Maps — facilita compartilhar localização no WhatsApp + cardápio */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-primary" />
+                  Link do Google Maps
+                </CardTitle>
+                <CardDescription>
+                  Cole o link compartilhável da localização do estabelecimento.
+                  Será enviado pros clientes via WhatsApp e exibido no cardápio digital.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="google_maps_url">URL do Google Maps</Label>
+                  <Input
+                    id="google_maps_url"
+                    type="url"
+                    placeholder="https://maps.app.goo.gl/... ou https://goo.gl/maps/..."
+                    value={formData.google_maps_url}
+                    onChange={(e) => set('google_maps_url', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    💡 Como obter: abra o Google Maps → pesquise seu endereço → toque em <strong>Compartilhar</strong> → <strong>Copiar link</strong> → cole aqui.
+                  </p>
+                </div>
+                {formData.google_maps_url && (
+                  <div className="flex gap-2 items-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(formData.google_maps_url, '_blank')}
+                      className="gap-1.5"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" /> Testar link
+                    </Button>
+                    <span className="text-xs text-green-700">✓ Link configurado — aparecerá no cardápio</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* ── CARDÁPIO ── */}
@@ -423,38 +471,56 @@ export default function CompanyProfile() {
                   <Globe className="h-5 w-5 text-primary" />
                   Link do Cardápio
                 </CardTitle>
-                <CardDescription>Endereço público do seu cardápio digital</CardDescription>
+                <CardDescription>Endereço público do seu cardápio digital — editável a qualquer momento</CardDescription>
               </CardHeader>
-              <CardContent>
-                {menuUrl ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 flex items-center gap-2 bg-muted rounded-md px-3 py-2 text-sm font-mono">
-                        <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="truncate">{menuUrl}</span>
-                      </div>
-                      <Button type="button" size="icon" variant="outline" onClick={copyUrl} title="Copiar link">
-                        {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        onClick={() => window.open(menuUrl, '_blank')}
-                        title="Abrir cardápio"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">Subdomínio</Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {formData.subdomain}.anafood.vip — não editável após criação
-                      </span>
-                    </div>
+              <CardContent className="space-y-3">
+                {/* Campo editável do nome do cardápio (era "subdomínio") */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="subdomain">Nome do cardápio digital</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="subdomain"
+                      value={formData.subdomain}
+                      onChange={(e) => {
+                        // Sanitiza: lowercase, sem espaços/acentos
+                        const clean = e.target.value
+                          .toLowerCase()
+                          .normalize("NFD")
+                          .replace(/[̀-ͯ]/g, "")
+                          .replace(/[^a-z0-9-]/g, "")
+                          .slice(0, 30);
+                        set('subdomain', clean);
+                      }}
+                      placeholder="minhalanchonete"
+                      className="font-mono"
+                    />
+                    <span className="text-sm text-muted-foreground">.anafood.vip</span>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Subdomínio não configurado.</p>
+                  <p className="text-xs text-muted-foreground">
+                    💡 Use letras minúsculas, números e hífen. Sem espaços ou acentos.
+                  </p>
+                </div>
+
+                {/* Link completo + ações */}
+                {menuUrl && (
+                  <div className="flex items-center gap-2 pt-2 border-t">
+                    <div className="flex-1 flex items-center gap-2 bg-muted rounded-md px-3 py-2 text-sm font-mono">
+                      <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="truncate">{menuUrl}</span>
+                    </div>
+                    <Button type="button" size="icon" variant="outline" onClick={copyUrl} title="Copiar link">
+                      {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      onClick={() => window.open(menuUrl, '_blank')}
+                      title="Abrir cardápio"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>

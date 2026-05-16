@@ -220,7 +220,21 @@ export function CompanyInfoStep({ onNext, initialData }: CompanyInfoStepProps) {
                   <FormItem>
                     <FormLabel>Nome Fantasia *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: Burger Express" {...field} />
+                      <Input
+                        placeholder="Ex: Burger Express"
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          // Auto-preenche subdomain só se ainda não foi editado manualmente
+                          const currentSubdomain = form.getValues('subdomain');
+                          const fantasyMasked = masks.subdomain(e.target.value);
+                          // Se subdomain vazio OU é igual à versão anterior do fantasy (não foi editado à mão), atualiza
+                          if (!currentSubdomain || currentSubdomain === masks.subdomain(form.getValues('fantasyName'))) {
+                            form.setValue('subdomain', fantasyMasked);
+                            if (fantasyMasked.length >= 3) checkSubdomainAvailability(fantasyMasked);
+                          }
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -438,10 +452,10 @@ export function CompanyInfoStep({ onNext, initialData }: CompanyInfoStepProps) {
                 name="subdomain"
                 render={({ field }) => (
                   <FormItem className="md:col-span-2">
-                    <FormLabel>Subdomínio da Loja *</FormLabel>
+                    <FormLabel>Nome do Cardápio Digital *</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Input 
+                        <Input
                           placeholder="burgerexpress"
                           {...field}
                           onChange={(e) => {
@@ -463,7 +477,8 @@ export function CompanyInfoStep({ onNext, initialData }: CompanyInfoStepProps) {
                       </div>
                     </FormControl>
                     <p className="text-sm text-muted-foreground">
-                      Sua loja ficará disponível em: <span className="font-medium text-primary">{field.value}.anafood.vip</span>
+                      💡 Pré-preenchido com o nome fantasia (você pode editar).
+                      Seu cardápio ficará em: <span className="font-medium text-primary">{field.value}.anafood.vip</span>
                     </p>
                     <FormMessage />
                   </FormItem>

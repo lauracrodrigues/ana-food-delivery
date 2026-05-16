@@ -58,6 +58,8 @@ interface Company {
   custom_domain?: string | null;
   custom_domain_status?: string | null;
   subdomain?: string | null;
+  google_maps_url?: string | null;
+  address?: any;
 }
 
 interface Category {
