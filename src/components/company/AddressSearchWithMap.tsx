@@ -6,7 +6,7 @@ import "leaflet/dist/leaflet.css";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Search, MapPin, Loader2 } from "lucide-react";
+import { Search, MapPin, Loader2, LocateFixed } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // Corrige ícones padrão do Leaflet no Vite
@@ -134,6 +134,54 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
     onChange({ ...address, cep: masked });
   };
 
+  // Usa geolocation do navegador — útil pra cadastrar feito DENTRO da empresa
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "GPS indisponível", description: "Navegador não suporta geolocalização", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        // Reverse geocode pra preencher endereço (best-effort, não bloqueia)
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
+            { headers: { "Accept-Language": "pt-BR", "User-Agent": "AnaFood/1.0" } }
+          );
+          const data = await res.json();
+          const a = data?.address || {};
+          onChange({
+            ...address,
+            latitude,
+            longitude,
+            cep: a.postcode ? a.postcode.replace(/(\d{5})(\d)/, "$1-$2") : address.cep,
+            logradouro: a.road || a.pedestrian || a.footway || address.logradouro,
+            bairro: a.suburb || a.neighbourhood || a.quarter || address.bairro,
+            cidade: a.city || a.town || a.village || address.cidade,
+            estado: a.state_code?.toUpperCase() || a.state?.slice(0, 2)?.toUpperCase() || address.estado,
+          });
+          toast({ title: "Localização capturada", description: "Ajuste o marcador no mapa se precisar" });
+        } catch {
+          // Falha no reverse: salva pelo menos coords
+          onChange({ ...address, latitude, longitude });
+          toast({ title: "Coordenadas salvas", description: "Não foi possível buscar endereço — preencha manualmente" });
+        } finally {
+          setLoading(false);
+        }
+      },
+      (err) => {
+        setLoading(false);
+        const msg = err.code === 1
+          ? "Permita acesso à localização nas configurações do navegador"
+          : "Não foi possível obter sua localização";
+        toast({ title: "Localização negada", description: msg, variant: "destructive" });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -226,12 +274,26 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
 
       {/* Mapa Interativo */}
       <div className="space-y-2">
-        <Label className="flex items-center gap-2">
-          <MapPin className="h-4 w-4" />
-          Localização no Mapa
-        </Label>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <Label className="flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Localização no Mapa
+          </Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleUseMyLocation}
+            disabled={loading}
+            className="gap-1.5"
+          >
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LocateFixed className="h-3.5 w-3.5" />}
+            Usar minha localização atual
+          </Button>
+        </div>
         <p className="text-xs text-muted-foreground">
-          Clique no mapa ou arraste o marcador para ajustar a localização exata
+          💡 Cole um link do Google Maps no campo abaixo, use o botão acima (cadastro feito na empresa)
+          ou clique/arraste o marcador para ajustar manualmente.
         </p>
         <div className="w-full h-[400px] rounded-lg border overflow-hidden">
           <MapContainer

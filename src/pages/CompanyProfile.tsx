@@ -26,6 +26,25 @@ const AddressSearchWithMap = lazy(() =>
   import("@/components/company/AddressSearchWithMap").then(m => ({ default: m.AddressSearchWithMap }))
 );
 
+// Extrai coordenadas (lat, lng) de uma URL do Google Maps
+// Suporta: @lat,lng (place URL), q=lat,lng, ll=lat,lng, !3d{lat}!4d{lng}
+function extractCoordsFromMapsUrl(url: string): { lat: number; lng: number } | null {
+  if (!url) return null;
+  // @lat,lng (formato comum em /maps/place/.../)
+  let m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  // q=lat,lng OR ll=lat,lng
+  m = url.match(/[?&](?:q|ll)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  // !3d{lat}!4d{lng} (formato Place ID expandido)
+  m = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  // loc:lat,lng
+  m = url.match(/loc:(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  return null;
+}
+
 const SEGMENTS = [
   "Restaurantes", "Pizzarias", "Hamburguerias", "Marmitarias",
   "Comida japonesa", "Açaiterias", "Lanchonetes", "Padarias",
@@ -445,43 +464,30 @@ export default function CompanyProfile() {
                   <Input
                     id="google_maps_url"
                     type="url"
-                    placeholder="https://maps.app.goo.gl/... ou https://goo.gl/maps/..."
+                    placeholder="https://maps.app.goo.gl/... ou https://www.google.com/maps/..."
                     value={formData.google_maps_url}
-                    onChange={(e) => set('google_maps_url', e.target.value)}
+                    onChange={(e) => {
+                      const url = e.target.value;
+                      set('google_maps_url', url);
+                      // Extrai lat/lng da URL e atualiza o marker do mapa Leaflet
+                      const coords = extractCoordsFromMapsUrl(url);
+                      if (coords) {
+                        setFormData(prev => ({
+                          ...prev,
+                          google_maps_url: url,
+                          address: { ...prev.address, latitude: coords.lat, longitude: coords.lng },
+                        }));
+                      }
+                    }}
                   />
                   <p className="text-xs text-muted-foreground">
-                    💡 Como obter: abra o Google Maps → pesquise seu endereço → toque em <strong>Compartilhar</strong> → <strong>Copiar link</strong> → cole aqui.
+                    💡 Como obter: Google Maps → pesquise seu endereço → <strong>Compartilhar</strong> → <strong>Copiar link</strong> → cole aqui.
+                    O marcador do mapa acima será reposicionado automaticamente quando o link tiver coordenadas.
                   </p>
                 </div>
                 {formData.google_maps_url && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-green-700">✓ Link configurado — aparecerá no cardápio</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => window.open(formData.google_maps_url, '_blank')}
-                        className="gap-1.5 h-7 text-xs"
-                      >
-                        <ExternalLink className="h-3 w-3" /> Abrir em nova aba
-                      </Button>
-                    </div>
-                    {/* Preview inline do mapa — embed Google Maps */}
-                    <div className="rounded-lg overflow-hidden border border-border bg-muted">
-                      <iframe
-                        src={`https://maps.google.com/maps?q=${encodeURIComponent(formData.google_maps_url)}&output=embed`}
-                        width="100%"
-                        height="280"
-                        style={{ border: 0 }}
-                        loading="lazy"
-                        referrerPolicy="no-referrer-when-downgrade"
-                        title="Localização do estabelecimento"
-                      />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground text-center">
-                      💡 Se o mapa não localizar exato, prefira links com coordenadas (lat,lng) ou endereço completo.
-                    </p>
+                  <div className="text-xs text-green-700">
+                    ✓ Link configurado — será enviado pros clientes via WhatsApp e mostrado no cardápio
                   </div>
                 )}
               </CardContent>
