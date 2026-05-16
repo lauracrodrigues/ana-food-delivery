@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { optimizeImage } from "@/lib/image-optimizer";
+import { LogoCropperDialog } from "./LogoCropperDialog";
 
 interface CompanyLogoUploadProps {
   companyId: string;
@@ -21,6 +22,8 @@ export function CompanyLogoUpload({
 }: CompanyLogoUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentLogoUrl || null);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Atualiza o preview quando currentLogoUrl muda
@@ -30,39 +33,35 @@ export function CompanyLogoUpload({
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    // limpa input pra permitir re-selecionar mesma imagem
+    event.target.value = "";
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Erro",
-        description: "Por favor, selecione uma imagem válida",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Por favor, selecione uma imagem válida", variant: "destructive" });
       return;
     }
-
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "Erro",
-        description: "A imagem deve ter no máximo 5MB",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "A imagem deve ter no máximo 5MB", variant: "destructive" });
       return;
     }
 
+    // Abre cropper com a imagem original (sem otimizar ainda)
+    const url = URL.createObjectURL(file);
+    setRawImageSrc(url);
+    setCropperOpen(true);
+  };
+
+  // Após user enquadrar no cropper: faz upload do resultado
+  const handleCropComplete = async (croppedFile: File) => {
     setUploading(true);
-
     try {
-      // Otimiza antes do upload: logo até 400px, mantém PNG pra transparência
-      const optimized = await optimizeImage(file, { maxWidth: 400, maxHeight: 400, quality: 0.9, preferWebP: false });
+      // Otimiza o já-cortado: até 400px, mantém PNG pra transparência
+      const optimized = await optimizeImage(croppedFile, { maxWidth: 400, maxHeight: 400, quality: 0.9, preferWebP: false });
 
-      // Create preview
       const objectUrl = URL.createObjectURL(optimized);
       setPreviewUrl(objectUrl);
 
-      // Upload to Supabase Storage
       const fileExt = optimized.name.split('.').pop();
       const fileName = `${companyId}/logo.${fileExt}`;
 
@@ -149,20 +148,20 @@ export function CompanyLogoUpload({
       <Label>Logo da Empresa</Label>
       
       <div className="flex items-start gap-4">
-        {/* Preview */}
-        <div className="relative w-32 h-32 rounded-lg border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted">
+        {/* Preview circular — espelhando o visual final do cardápio */}
+        <div className="relative w-32 h-32 rounded-full border-4 border-border flex items-center justify-center overflow-hidden bg-muted shadow-sm">
           {previewUrl ? (
             <>
-              <img 
-                src={previewUrl} 
+              <img
+                src={previewUrl}
                 alt={companyName}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
               />
               <Button
                 type="button"
                 variant="destructive"
                 size="icon"
-                className="absolute top-2 right-2 h-6 w-6"
+                className="absolute top-1 right-1 h-6 w-6"
                 onClick={handleRemoveLogo}
                 disabled={uploading}
               >
@@ -171,12 +170,12 @@ export function CompanyLogoUpload({
             </>
           ) : (
             <div className="flex flex-col items-center justify-center text-muted-foreground">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-1">
                 <span className="text-2xl font-bold text-primary">
                   {getInitials()}
                 </span>
               </div>
-              <Building2 className="h-6 w-6 opacity-30" />
+              <Building2 className="h-4 w-4 opacity-30" />
             </div>
           )}
         </div>
@@ -206,10 +205,27 @@ export function CompanyLogoUpload({
           </Label>
           <p className="text-xs text-muted-foreground">
             Formatos: JPG, PNG, GIF<br />
-            Tamanho máximo: 5MB
+            Tamanho máximo: 5MB<br />
+            ✂️ <strong>Editor com crop circular</strong> abre automaticamente
           </p>
         </div>
       </div>
+
+      {/* Editor de crop — abre após selecionar arquivo */}
+      {rawImageSrc && (
+        <LogoCropperDialog
+          open={cropperOpen}
+          onOpenChange={(open) => {
+            setCropperOpen(open);
+            if (!open) {
+              URL.revokeObjectURL(rawImageSrc);
+              setRawImageSrc(null);
+            }
+          }}
+          imageSrc={rawImageSrc}
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </div>
   );
 }
