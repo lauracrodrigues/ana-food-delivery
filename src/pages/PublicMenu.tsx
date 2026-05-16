@@ -540,24 +540,26 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
           <div className="lg:col-span-2 space-y-6">
             {/* Seções de destaque — só no modo normal */}
             {!searchQuery && (
-              {/* Peça novamente — só pra clientes com histórico */}
-              {session && history.length > 0 && (
-                <OrderAgainSection
-                  history={history}
-                  allProducts={decoratedProducts}
+              <>
+                {/* Peça novamente — só pra clientes com histórico */}
+                {session && history.length > 0 && (
+                  <OrderAgainSection
+                    history={history}
+                    allProducts={decoratedProducts}
+                    onAdd={handleQuickAdd}
+                    favorites={favorites}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                )}
+                <MenuSections
+                  products={decoratedProducts}
                   onAdd={handleQuickAdd}
                   favorites={favorites}
                   onToggleFavorite={toggleFavorite}
+                  onProductView={trackView}
+                  popularProductIds={popularIds}
                 />
-              )}
-              <MenuSections
-                products={decoratedProducts}
-                onAdd={handleQuickAdd}
-                favorites={favorites}
-                onToggleFavorite={toggleFavorite}
-                onProductView={trackView}
-                popularProductIds={popularIds}
-              />
+              </>
             )}
 
             <MenuProducts
