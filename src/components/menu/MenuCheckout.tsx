@@ -123,10 +123,18 @@ function PixQrScreen({
             src={`data:image/png;base64,${qrCodeBase64}`}
             alt="QR Code PIX"
             className="w-40 h-40 object-contain"
+            loading="eager"
+            decoding="async"
           />
-        ) : (
+        ) : qrCode ? (
           <div className="w-40 h-40 flex items-center justify-center text-xs text-muted-foreground text-center p-3">
             Use o código abaixo para pagar via PIX
+          </div>
+        ) : (
+          // Skeleton enquanto MP gera o QR (1-2s tipicamente)
+          <div className="w-40 h-40 flex flex-col items-center justify-center gap-2 bg-muted/30 animate-pulse">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <p className="text-[10px] text-muted-foreground text-center px-2">Gerando QR Code...</p>
           </div>
         )}
       </div>
@@ -451,8 +459,10 @@ export function MenuCheckout({
     setTimeout(() => onSuccess(pixData?.orderId), 2000);
   };
 
-  // Tela de QR code
-  if (pixData) {
+  // Tela de QR code — abre IMEDIATAMENTE ao clicar Confirmar (PIX MP) com skeleton
+  // enquanto edge function gera o QR. Reduz percepção de lentidão.
+  const isGeneratingPix = loading && formData.payment_method === "pix_mp" && !pixData;
+  if (pixData || isGeneratingPix) {
     return (
       <Dialog open onOpenChange={onClose}>
         <DialogContent className="max-w-sm w-[95vw] max-h-[90vh] overflow-y-auto">
@@ -467,10 +477,10 @@ export function MenuCheckout({
             </div>
           ) : (
             <PixQrScreen
-              orderId={pixData.orderId}
-              qrCode={pixData.qrCode}
-              qrCodeBase64={pixData.qrCodeBase64}
-              expiresAt={pixData.expiresAt}
+              orderId={pixData?.orderId || ""}
+              qrCode={pixData?.qrCode || ""}
+              qrCodeBase64={pixData?.qrCodeBase64 || null}
+              expiresAt={pixData?.expiresAt}
               total={finalTotal}
               onConfirmed={handlePixConfirmed}
               onClose={onClose}
@@ -570,7 +580,17 @@ export function MenuCheckout({
             <h3 className="font-semibold">Forma de Pagamento</h3>
             <RadioGroup
               value={formData.payment_method}
-              onValueChange={(value) => setFormData({ ...formData, payment_method: value })}
+              onValueChange={(value) => {
+                setFormData({ ...formData, payment_method: value });
+                // PRÉ-AQUECE edge function create-pix-payment ao selecionar PIX
+                // Reduz cold-start de ~2s pra ~200ms quando user confirmar
+                if (value === "pix_mp" && hasMpActive) {
+                  fetch(`https://jgdyklzrxygvwuhlnbat.supabase.co/functions/v1/create-pix-payment`, {
+                    method: 'OPTIONS',
+                    headers: { 'Content-Type': 'application/json' },
+                  }).catch(() => {}); // ignore — só warmup
+                }
+              }}
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="dinheiro" id="dinheiro" />

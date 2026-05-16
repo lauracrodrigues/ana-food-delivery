@@ -123,15 +123,30 @@ Deno.serve(async (req: Request) => {
     console.log(`Order ${order.id}: MP ${mpStatus} → ${newPaymentStatus}`);
 
     const updates: Record<string, any> = { payment_status: newPaymentStatus };
+    let shouldNotifyWhatsApp = false;
     if (newPaymentStatus === 'approved') {
       // awaiting_payment → pending: entra no kanban pela primeira vez após pagamento confirmado
-      if (order.status === 'awaiting_payment') updates.status = 'pending';
+      if (order.status === 'awaiting_payment') {
+        updates.status = 'pending';
+        shouldNotifyWhatsApp = true; // dispara WhatsApp só agora (não foi disparado em create-menu-order)
+      }
       // pending → confirmed: auto-confirma se já estava no kanban
       else if (order.status === 'pending') updates.status = 'confirmed';
     }
 
     await supabase.from('orders').update(updates).eq('id', order.id);
     console.log(`Order ${order.id} atualizada:`, updates);
+
+    // WhatsApp confirmação de pedido criado (delayed até receber pagamento)
+    if (shouldNotifyWhatsApp) {
+      try {
+        await supabase.functions.invoke('orders-status', {
+          body: { order_id: order.id, status: 'pending' },
+        });
+      } catch (e) {
+        console.warn('WhatsApp confirmação falhou (não-bloqueante):', e);
+      }
+    }
 
     return new Response('ok', { status: 200, headers: corsHeaders });
 

@@ -125,12 +125,12 @@ export function MenuCart({
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 items-end shrink-0">
                   <div className="flex items-center gap-1 bg-muted rounded-md">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-8 w-8"
                       onClick={() => onUpdateQuantity(item.cartItemId, item.quantity - 1)}
                     >
                       <Minus className="h-3 w-3" />
@@ -141,21 +141,23 @@ export function MenuCart({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-8 w-8"
                       onClick={() => onUpdateQuantity(item.cartItemId, item.quantity + 1)}
                     >
                       <Plus className="h-3 w-3" />
                     </Button>
                   </div>
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
+                  {/* Botão remover individual — destacado em vermelho */}
+                  <button
                     onClick={() => onRemoveItem(item.cartItemId)}
+                    className="flex items-center gap-1 text-xs text-destructive hover:underline font-medium"
+                    type="button"
+                    aria-label={`Remover ${item.product.name}`}
                   >
                     <Trash2 className="h-3 w-3" />
-                  </Button>
+                    Remover
+                  </button>
                 </div>
               </div>
             ))}

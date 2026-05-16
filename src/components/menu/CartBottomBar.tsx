@@ -140,8 +140,8 @@ export function CartBottomBar({
                 <CartBenefitsBanner companyId={companyId} cart={cart} cartTotal={total} />
               )}
 
-              {cart.map((item) => (
-                <div key={item.cartItemId} className="flex gap-3">
+              {cart.map((item, idx) => (
+                <div key={item.cartItemId} className={`flex gap-3 ${idx < cart.length - 1 ? 'pb-3 border-b border-border' : ''}`}>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm">{item.product.name}</p>
                     {item.extras.length > 0 && (
@@ -159,23 +159,27 @@ export function CartBottomBar({
                     <p className="text-sm font-semibold text-primary mt-1">
                       {formatCurrency((item.product.price + item.extrasTotal) * item.quantity)}
                     </p>
+                    {/* Botão remover individual — destacado em vermelho com texto */}
+                    <button
+                      onClick={() => onRemoveItem(item.cartItemId)}
+                      className="flex items-center gap-1 mt-1.5 text-xs text-destructive hover:underline font-medium"
+                      type="button"
+                      aria-label={`Remover ${item.product.name}`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Remover item
+                    </button>
                   </div>
 
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="flex items-center gap-1 bg-muted rounded-lg">
-                      <Button variant="ghost" size="icon" className="h-7 w-7"
-                        onClick={() => onUpdateQuantity(item.cartItemId, item.quantity - 1)}>
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                      <Button variant="ghost" size="icon" className="h-7 w-7"
-                        onClick={() => onUpdateQuantity(item.cartItemId, item.quantity + 1)}>
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
-                      onClick={() => onRemoveItem(item.cartItemId)}>
-                      <Trash2 className="h-3 w-3" />
+                  <div className="flex items-center gap-1 bg-muted rounded-lg self-start h-9">
+                    <Button variant="ghost" size="icon" className="h-9 w-9"
+                      onClick={() => onUpdateQuantity(item.cartItemId, item.quantity - 1)}>
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                    <Button variant="ghost" size="icon" className="h-9 w-9"
+                      onClick={() => onUpdateQuantity(item.cartItemId, item.quantity + 1)}>
+                      <Plus className="h-3 w-3" />
                     </Button>
                   </div>
                 </div>

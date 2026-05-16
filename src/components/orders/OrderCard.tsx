@@ -130,6 +130,12 @@ export const OrderCard = memo(function OrderCard({
             </span>
           </div>
           <div className="flex items-center gap-1.5">
+            {/* Badge PAGO destacado quando pagamento confirmado (PIX MP / cartão) */}
+            {order.payment_status === "approved" && (
+              <span className="flex items-center gap-0.5 text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full font-bold shadow-sm animate-pulse-once">
+                ✓ PAGO
+              </span>
+            )}
             {order.type === "delivery" ? (
               <span className="flex items-center gap-0.5 text-[10px] bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-medium border border-blue-100 dark:border-blue-900">
                 <Truck className="w-2.5 h-2.5" />Delivery

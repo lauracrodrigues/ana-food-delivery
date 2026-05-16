@@ -14,6 +14,7 @@ export interface Order {
   customer_phone: string;
   items: OrderItem[];
   payment_method: string;
+  payment_status?: string; // approved | pending | rejected | cancelled | refunded | charged_back
   // Endereço estruturado
   address?: string;
   address_number?: string;
