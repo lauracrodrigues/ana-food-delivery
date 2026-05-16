@@ -1,4 +1,4 @@
-// v2.1.0 — Adicionada seção de Banners do Cardápio com templates e configuração de links
+// v3.0.0 — Layout em abas (padrão Settings) + remove banner topo do cardápio
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,17 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Building2, Loader2, Phone, Mail, MapPin, Globe, User, Utensils, Copy, Check, ExternalLink
+  Building2, Loader2, Phone, Mail, MapPin, Globe, User, Utensils, Copy, Check, ExternalLink,
+  ImageIcon, Megaphone,
 } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { CompanyLogoUpload } from "@/components/company/CompanyLogoUpload";
-import { CompanyBannerUpload } from "@/components/company/CompanyBannerUpload";
 import { MenuBannersAdmin } from "@/components/company/MenuBannersAdmin";
-import { ImageIcon } from "lucide-react";
 import { masks } from "@/lib/masks";
 import { SkeletonCard, SkeletonMetricsGrid } from "@/components/loading";
 
@@ -197,62 +197,67 @@ export default function CompanyProfile() {
 
   return (
     <PageLayout title="Perfil da Empresa" subtitle="Informações do seu estabelecimento">
-      <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate(formData); }} className="max-w-3xl space-y-6">
+      <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate(formData); }} className="space-y-6">
+        <Tabs defaultValue="identity" className="space-y-6">
+          <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full max-w-4xl">
+            <TabsTrigger value="identity" className="gap-1.5">
+              <Building2 className="h-3.5 w-3.5" /> Identidade
+            </TabsTrigger>
+            <TabsTrigger value="data" className="gap-1.5">
+              <Utensils className="h-3.5 w-3.5" /> Dados
+            </TabsTrigger>
+            <TabsTrigger value="contact" className="gap-1.5">
+              <Phone className="h-3.5 w-3.5" /> Contato
+            </TabsTrigger>
+            <TabsTrigger value="address" className="gap-1.5">
+              <MapPin className="h-3.5 w-3.5" /> Endereço
+            </TabsTrigger>
+            <TabsTrigger value="menu" className="gap-1.5">
+              <Megaphone className="h-3.5 w-3.5" /> Cardápio
+            </TabsTrigger>
+          </TabsList>
 
-        {/* ── 1. IDENTIDADE VISUAL ── */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-primary" />
-              Identidade Visual
-            </CardTitle>
-            <CardDescription>Logo e banner do seu estabelecimento</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Banner */}
-            {profile?.company_id && (
-              <div>
-                <Label className="mb-2 block">Banner</Label>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Imagem exibida no topo do cardápio (recomendado 1200×400px)
-                </p>
-                <CompanyBannerUpload
-                  companyId={profile.company_id}
-                  currentBannerUrl={formData.banner_url}
-                  companyName={formData.fantasy_name || formData.name || 'Empresa'}
-                  onBannerUpdate={(url) => set('banner_url', url)}
-                />
-              </div>
-            )}
+          {/* ── IDENTIDADE ── */}
+          <TabsContent value="identity" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  Identidade Visual
+                </CardTitle>
+                <CardDescription>Logo do seu estabelecimento</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Logo */}
+                {profile?.company_id && (
+                  <div>
+                    <Label className="mb-2 block">Logo</Label>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Exibido no cabeçalho do cardápio digital (recomendado 300×300px)
+                    </p>
+                    <CompanyLogoUpload
+                      companyId={profile.company_id}
+                      currentLogoUrl={formData.logo_url}
+                      companyName={formData.fantasy_name || formData.name || 'Empresa'}
+                      onLogoUpdate={(url) => set('logo_url', url)}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            {/* Logo */}
-            {profile?.company_id && (
-              <div>
-                <Label className="mb-2 block">Logo</Label>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Exibido sobre o banner e no cabeçalho do cardápio (recomendado 300×300px)
-                </p>
-                <CompanyLogoUpload
-                  companyId={profile.company_id}
-                  currentLogoUrl={formData.logo_url}
-                  companyName={formData.fantasy_name || formData.name || 'Empresa'}
-                  onLogoUpdate={(url) => set('logo_url', url)}
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* ── 2. DADOS DO ESTABELECIMENTO ── */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Utensils className="h-5 w-5 text-primary" />
-              Dados do Estabelecimento
-            </CardTitle>
-            <CardDescription>Nome, segmento e descrição exibidos no cardápio</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          {/* ── DADOS ── */}
+          <TabsContent value="data" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Utensils className="h-5 w-5 text-primary" />
+                  Dados do Estabelecimento
+                </CardTitle>
+                <CardDescription>Nome, segmento e descrição exibidos no cardápio</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
             <div>
               <Label htmlFor="fantasy_name">Nome do estabelecimento *</Label>
               <Input
@@ -299,48 +304,49 @@ export default function CompanyProfile() {
           </CardContent>
         </Card>
 
-        {/* ── 3. DADOS LEGAIS ── */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" />
-              Dados Legais
-            </CardTitle>
-            <CardDescription>Razão social e CNPJ (uso interno)</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="name">Razão Social</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => set('name', e.target.value)}
-                placeholder="Nome da Empresa LTDA"
-              />
-            </div>
-            <div>
-              <Label htmlFor="cnpj">CNPJ / CPF</Label>
-              <Input
-                id="cnpj"
-                value={formData.cnpj}
-                onChange={(e) => set('cnpj', masks.cnpj(e.target.value))}
-                placeholder="00.000.000/0000-00"
-                maxLength={18}
-              />
-            </div>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" />
+                  Dados Legais
+                </CardTitle>
+                <CardDescription>Razão social e CNPJ (uso interno)</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Razão Social</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => set('name', e.target.value)}
+                    placeholder="Nome da Empresa LTDA"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cnpj">CNPJ / CPF</Label>
+                  <Input
+                    id="cnpj"
+                    value={formData.cnpj}
+                    onChange={(e) => set('cnpj', masks.cnpj(e.target.value))}
+                    placeholder="00.000.000/0000-00"
+                    maxLength={18}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* ── 4. CONTATO ── */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Phone className="h-5 w-5 text-primary" />
-              Contato
-            </CardTitle>
-            <CardDescription>Canais de atendimento ao cliente</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          {/* ── CONTATO ── */}
+          <TabsContent value="contact" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Phone className="h-5 w-5 text-primary" />
+                  Contato
+                </CardTitle>
+                <CardDescription>Canais de atendimento ao cliente</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="phone">Telefone</Label>
@@ -386,89 +392,95 @@ export default function CompanyProfile() {
           </CardContent>
         </Card>
 
-        {/* ── 5. ENDEREÇO ── */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-primary" />
-              Endereço
-            </CardTitle>
-            <CardDescription>Localização para cálculo de taxa de entrega e exibição no cardápio</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Suspense fallback={<div className="h-[300px] bg-muted animate-pulse rounded-lg" />}>
-              <AddressSearchWithMap
-                address={formData.address}
-                onChange={(addr) => setFormData(prev => ({ ...prev, address: addr }))}
-              />
-            </Suspense>
-          </CardContent>
-        </Card>
+          </TabsContent>
 
-        {/* ── 6. LINK DO CARDÁPIO ── */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-primary" />
-              Link do Cardápio
-            </CardTitle>
-            <CardDescription>Endereço público do seu cardápio digital</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {menuUrl ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 flex items-center gap-2 bg-muted rounded-md px-3 py-2 text-sm font-mono">
-                    <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="truncate">{menuUrl}</span>
+          {/* ── ENDEREÇO ── */}
+          <TabsContent value="address" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  Endereço
+                </CardTitle>
+                <CardDescription>Localização para cálculo de taxa de entrega e exibição no cardápio</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Suspense fallback={<div className="h-[300px] bg-muted animate-pulse rounded-lg" />}>
+                  <AddressSearchWithMap
+                    address={formData.address}
+                    onChange={(addr) => setFormData(prev => ({ ...prev, address: addr }))}
+                  />
+                </Suspense>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── CARDÁPIO ── */}
+          <TabsContent value="menu" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-primary" />
+                  Link do Cardápio
+                </CardTitle>
+                <CardDescription>Endereço público do seu cardápio digital</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {menuUrl ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 flex items-center gap-2 bg-muted rounded-md px-3 py-2 text-sm font-mono">
+                        <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="truncate">{menuUrl}</span>
+                      </div>
+                      <Button type="button" size="icon" variant="outline" onClick={copyUrl} title="Copiar link">
+                        {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        onClick={() => window.open(menuUrl, '_blank')}
+                        title="Abrir cardápio"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">Subdomínio</Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {formData.subdomain}.anafood.vip — não editável após criação
+                      </span>
+                    </div>
                   </div>
-                  <Button type="button" size="icon" variant="outline" onClick={copyUrl} title="Copiar link">
-                    {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    onClick={() => window.open(menuUrl, '_blank')}
-                    title="Abrir cardápio"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs">Subdomínio</Badge>
-                  <span className="text-sm text-muted-foreground">
-                    {formData.subdomain}.anafood.vip — não editável após criação
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Subdomínio não configurado.</p>
-            )}
-          </CardContent>
-        </Card>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Subdomínio não configurado.</p>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* ── 7. BANNERS DO CARDÁPIO ── */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ImageIcon className="h-5 w-5 text-primary" />
-              Banners do Cardápio
-            </CardTitle>
-            <CardDescription>
-              Banners exibidos no topo do cardápio digital. Use para promover ofertas, frete grátis ou novidades.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {profile?.company_id && (
-              <MenuBannersAdmin companyId={profile.company_id} />
-            )}
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-primary" />
+                  Banners do Cardápio
+                </CardTitle>
+                <CardDescription>
+                  Banners exibidos no topo do cardápio digital. Use para promover ofertas, frete grátis ou novidades.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {profile?.company_id && (
+                  <MenuBannersAdmin companyId={profile.company_id} />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* ── SALVAR ── */}
-        <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t border-border -mx-4 sm:-mx-6 px-4 sm:px-6 py-4">
-          <div className="max-w-3xl flex justify-end">
+        <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t border-border -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 z-10">
+          <div className="flex justify-end">
             <Button type="submit" size="lg" disabled={updateMutation.isPending} className="w-full sm:w-auto min-w-[160px]">
               {updateMutation.isPending ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</>

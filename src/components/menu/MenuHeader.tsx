@@ -57,18 +57,7 @@ export function MenuHeader({ company, customerSlot, themeSlot, onProfileClick }:
 
   return (
     <header className="bg-card border-b border-border">
-      {/* Banner */}
-      {company.banner_url && (
-        <div className="w-full h-40 md:h-56 overflow-hidden">
-          <img
-            src={company.banner_url}
-            alt={displayName}
-            className="w-full h-full object-cover"
-            loading="eager"
-            decoding="async"
-          />
-        </div>
-      )}
+      {/* Banner do topo do cardápio removido — banners promocionais ficam em MenuBannersAdmin */}
 
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-start gap-4">
