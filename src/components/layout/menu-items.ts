@@ -28,19 +28,13 @@ export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuIte
   return [
     { title: "Dashboard",  url: "/dashboard",  icon: LayoutDashboard },
     {
-      // PDV removido — substituído por seção "Vendas" com 3 contextos
+      // PDV + Caixa removidos — substituídos por seção "Vendas" (caixa fica como tab interna do PDV)
       title: "Vendas", icon: ShoppingCart,
       subItems: [
-        { title: "Balcão",  url: "/vendas/balcao",  icon: Coffee },
-        { title: "Mesas",   url: "/vendas/mesa",    icon: LayoutGrid },
-        { title: "Entrega", url: "/vendas/entrega", icon: Bike },
-      ],
-    },
-    {
-      title: "Caixa", icon: Wallet,
-      subItems: [
-        { title: "Sessão Atual", url: "/caixa",           icon: Wallet },
-        { title: "Histórico",    url: "/caixa/historico", icon: Clock },
+        { title: "Balcão",          url: "/vendas/balcao",   icon: Coffee },
+        { title: "Mesas",           url: "/vendas/mesa",     icon: LayoutGrid },
+        { title: "Entrega",         url: "/vendas/entrega",  icon: Bike },
+        { title: "Histórico Caixa", url: "/caixa/historico", icon: Clock },
       ],
     },
     { title: "Financeiro", url: "/financeiro", icon: TrendingUp },

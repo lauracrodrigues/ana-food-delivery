@@ -1,5 +1,5 @@
 // v1.3.0 — Cache + push notifications (Web Push API)
-const CACHE_NAME = 'anafood-v4';
+const CACHE_NAME = 'anafood-v5';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
