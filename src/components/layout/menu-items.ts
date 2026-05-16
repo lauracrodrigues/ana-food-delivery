@@ -3,6 +3,7 @@ import {
   ShoppingBag, Settings, Package, Users, Tag, MessageSquare, Building2, MapPin,
   Store, CreditCard, Menu, LayoutGrid, Wallet, Receipt, Clock,
   TrendingUp, Truck, Ticket, BarChart3, Sparkles, Megaphone, LayoutDashboard, Gift, Calendar,
+  ShoppingCart, Coffee, Bike,
 } from "lucide-react";
 import { MotoIcon } from "@/components/ui/moto-icon";
 
@@ -26,7 +27,15 @@ export interface MenuItemsConfig {
 export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuItem[] {
   return [
     { title: "Dashboard",  url: "/dashboard",  icon: LayoutDashboard },
-    { title: "PDV",        url: "/pdv",        icon: Receipt },
+    {
+      // PDV removido — substituído por seção "Vendas" com 3 contextos
+      title: "Vendas", icon: ShoppingCart,
+      subItems: [
+        { title: "Balcão",  url: "/vendas/balcao",  icon: Coffee },
+        { title: "Mesas",   url: "/vendas/mesa",    icon: LayoutGrid },
+        { title: "Entrega", url: "/vendas/entrega", icon: Bike },
+      ],
+    },
     {
       title: "Caixa", icon: Wallet,
       subItems: [

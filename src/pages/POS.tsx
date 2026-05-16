@@ -24,7 +24,26 @@ const CashRegister = lazy(() => import('./CashRegister'));
 
 type POSTab = 'cash' | 'counter' | 'tables' | 'delivery';
 
-export default function POS() {
+// Mapeia context vindo da rota pra tab interna
+const CONTEXT_TO_TAB: Record<string, POSTab> = {
+  counter: 'counter',
+  table: 'tables',
+  delivery: 'delivery',
+};
+
+// Tema visual contextual (Goomer/Linx style)
+const CONTEXT_THEME: Record<POSTab, { label: string; emoji: string; color: string; ring: string }> = {
+  cash:     { label: 'CAIXA',   emoji: '💼', color: 'bg-slate-100 text-slate-800 border-slate-300',     ring: 'ring-slate-300' },
+  counter:  { label: 'BALCÃO',  emoji: '☕', color: 'bg-gray-100 text-gray-800 border-gray-300',         ring: 'ring-gray-300' },
+  tables:   { label: 'MESA',    emoji: '🪑', color: 'bg-orange-100 text-orange-800 border-orange-300',   ring: 'ring-orange-400' },
+  delivery: { label: 'ENTREGA', emoji: '🛵', color: 'bg-blue-100 text-blue-800 border-blue-300',         ring: 'ring-blue-400' },
+};
+
+interface POSProps {
+  initialContext?: 'counter' | 'table' | 'delivery';
+}
+
+export default function POS({ initialContext }: POSProps = {}) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isRegisterOpen } = useCashRegister();
@@ -32,8 +51,11 @@ export default function POS() {
   const { resetContext, context } = usePOSStore();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  // Default: se caixa fechado, abre tab Caixa direto. Senão, tab padrão das settings
-  const [activeTab, setActiveTab] = useState<POSTab>(isRegisterOpen ? 'counter' : 'cash');
+  // Default: caixa fechado → 'cash'. Senão: initialContext da rota OU tab default
+  const defaultTab: POSTab = isRegisterOpen
+    ? (initialContext ? CONTEXT_TO_TAB[initialContext] : 'counter')
+    : 'cash';
+  const [activeTab, setActiveTab] = useState<POSTab>(defaultTab);
 
   // Quando estado do caixa muda pra fechado, força tab cash + avisa
   useEffect(() => {
@@ -42,14 +64,22 @@ export default function POS() {
     }
   }, [isRegisterOpen]);
 
-  // Default tab das settings (só aplica se caixa aberto)
+  // Sincroniza tab quando rota muda (ex: clicou Balcão→Mesa no sidebar sem reload)
   useEffect(() => {
-    if (!isRegisterOpen) return;
+    if (!isRegisterOpen || !initialContext) return;
+    const tab = CONTEXT_TO_TAB[initialContext];
+    if (tab && tab !== activeTab) setActiveTab(tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialContext, isRegisterOpen]);
+
+  // Default tab das settings — só aplica se rota não impôs context
+  useEffect(() => {
+    if (!isRegisterOpen || initialContext) return;
     const defaultTab = (settings as any)?.default_tab;
     if (defaultTab && ['counter', 'tables', 'delivery'].includes(defaultTab)) {
       setActiveTab(defaultTab);
     }
-  }, [settings, isRegisterOpen]);
+  }, [settings, isRegisterOpen, initialContext]);
 
   // Mesa selecionada → vai pro Balcão (se caixa aberto)
   useEffect(() => {
@@ -85,10 +115,21 @@ export default function POS() {
     setActiveTab(tab);
   };
 
+  const theme = CONTEXT_THEME[activeTab];
+  // Badge contextual: mostra MESA 12 / COMANDA COM-1024 se houver context detalhado
+  const contextLabel = (() => {
+    if (activeTab === 'tables' && (context as any)?.table_number) {
+      const tableNum = (context as any).table_number;
+      const checkNum = (context as any).check_number;
+      return checkNum ? `MESA ${tableNum} · COM-${checkNum}` : `MESA ${tableNum}`;
+    }
+    return theme.label;
+  })();
+
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
-      {/* Header com Tabs */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b bg-background">
+    <div className={`flex flex-col h-[calc(100vh-4rem)] border-t-4 ${theme.ring.replace('ring-', 'border-')}`}>
+      {/* Header com Tabs + Badge Contextual */}
+      <div className="flex items-center gap-3 px-4 py-2 border-b bg-background">
         <Button
           variant="ghost"
           size="icon"
@@ -97,6 +138,12 @@ export default function POS() {
         >
           <Settings className="w-5 h-5" />
         </Button>
+
+        {/* Badge contextual */}
+        <div className={`hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${theme.color}`}>
+          <span>{theme.emoji}</span>
+          <span>{contextLabel}</span>
+        </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1">
           <TabsList className="grid w-full max-w-2xl grid-cols-4">

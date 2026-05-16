@@ -210,7 +210,11 @@ const App = () => {
               <Route path="/menu-management" element={<MenuManagement />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/company-profile" element={<CompanyProfile />} />
+              {/* /pdv mantido por retro-compat — redireciona pra Balcão */}
               <Route path="/pdv" element={<POS />} />
+              <Route path="/vendas/balcao"  element={<POS initialContext="counter" />} />
+              <Route path="/vendas/mesa"    element={<POS initialContext="table" />} />
+              <Route path="/vendas/entrega" element={<POS initialContext="delivery" />} />
               <Route path="/mesas" element={<Tables />} />
               <Route path="/caixa" element={<CashRegister />} />
               <Route path="/caixa/historico" element={<CashRegisterHistory />} />
