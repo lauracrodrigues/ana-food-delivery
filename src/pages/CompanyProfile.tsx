@@ -454,17 +454,34 @@ export default function CompanyProfile() {
                   </p>
                 </div>
                 {formData.google_maps_url && (
-                  <div className="flex gap-2 items-center">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(formData.google_maps_url, '_blank')}
-                      className="gap-1.5"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" /> Testar link
-                    </Button>
-                    <span className="text-xs text-green-700">✓ Link configurado — aparecerá no cardápio</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-green-700">✓ Link configurado — aparecerá no cardápio</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(formData.google_maps_url, '_blank')}
+                        className="gap-1.5 h-7 text-xs"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Abrir em nova aba
+                      </Button>
+                    </div>
+                    {/* Preview inline do mapa — embed Google Maps */}
+                    <div className="rounded-lg overflow-hidden border border-border bg-muted">
+                      <iframe
+                        src={`https://maps.google.com/maps?q=${encodeURIComponent(formData.google_maps_url)}&output=embed`}
+                        width="100%"
+                        height="280"
+                        style={{ border: 0 }}
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        title="Localização do estabelecimento"
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground text-center">
+                      💡 Se o mapa não localizar exato, prefira links com coordenadas (lat,lng) ou endereço completo.
+                    </p>
                   </div>
                 )}
               </CardContent>
