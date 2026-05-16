@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.create-tenant]
 verify_jwt = false
 
+[functions.complete-google-profile]
+verify_jwt = true
+
 [functions.whatsapp-send]
 verify_jwt = true
 

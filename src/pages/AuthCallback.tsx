@@ -7,38 +7,53 @@ export default function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        // Check user role and redirect accordingly
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
+    const handler = async (event: string, session: any) => {
+      if (event !== "SIGNED_IN" || !session) return;
 
-        if (profile?.role === 'super_admin' || profile?.role === 'master_admin') {
-          navigate('/admin');
+      // Carrega profile (role + company_id pra decidir rota)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, company_id')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      // Super admins → /admin
+      if (profile?.role === 'super_admin' || (profile?.role as string) === 'master_admin') {
+        navigate('/admin');
+        return;
+      }
+
+      // Entregadores → /entregador
+      if (session.user.email) {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore — deliverers não está no tipo gerado mas existe no banco
+        const { data: deliverer } = await supabase
+          .from('deliverers')
+          .select('id')
+          .eq('email', session.user.email)
+          .maybeSingle();
+        if (deliverer) {
+          navigate('/entregador');
           return;
         }
-
-        // Verifica se o email está vinculado a um entregador
-        if (session.user.email) {
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore — deliverers não está no tipo gerado mas existe no banco
-          const { data: deliverer } = await supabase
-            .from('deliverers')
-            .select('id')
-            .eq('email', session.user.email)
-            .maybeSingle();
-          if (deliverer) {
-            navigate('/entregador');
-            return;
-          }
-        }
-
-        navigate('/dashboard');
       }
+
+      // Sem profile OU sem company_id → fluxo de completar perfil (Google primeiro acesso)
+      if (!profile || !profile.company_id) {
+        navigate('/completar-perfil');
+        return;
+      }
+
+      navigate('/dashboard');
+    };
+
+    // Check sessão existente (caso já tenha entrado e voltou pra essa URL)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) handler("SIGNED_IN", session);
     });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handler);
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   return (

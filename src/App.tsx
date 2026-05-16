@@ -33,6 +33,7 @@ const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.S
 const PaymentMethods = lazy(() => import("./pages/PaymentMethods"));
 const WhatsApp = lazy(() => import("./pages/WhatsApp"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
+const CompleteProfile = lazy(() => import("./pages/CompleteProfile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
 const MenuManagement = lazy(() => import("./pages/MenuManagement"));
@@ -253,6 +254,11 @@ const App = () => {
             <Route path="/auth/callback" element={
               <Suspense fallback={<FullLoadingFallback />}>
                 <AuthCallback />
+              </Suspense>
+            } />
+            <Route path="/completar-perfil" element={
+              <Suspense fallback={<FullLoadingFallback />}>
+                <CompleteProfile />
               </Suspense>
             } />
             <Route path="/menu/:subdomain" element={
