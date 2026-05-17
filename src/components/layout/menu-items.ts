@@ -70,6 +70,7 @@ export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuIte
         { title: "Perfil da Empresa", url: "/company-profile", icon: Building2 },
         { title: "Assinatura",        url: "/billing",         icon: CreditCard },
         { title: "Gerais",            url: "/settings",        icon: Settings },
+        { title: "Retenção (LGPD)",   url: "/retention",       icon: Settings },
       ],
     },
   ];
