@@ -20,6 +20,9 @@ import { PromosSheet } from "@/components/menu/PromosSheet";
 import { StoreProfileSheet } from "@/components/menu/StoreProfileSheet";
 import { TrackingScripts, trackEvent } from "@/components/menu/TrackingScripts";
 import { useAbandonedCartReminder } from "@/hooks/useAbandonedCartReminder";
+import { useExitConfirmation } from "@/hooks/useExitConfirmation";
+import { useReferralCapture } from "@/hooks/useReferralCapture";
+import { CallWaiterButton } from "@/components/menu/CallWaiterButton";
 import { Loader2, ChefHat, Search, X } from "lucide-react";
 import { resetPalette, initializeColorPalette } from "@/hooks/use-color-palette";
 import { useCustomerSession } from "@/hooks/useCustomerSession";
@@ -78,6 +81,7 @@ interface Product {
   on_off: boolean;
   promotional_price?: number | null;
   badges?: string[] | null;
+  tags?: string[] | null;
   is_featured?: boolean;
 }
 
@@ -135,9 +139,23 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
   const [tableInfo, setTableInfo] = useState<{ id: string; table_number: string } | null>(null);
 
   // Sessão do cliente, favoritos, histórico e fidelidade (company.id disponível após load)
-  const { session, identify, saveAddress, clearSession } = useCustomerSession();
+  const { session, identify, saveAddress, removeAddress, setDefaultAddress, syncAddressesFromServer, clearSession } = useCustomerSession();
   const { favorites, toggle: toggleFavorite } = useFavorites(company?.id ?? "");
-  const { history, addOrder, refreshStatuses } = useOrderHistory(company?.id ?? "");
+  const { history, addOrder, refreshStatuses, loadFromServer } = useOrderHistory(company?.id ?? "");
+
+  // Carrega histórico + endereços do servidor quando session disponível (pega pedidos de outros devices + WhatsApp)
+  useEffect(() => {
+    if (company?.id && session?.phone) {
+      loadFromServer(session.phone);
+      syncAddressesFromServer(company.id);
+    }
+  }, [company?.id, session?.phone, loadFromServer, syncAddressesFromServer]);
+
+  // Trava back/exit acidental — só ativa quando cardápio carregado
+  useExitConfirmation(!!company?.id, "Tem certeza que deseja sair do cardápio?");
+
+  // Captura ?ref=PHONE do URL (programa de indicações)
+  const { referrerPhone, clearReferral } = useReferralCapture();
   const { points: loyaltyPoints, fetchPoints: refreshLoyalty } = useLoyaltyPoints(company?.id ?? "", session?.phone);
   const { trackView } = useProductViewTracker(company?.id ?? "");
   const { getDiscount: getCampaignDiscount } = useActiveCampaigns(company?.id ?? "");
@@ -408,8 +426,9 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
       setShowPromosSheet(false);
       setShowCartSheet(false);
     } else if (view === "promos") {
-      setShowPromosSheet(true);
-      setShowCustomerSheet(false);
+      // Unificado dentro do CustomerSheet (aba "promos") — não abre Sheet separado
+      setShowCustomerSheet(true);
+      setShowPromosSheet(false);
       setShowCartSheet(false);
     } else if (view === "cart") {
       setShowCartSheet(true);
@@ -458,11 +477,21 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
             loyaltyConfig={loyaltyConfig}
             onIdentify={identify}
             onClearSession={clearSession}
-            onRefreshHistory={refreshStatuses}
+            onRefreshHistory={async () => {
+              if (session?.phone) await loadFromServer(session.phone);
+              await refreshStatuses();
+            }}
             onRepeatOrder={handleRepeatOrder}
             onViewOrder={(orderId) => setTrackingOrderId(orderId)}
+            onSaveAddress={saveAddress}
+            onRemoveAddress={removeAddress}
+            onSetDefaultAddress={setDefaultAddress}
             open={showCustomerSheet}
-            onOpenChange={(o) => { setShowCustomerSheet(o); if (!o && activeView === "orders") setActiveView("home"); }}
+            onOpenChange={(o) => { setShowCustomerSheet(o); if (!o && (activeView === "orders" || activeView === "promos")) setActiveView("home"); }}
+            defaultTab={activeView === "promos" ? "promos" : "orders"}
+            storeSubdomain={company.subdomain}
+            storeName={company.fantasy_name || company.name}
+            referralRewardPoints={(company as any).referral_reward_points ?? 100}
           />
         }
       />
@@ -473,6 +502,11 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
           <span className="font-medium">Mesa {tableInfo.table_number}</span>
           <span className="ml-2 text-sm opacity-80">Pedido via QR Code</span>
         </div>
+      )}
+
+      {/* Botão chamar garçom — só se vier por QR code de mesa */}
+      {tableInfo && company && (
+        <CallWaiterButton companyId={company.id} tableNumber={tableInfo.table_number} />
       )}
 
       {/* Banners do cardápio */}
@@ -609,15 +643,7 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
         companyId={company.id}
       />
 
-      {/* Sheet de Promoções (cupons + pontos + combos) */}
-      <PromosSheet
-        open={showPromosSheet}
-        onOpenChange={(o) => { setShowPromosSheet(o); if (!o && activeView === "promos") setActiveView("home"); }}
-        companyId={company.id}
-        customerPhone={session?.phone}
-        loyaltyPoints={loyaltyPoints}
-        loyaltyConfig={loyaltyConfig}
-      />
+      {/* Promoções unificadas dentro do CustomerSheet (aba promos) — PromosSheet standalone removido */}
 
       {/* Menu inferior fixo (4 abas, mobile-only) */}
       <MenuBottomNav
@@ -659,6 +685,8 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
           onSuccess={handleOrderSuccess}
           onSaveAddress={saveAddress}
           onLoyaltyChange={refreshLoyalty}
+          referrerPhone={referrerPhone}
+          onReferralUsed={clearReferral}
         />
       )}
 
@@ -692,7 +720,7 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
       )}
 
       {trackingOrderId && (
-        <div className="fixed inset-0 z-50 bg-background">
+        <div className="fixed inset-0 z-50">
           <OrderTracking
             orderId={trackingOrderId}
             company={{ ...company, id: company.id }}

@@ -11,6 +11,7 @@ interface Product {
   image_url: string | null;
   promotional_price?: number | null;
   badges?: string[] | null;
+  tags?: string[] | null;
   is_featured?: boolean;
 }
 

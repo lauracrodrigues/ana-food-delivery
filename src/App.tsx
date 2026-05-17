@@ -49,6 +49,7 @@ const Estoque = lazy(() => import("./pages/Estoque"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
 const Distribuidoras = lazy(() => import("./pages/Distribuidoras"));
 const Coupons = lazy(() => import("./pages/Coupons"));
+const Reviews = lazy(() => import("./pages/Reviews"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
 const Loyalty = lazy(() => import("./pages/Loyalty"));
@@ -224,6 +225,7 @@ const App = () => {
               <Route path="/financeiro" element={<Financeiro />} />
               <Route path="/distribuidoras" element={<Distribuidoras />} />
               <Route path="/coupons" element={<Coupons />} />
+              <Route path="/reviews" element={<Reviews />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/campaigns" element={<Campaigns />} />
               <Route path="/loyalty" element={<Loyalty />} />

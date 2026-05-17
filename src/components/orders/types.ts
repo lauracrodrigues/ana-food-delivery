@@ -35,6 +35,8 @@ export interface Order {
   deliverer_id?: string;
   deliverer_name?: string;
   deliverer_phone?: string;
+  // Agendamento — pedido pra hora futura (status='scheduled' enquanto não chega a hora)
+  scheduled_for?: string | null;
 }
 
 export interface StoreSettings {
@@ -56,8 +58,9 @@ export interface StoreSettings {
   };
 }
 
-// Status columns configuration
+// Status columns configuration — "scheduled" novo: pedidos pré-agendados pra hora futura
 export const STATUS_COLUMNS = [
+  { id: "scheduled", title: "Agendados", color: "bg-indigo-500" },
   { id: "pending", title: "Novo", color: "bg-red-500" },
   { id: "preparing", title: "Em Preparo", color: "bg-yellow-500" },
   { id: "ready", title: "Pronto", color: "bg-green-500" },
@@ -74,6 +77,7 @@ const statusMap: Record<string, string> = {
   'em_entrega': 'delivering', 'delivering': 'delivering', 'entregando': 'delivering',
   'concluido': 'completed', 'concluída': 'completed', 'completed': 'completed',
   'cancelado': 'cancelled', 'cancelled': 'cancelled',
+  'agendado': 'scheduled', 'scheduled': 'scheduled',
 };
 
 export const normalizeStatus = (status: string): string => {
@@ -82,6 +86,7 @@ export const normalizeStatus = (status: string): string => {
 
 export const getNextStatus = (currentStatus: string, type: string): string => {
   switch (currentStatus) {
+    case "scheduled": return "pending"; // ativar agendado manualmente
     case "pending": return "preparing";
     case "preparing": return type === "pickup" ? "ready" : "delivering";
     case "ready": return "completed";

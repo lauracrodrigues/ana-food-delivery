@@ -4,6 +4,7 @@ import { formatCurrency } from "@/lib/currency-formatter";
 import { Plus, Image as ImageIcon, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OptimizedImage } from "@/components/ui/optimized-image";
+import { getTagById } from "@/lib/product-tags";
 
 interface Product {
   id: string;
@@ -13,6 +14,7 @@ interface Product {
   image_url: string | null;
   promotional_price?: number | null;
   badges?: string[] | null;
+  tags?: string[] | null; // etiquetas pré-definidas (vegano, picante, etc)
   is_featured?: boolean;
 }
 
@@ -67,14 +69,33 @@ export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onVi
 
   return (
     <div ref={cardRef} className="group relative bg-card rounded-xl border border-border hover:shadow-md transition-all overflow-hidden flex flex-col">
-      {/* Badge */}
-      {badgeCfg && (
-        <div className="absolute top-2 left-2 z-10">
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${badgeCfg.className}`}>
+      {/* Badges + Tags — empilhados topo-esquerda */}
+      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+        {/* Badge legado (badges) */}
+        {badgeCfg && (
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${badgeCfg.className} w-fit`}>
             {badgeCfg.label}
           </span>
-        </div>
-      )}
+        )}
+        {/* Tags pré-definidas (vegano, picante, etc) — máx 3 no card pra não poluir */}
+        {product.tags && product.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {product.tags.slice(0, 3).map((tagId) => {
+              const tag = getTagById(tagId);
+              if (!tag) return null;
+              return (
+                <span
+                  key={tagId}
+                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${tag.color} w-fit`}
+                  title={tag.label}
+                >
+                  {tag.emoji} {tag.label}
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Botão favorito */}
       {onToggleFavorite && (

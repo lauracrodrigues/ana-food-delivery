@@ -1,5 +1,6 @@
 // v2.5.0 — remove estado companyName nunca lido
 import { OrdersKanban } from "@/components/orders/OrdersKanban";
+import { WaiterCallsAlert } from "@/components/orders/WaiterCallsAlert";
 import { ManualOrderSidebar } from "@/components/orders/ManualOrderSidebar";
 import { Button } from "@/components/ui/button";
 import { Store, Bot, Clock, PlusCircle } from "lucide-react";
@@ -158,6 +159,13 @@ export default function Orders() {
           </Button>
         </div>
       </div>
+
+      {/* Chamadas garçom pendentes — alerta no topo, realtime */}
+      {companyId && (
+        <div className="px-4 pt-2">
+          <WaiterCallsAlert companyId={companyId} />
+        </div>
+      )}
 
       {/* Kanban ocupa tudo que sobra */}
       <div className="flex-1 min-h-0 overflow-hidden">

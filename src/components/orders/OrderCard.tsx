@@ -136,6 +136,12 @@ export const OrderCard = memo(function OrderCard({
                 ✓ PAGO
               </span>
             )}
+            {/* Badge AGENDADO destacado quando scheduled_for futuro — mostra hora */}
+            {order.scheduled_for && (
+              <span className="flex items-center gap-0.5 text-[10px] bg-indigo-500 text-white px-2 py-0.5 rounded-full font-bold shadow-sm" title={`Agendado pra ${new Date(order.scheduled_for).toLocaleString("pt-BR")}`}>
+                📅 {new Date(order.scheduled_for).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
             {order.type === "delivery" ? (
               <span className="flex items-center gap-0.5 text-[10px] bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-medium border border-blue-100 dark:border-blue-900">
                 <Truck className="w-2.5 h-2.5" />Delivery

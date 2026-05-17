@@ -202,7 +202,8 @@ export function ProductAddModal({
           <DialogTitle>{product.name}</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0">
+        {/* Native overflow — Radix ScrollArea trava touch scroll dentro de Dialog em mobile */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="px-4 space-y-4 pb-4">
             {/* Imagem */}
             {product.image_url ? (
@@ -338,7 +339,7 @@ export function ProductAddModal({
               />
             </div>
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Rodapé fixo */}
         <div className="border-t px-4 py-3 bg-background shrink-0">

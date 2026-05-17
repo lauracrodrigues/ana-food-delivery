@@ -28,6 +28,7 @@ import { Upload, X, Tag } from "lucide-react";
 import { ProductGroupsTab } from "./ProductGroupsTab";
 import { Checkbox } from "@/components/ui/checkbox";
 import { WEEKDAYS, ALL_WEEKDAYS } from "@/lib/weekday-utils";
+import { ProductTagsPicker } from "@/components/products/ProductTagsPicker";
 
 interface ProductEditDialogProps {
   product: any;
@@ -60,6 +61,7 @@ export function ProductEditDialog({
     available_weekdays: product?.available_weekdays || ALL_WEEKDAYS,
     promotional_price: product?.promotional_price?.toString() || "",
     badges: (product?.badges || []) as string[],
+    tags: (product?.tags || []) as string[], // etiquetas pré-definidas (vegano, picante, etc)
   });
   const [imagePreview, setImagePreview] = useState<string | null>(product?.image_url || null);
   const [uploading, setUploading] = useState(false);
@@ -78,6 +80,7 @@ export function ProductEditDialog({
         available_weekdays: product.available_weekdays || ALL_WEEKDAYS,
         promotional_price: product.promotional_price?.toString() || "",
         badges: (product.badges || []) as string[],
+        tags: (product.tags || []) as string[],
       });
       setImagePreview(product.image_url || null);
     }
@@ -160,6 +163,7 @@ export function ProductEditDialog({
         price,
         promotional_price: promoPrice && !isNaN(promoPrice) ? promoPrice : null,
         badges: formData.badges.length > 0 ? formData.badges : null,
+        tags: formData.tags.length > 0 ? formData.tags : [], // etiquetas (array vazio se nenhuma)
         company_id: companyId,
       };
 
@@ -285,37 +289,13 @@ export function ProductEditDialog({
             <div className="space-y-3 border-t pt-4">
               <Label className="flex items-center gap-1.5">
                 <Tag className="h-3.5 w-3.5" />
-                Badges (destaques visuais)
+                Etiquetas (destaques visuais)
               </Label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { value: "popular",    label: "⭐ Mais Vendido" },
-                  { value: "new",        label: "✨ Novidade" },
-                  { value: "promo",      label: "🔥 Promoção" },
-                  { value: "happy_hour", label: "🎉 Happy Hour" },
-                  { value: "vegan",      label: "🌱 Vegano" },
-                  { value: "spicy",      label: "🌶️ Picante" },
-                ].map((badge) => (
-                  <div key={badge.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`badge-${badge.value}`}
-                      checked={formData.badges.includes(badge.value)}
-                      onCheckedChange={(checked) => {
-                        const updated = checked
-                          ? [...formData.badges, badge.value]
-                          : formData.badges.filter((b) => b !== badge.value);
-                        setFormData({ ...formData, badges: updated });
-                      }}
-                    />
-                    <Label
-                      htmlFor={`badge-${badge.value}`}
-                      className="text-sm font-normal cursor-pointer"
-                    >
-                      {badge.label}
-                    </Label>
-                  </div>
-                ))}
-              </div>
+              <ProductTagsPicker
+                value={formData.tags}
+                onChange={(tags) => setFormData({ ...formData, tags })}
+                label=""
+              />
             </div>
 
             <div className="space-y-2">

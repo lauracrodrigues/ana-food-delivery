@@ -1,4 +1,5 @@
-// v1.0.0 — Tema dark/light isolado do cardápio público (não conflita com admin)
+// v2.0.0 — Tema dark/light isolado do cardápio público
+// Fix v2: aplica `.light` ou `.dark` explicitamente (antes só toggleava .dark, sem efeito porque :root já é dark)
 import { useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
@@ -16,17 +17,19 @@ function detectInitialTheme(): Theme {
 export function useMenuTheme() {
   const [theme, setThemeState] = useState<Theme>(detectInitialTheme);
 
-  // Aplica .dark no documento sempre que muda (Tailwind dark mode class strategy)
+  // Aplica classe explícita em <html> — remove a outra pra evitar conflito
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dark") root.classList.add("dark");
-    else root.classList.remove("dark");
+    root.classList.remove("light", "dark");
+    root.classList.add(theme);
   }, [theme]);
 
-  // Reseta classe ao desmontar componente do cardápio (não vaza pra admin)
+  // Cleanup ao desmontar — volta pro padrão light (admin)
   useEffect(() => {
     return () => {
-      document.documentElement.classList.remove("dark");
+      const root = document.documentElement;
+      root.classList.remove("dark");
+      root.classList.add("light");
     };
   }, []);
 

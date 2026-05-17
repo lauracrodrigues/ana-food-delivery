@@ -82,6 +82,14 @@ export function POSTables({ onTableSelected, onManageTables }: POSTablesProps) {
       });
     }
 
+    // Sort numérico — "1, 2, ..., 10" (não "1, 10, 2")
+    result = [...result].sort((a, b) => {
+      const numA = parseInt(String(a.table_number).replace(/\D/g, ""), 10) || 0;
+      const numB = parseInt(String(b.table_number).replace(/\D/g, ""), 10) || 0;
+      if (numA !== numB) return numA - numB;
+      return String(a.table_number).localeCompare(String(b.table_number));
+    });
+
     return result;
   }, [tables, statusFilter, searchTerm]);
 
@@ -165,29 +173,30 @@ export function POSTables({ onTableSelected, onManageTables }: POSTablesProps) {
     const idleColor = (table.minutes_idle ?? table.idle_minutes) ? getIdleColor(table.minutes_idle ?? table.idle_minutes ?? 0) : null;
     const hasOpenChecks = (table.open_checks_count ?? 0) > 0 || table.active_check;
     const tableTotal = table.current_total ?? table.check_total ?? 0;
-    const itemsCount = table.open_checks_count ?? table.check_items_count ?? 0;
+    // items_total = qtd items real nas comandas abertas; fallback pro count de comandas
+    const itemsCount = (table as any).check_items_total ?? table.check_items_count ?? table.open_checks_count ?? 0;
 
     return (
-      <Card 
+      <Card
         key={table.id}
         className={cn(
-          "cursor-pointer hover:shadow-md transition-all border-2",
+          "cursor-pointer hover:shadow-md transition-all border-2 h-full flex flex-col min-h-[170px] overflow-hidden",
           getTableColor(table)
         )}
         onClick={() => handleTableClick(table)}
       >
-        <CardContent className="p-3">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <UtensilsCrossed className={cn("w-5 h-5", iconColor)} />
-              <span className="font-bold">
+        <CardContent className="p-3 flex-1 flex flex-col min-w-0">
+          <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <UtensilsCrossed className={cn("w-5 h-5 shrink-0", iconColor)} />
+              <span className="font-bold truncate">
                 {table.name || `Mesa ${table.table_number}`}
               </span>
             </div>
-            <Badge 
-              variant="outline" 
+            <Badge
+              variant="outline"
               className={cn(
-                "text-xs",
+                "text-[10px] shrink-0 px-1.5 py-0",
                 iconColor === 'text-green-500' && "border-green-500 text-green-600",
                 iconColor === 'text-blue-500' && "border-blue-500 text-blue-600",
                 iconColor === 'text-orange-500' && "border-orange-500 text-orange-600",
@@ -199,21 +208,25 @@ export function POSTables({ onTableSelected, onManageTables }: POSTablesProps) {
 
           {table.capacity && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
-              <Users className="w-3 h-3" />
+              <Users className="w-3 h-3 shrink-0" />
               <span>{table.capacity} lugares</span>
             </div>
           )}
 
+          {/* Bloco ocupada — items lançados + total + tempo + garçom */}
           {table.status === 'occupied' && hasOpenChecks && (
-            <div className="mt-2 pt-2 border-t space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1">
-                  <Receipt className="w-3 h-3" />
-                  <span>#{table.active_check?.check_number || itemsCount} comanda(s)</span>
+            <div className="mt-auto pt-2 border-t space-y-1">
+              {/* Items + Comanda — linha info */}
+              <div className="flex items-center justify-between text-xs gap-1 min-w-0">
+                <div className="flex items-center gap-1 min-w-0">
+                  <Receipt className="w-3 h-3 shrink-0" />
+                  <span className="truncate">
+                    {itemsCount > 0 ? `${itemsCount} ${itemsCount === 1 ? 'item' : 'itens'}` : 'Sem itens'}
+                  </span>
                 </div>
                 {idleTimeStr && (
-                  <div 
-                    className="flex items-center gap-1 animate-pulse"
+                  <div
+                    className="flex items-center gap-1 animate-pulse shrink-0"
                     style={{ color: idleColor || undefined }}
                   >
                     <Clock className="w-3 h-3" />
@@ -221,11 +234,12 @@ export function POSTables({ onTableSelected, onManageTables }: POSTablesProps) {
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">
+              {/* Garçom + Total — flex-wrap evita extrapolar */}
+              <div className="flex items-center justify-between gap-1 min-w-0 flex-wrap">
+                <span className="text-[11px] text-muted-foreground truncate min-w-0">
                   {table.waiter_name || 'Sem garçom'}
                 </span>
-                <span className="font-bold text-primary text-sm">
+                <span className="font-bold text-primary text-sm whitespace-nowrap">
                   {formatCurrency(tableTotal)}
                 </span>
               </div>

@@ -14,6 +14,7 @@ interface Product {
   category_id: string;
   promotional_price?: number | null;
   badges?: string[] | null;
+  tags?: string[] | null;
   is_featured?: boolean;
 }
 

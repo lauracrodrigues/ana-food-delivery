@@ -1,10 +1,12 @@
-// v1.1.0 — Tela acompanhamento pedido + banner opt-in push
+// v1.2.0 — Tela acompanhamento + push opt-in + cancelamento com motivos
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Clock, ChefHat, Package, Bike, Star, Phone, ReceiptText } from "lucide-react";
+import { CheckCircle2, Clock, ChefHat, Package, Bike, Star, Phone, ReceiptText, X, ArrowLeft } from "lucide-react";
 import { PushOptInBanner } from "./PushOptInBanner";
+import { CancelOrderDialog } from "./CancelOrderDialog";
+import { OrderReviewForm } from "./OrderReviewForm";
 
 interface OrderTrackingProps {
   orderId: string;
@@ -43,6 +45,7 @@ const STATUS_COLORS: Record<string, string> = {
 export function OrderTracking({ orderId, company, onClose }: OrderTrackingProps) {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const fetchOrder = useCallback(async () => {
     const { data } = await supabase.rpc("get_order_tracking", { p_order_id: orderId });
@@ -89,14 +92,32 @@ export function OrderTracking({ orderId, company, onClose }: OrderTrackingProps)
   const contactNum = company.whatsapp || company.phone;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-4 py-5 text-center">
-        <p className="text-sm opacity-80">{company.fantasy_name || company.name}</p>
-        <h1 className="text-2xl font-bold mt-1">Pedido {orderNum}</h1>
-        <p className="text-sm opacity-80 mt-0.5">
-          {new Date(order.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-        </p>
+    <div className="fixed inset-0 bg-background flex flex-col overflow-hidden">
+      {/* Header com botão voltar */}
+      <div className="bg-primary text-primary-foreground px-4 py-4 relative shrink-0">
+        {/* Botão voltar — esquerda */}
+        <button
+          onClick={onClose}
+          className="absolute left-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-primary-foreground/15 hover:bg-primary-foreground/25 flex items-center justify-center transition-colors"
+          aria-label="Voltar ao cardápio"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div className="text-center px-12">
+          <p className="text-sm opacity-80">{company.fantasy_name || company.name}</p>
+          <h1 className="text-xl font-bold mt-0.5">Pedido {orderNum}</h1>
+          <p className="text-xs opacity-80 mt-0.5">
+            {new Date(order.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+          </p>
+        </div>
+        {/* Botão X — direita */}
+        <button
+          onClick={onClose}
+          className="absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-primary-foreground/15 hover:bg-primary-foreground/25 flex items-center justify-center transition-colors"
+          aria-label="Fechar"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 max-w-md mx-auto w-full">
@@ -198,6 +219,11 @@ export function OrderTracking({ orderId, company, onClose }: OrderTrackingProps)
           )}
         </div>
 
+        {/* Form de avaliação — só pra pedidos entregues/concluídos */}
+        {(isDelivered || ["completed", "archived"].includes(order.status)) && (
+          <OrderReviewForm orderId={orderId} customerPhone={order.customer_phone} />
+        )}
+
         {/* Contato com a loja */}
         {contactNum && (
           <a
@@ -216,10 +242,30 @@ export function OrderTracking({ orderId, company, onClose }: OrderTrackingProps)
           Fazer novo pedido
         </Button>
 
+        {/* Botão cancelar — bloqueado pra pedidos finalizados (delivered/completed/archived) ou em entrega */}
+        {!isDelivered && !isCancelled && !["delivering", "completed", "archived"].includes(order.status) && (
+          <button
+            type="button"
+            onClick={() => setCancelOpen(true)}
+            className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors py-2"
+          >
+            <X className="h-3 w-3" />
+            Cancelar pedido
+          </button>
+        )}
+
         <p className="text-center text-xs text-muted-foreground pb-4">
           Atualização automática a cada 15 segundos
         </p>
       </div>
+
+      {/* Modal de motivos de cancelamento */}
+      <CancelOrderDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        orderId={orderId}
+        onCancelled={() => { fetchOrder(); }}
+      />
     </div>
   );
 }

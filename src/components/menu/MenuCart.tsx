@@ -125,38 +125,39 @@ export function MenuCart({
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-2 items-end shrink-0">
-                  <div className="flex items-center gap-1 bg-muted rounded-md">
+                {/* Direita: quantidade +/- + trash icon (mesma linha, trash na ponta direita) */}
+                <div className="flex items-center gap-2 items-start shrink-0">
+                  <div className="flex items-center gap-1 bg-muted rounded-md h-9">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-9 w-9"
                       onClick={() => onUpdateQuantity(item.cartItemId, item.quantity - 1)}
+                      aria-label="Diminuir quantidade"
                     >
-                      <Minus className="h-3 w-3" />
+                      <Minus className="h-4 w-4" />
                     </Button>
-                    <span className="w-8 text-center text-sm font-medium">
+                    <span className="w-6 text-center text-sm font-semibold">
                       {item.quantity}
                     </span>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-9 w-9"
                       onClick={() => onUpdateQuantity(item.cartItemId, item.quantity + 1)}
+                      aria-label="Aumentar quantidade"
                     >
-                      <Plus className="h-3 w-3" />
+                      <Plus className="h-4 w-4" />
                     </Button>
                   </div>
-
-                  {/* Botão remover individual — destacado em vermelho */}
+                  {/* Trash icon-only — maior, na ponta direita */}
                   <button
                     onClick={() => onRemoveItem(item.cartItemId)}
-                    className="flex items-center gap-1 text-xs text-destructive hover:underline font-medium"
+                    className="h-9 w-9 flex items-center justify-center rounded-md text-destructive hover:bg-destructive/10 transition-colors"
                     type="button"
                     aria-label={`Remover ${item.product.name}`}
                   >
-                    <Trash2 className="h-3 w-3" />
-                    Remover
+                    <Trash2 className="h-5 w-5" />
                   </button>
                 </div>
               </div>

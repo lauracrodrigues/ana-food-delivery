@@ -1,9 +1,8 @@
-// v2.2.0 — Header com slots customer/theme + status/tempo/taxa/WhatsApp/Instagram
+// v3.0.0 — Header compacto: logo+nome menores, header todo clickable abre StoreProfileSheet
 import React from "react";
-import { Clock, Star, MessageCircle, Instagram } from "lucide-react";
+import { MessageCircle, Instagram } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/currency-formatter";
 
 interface Company {
   name: string;
@@ -23,9 +22,9 @@ interface Company {
 
 interface MenuHeaderProps {
   company: Company;
-  customerSlot?: React.ReactNode; // botão de conta do cliente
-  themeSlot?: React.ReactNode;    // toggle dark/light do cardápio
-  onProfileClick?: () => void;    // click no logo/nome abre StoreProfileSheet
+  customerSlot?: React.ReactNode;
+  themeSlot?: React.ReactNode;
+  onProfileClick?: () => void;
 }
 
 function calcIsOpen(company: Company): boolean {
@@ -43,12 +42,14 @@ export function MenuHeader({ company, customerSlot, themeSlot, onProfileClick }:
   const open = calcIsOpen(company);
   const displayName = company.fantasy_name || company.name;
 
-  const handleWhatsApp = () => {
+  const handleWhatsApp = (e: React.MouseEvent) => {
+    e.stopPropagation(); // não dispara onProfileClick
     const num = company.whatsapp?.replace(/\D/g, "");
     if (num) window.open(`https://wa.me/${num}`, "_blank");
   };
 
-  const handleInstagram = () => {
+  const handleInstagram = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (company.instagram) {
       const handle = company.instagram.replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//, "");
       window.open(`https://instagram.com/${handle}`, "_blank");
@@ -57,94 +58,73 @@ export function MenuHeader({ company, customerSlot, themeSlot, onProfileClick }:
 
   return (
     <header className="bg-card border-b border-border">
-      {/* Banner do topo do cardápio removido — banners promocionais ficam em MenuBannersAdmin */}
-
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-start gap-4">
-          {/* Logo — clica pra abrir perfil da loja */}
-          {company.logo_url && (
-            <button
-              type="button"
-              onClick={onProfileClick}
-              className="shrink-0"
-              aria-label="Ver detalhes da loja"
-            >
+      <div className="container mx-auto px-4 py-2.5">
+        <div className="flex items-center gap-3">
+          {/* Bloco clicável: logo + nome empilhados — abre StoreProfileSheet */}
+          <button
+            type="button"
+            onClick={onProfileClick}
+            className="flex flex-col items-center gap-0.5 shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+            aria-label="Ver detalhes da loja"
+          >
+            {company.logo_url ? (
               <img
                 src={company.logo_url}
                 alt={displayName}
-                className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-full border-2 border-border bg-background shadow-sm cursor-pointer hover:scale-105 transition-transform"
+                className="w-10 h-10 md:w-11 md:h-11 object-cover rounded-full border border-border bg-background shadow-sm"
                 loading="eager"
                 decoding="async"
               />
-            </button>
-          )}
-
-          <div className="flex-1 min-w-0">
-            {/* Nome + Status */}
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <h1 className="text-xl md:text-2xl font-bold truncate">{displayName}</h1>
-              <Badge
-                variant={open ? "default" : "destructive"}
-                className={`shrink-0 text-xs px-2 py-0.5 ${open ? "bg-green-500 hover:bg-green-500" : ""}`}
-              >
-                {open ? "● Aberto" : "● Fechado"}
-              </Badge>
-            </div>
-
-            {/* Descrição */}
-            {company.description && (
-              <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{company.description}</p>
+            ) : (
+              <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-primary/10 border border-border flex items-center justify-center">
+                <span className="text-sm font-bold">{displayName.charAt(0)}</span>
+              </div>
             )}
+            {/* Nome ABAIXO da logo — text-xs (antes era text-xl/2xl, agora < metade) */}
+            <span className="text-[10px] md:text-xs font-semibold leading-tight max-w-[80px] truncate text-center">
+              {displayName}
+            </span>
+          </button>
 
-            {/* Métricas */}
-            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              {(company.avg_delivery_minutes ?? 40) > 0 && (
-                <div className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>{company.avg_delivery_minutes ?? 40} min</span>
-                </div>
-              )}
-              {company.delivery_fee != null && (
-                <div className="flex items-center gap-1 text-xs">
-                  <span className="text-muted-foreground">Entrega:</span>
-                  <span className="font-medium text-foreground">
-                    {company.delivery_fee === 0 ? "Grátis" : formatCurrency(company.delivery_fee)}
-                  </span>
-                </div>
-              )}
-              {company.rating && (
-                <div className="flex items-center gap-1">
-                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                  <span className="font-medium text-foreground">{company.rating.toFixed(1)}</span>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Área central clicável também — vazia mas expande área de toque, abre profile */}
+          <button
+            type="button"
+            onClick={onProfileClick}
+            className="flex-1 flex items-center justify-start cursor-pointer min-h-[44px]"
+            aria-label="Ver detalhes da loja"
+          >
+            <Badge
+              variant={open ? "default" : "destructive"}
+              className={`text-[10px] px-1.5 py-0 ${open ? "bg-green-500 hover:bg-green-500" : ""}`}
+            >
+              {open ? "● Aberto" : "● Fechado"}
+            </Badge>
+          </button>
 
-          {/* Botões sociais + conta do cliente + tema */}
-          <div className="flex gap-2 shrink-0 items-start">
+          {/* Ações: tema + conta + socials — fora do click do profile */}
+          <div className="flex gap-1.5 shrink-0 items-center">
             {themeSlot}
             {customerSlot}
             {company.whatsapp && (
               <Button
                 size="icon"
                 variant="outline"
-                className="h-9 w-9 rounded-full border-green-500 text-green-600 hover:bg-green-50"
+                className="h-8 w-8 rounded-full border-green-500 text-green-600 hover:bg-green-50"
                 onClick={handleWhatsApp}
                 title="WhatsApp"
               >
-                <MessageCircle className="h-4 w-4" />
+                <MessageCircle className="h-3.5 w-3.5" />
               </Button>
             )}
             {company.instagram && (
               <Button
                 size="icon"
                 variant="outline"
-                className="h-9 w-9 rounded-full border-pink-400 text-pink-500 hover:bg-pink-50"
+                className="h-8 w-8 rounded-full border-pink-400 text-pink-500 hover:bg-pink-50"
                 onClick={handleInstagram}
                 title="Instagram"
               >
-                <Instagram className="h-4 w-4" />
+                <Instagram className="h-3.5 w-3.5" />
               </Button>
             )}
           </div>

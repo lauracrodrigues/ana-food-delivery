@@ -62,6 +62,8 @@ interface MenuCheckoutProps {
   onSuccess: (orderId?: string) => void;
   onSaveAddress?: (address: string) => void;
   onLoyaltyChange?: () => void;
+  referrerPhone?: string | null;       // ?ref=PHONE capturado da URL
+  onReferralUsed?: () => void;         // limpa storage após indicação consumida
 }
 
 // Tela do QR code PIX — compacta para mobile
@@ -180,6 +182,7 @@ export function MenuCheckout({
   cart, total, company, tableInfo, requireCustomerInfo, session,
   loyaltyPoints = 0, loyaltyConfig, prefilledCouponCode,
   onClose, onSuccess, onSaveAddress, onLoyaltyChange,
+  referrerPhone, onReferralUsed,
 }: MenuCheckoutProps) {
   const { toast } = useToast();
   const { createOrder, loading, pixData } = useOrderCreation();
@@ -199,6 +202,11 @@ export function MenuCheckout({
     payment_method: "dinheiro",
     observations: "",
   });
+
+  // Agendamento — null = pedido agora, ou ISO string pra data+hora futura
+  const [schedulingMode, setSchedulingMode] = useState<"now" | "later">("now");
+  const [scheduledDate, setScheduledDate] = useState(""); // YYYY-MM-DD
+  const [scheduledTime, setScheduledTime] = useState(""); // HH:MM
 
   const isTableOrder = !!tableInfo;
 
@@ -386,6 +394,27 @@ export function MenuCheckout({
       return;
     }
 
+    // Validação agendamento — exige date+time se modo later
+    let scheduledForIso: string | null = null;
+    if (schedulingMode === "later") {
+      if (!scheduledDate || !scheduledTime) {
+        toast({ title: "Informe data e horário do agendamento", variant: "destructive" });
+        return;
+      }
+      const scheduledDt = new Date(`${scheduledDate}T${scheduledTime}:00`);
+      const minFuture = new Date(Date.now() + 30 * 60 * 1000); // mínimo 30min no futuro
+      if (scheduledDt < minFuture) {
+        toast({ title: "Agende com pelo menos 30 min de antecedência", variant: "destructive" });
+        return;
+      }
+      const maxFuture = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // máx 7 dias
+      if (scheduledDt > maxFuture) {
+        toast({ title: "Agendamento máximo: 7 dias", variant: "destructive" });
+        return;
+      }
+      scheduledForIso = scheduledDt.toISOString();
+    }
+
     const payload = {
       company_id: company.id,
       customer_name: formData.customer_name,
@@ -412,6 +441,10 @@ export function MenuCheckout({
       delivery_fee: deliveryFee,
       estimated_time: 30,
       source: tableInfo ? "qr_code" : "digital_menu",
+      scheduled_for: scheduledForIso,
+      // Referral: anexa quem indicou (se válido — não pode indicar a si mesmo)
+      ...(referrerPhone && referrerPhone.replace(/\D/g, "") !== formData.customer_phone.replace(/\D/g, "")
+        && { referred_by_phone: referrerPhone }),
       ...(tableInfo && { table_id: tableInfo.id, table_number: tableInfo.table_number }),
       ...(appliedCoupon && { coupon_id: appliedCoupon.id }),
     };
@@ -428,6 +461,19 @@ export function MenuCheckout({
         // Salva endereço na sessão do cliente
         if (formData.type === "delivery" && formData.address && onSaveAddress) {
           onSaveAddress(formData.address);
+        }
+        // Referral: cria registro de indicação (RPC valida cliente novo + telefones distintos)
+        if (referrerPhone && formData.customer_phone) {
+          try {
+            await supabase.rpc("create_referral" as any, {
+              p_company_id: company.id,
+              p_referrer_phone: referrerPhone,
+              p_referred_phone: formData.customer_phone,
+            });
+            onReferralUsed?.(); // limpa storage — indicação consumida
+          } catch (e) {
+            console.warn("Falha registrar indicação (não bloqueia pedido):", e);
+          }
         }
         // Fidelidade: resgate (consome pontos) + ganho (gera pontos)
         if (session?.phone && loyaltyConfig) {
@@ -527,6 +573,57 @@ export function MenuCheckout({
             </div>
           </div>
 
+          {/* Agendamento — quando quer receber */}
+          {!isTableOrder && (
+            <div className="space-y-3">
+              <h3 className="font-semibold">Quando quer receber?</h3>
+              <RadioGroup
+                value={schedulingMode}
+                onValueChange={(v) => setSchedulingMode(v as "now" | "later")}
+                className="grid grid-cols-2 gap-2"
+              >
+                <label className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${schedulingMode === "now" ? "border-primary bg-primary/5 font-semibold" : "border-input"}`}>
+                  <RadioGroupItem value="now" id="now" />
+                  ⚡ Agora
+                </label>
+                <label className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${schedulingMode === "later" ? "border-primary bg-primary/5 font-semibold" : "border-input"}`}>
+                  <RadioGroupItem value="later" id="later" />
+                  📅 Agendar
+                </label>
+              </RadioGroup>
+              {/* Date + Time pickers só se modo later */}
+              {schedulingMode === "later" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="sched-date" className="text-xs">Data</Label>
+                    <input
+                      id="sched-date"
+                      type="date"
+                      value={scheduledDate}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      min={new Date().toISOString().slice(0, 10)}
+                      max={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}
+                      className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="sched-time" className="text-xs">Horário</Label>
+                    <input
+                      id="sched-time"
+                      type="time"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                      className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                    />
+                  </div>
+                  <p className="col-span-2 text-xs text-muted-foreground">
+                    Min. 30 min de antecedência · Max. 7 dias
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Tipo de pedido */}
           {!isTableOrder && (
             <div className="space-y-4">
@@ -564,6 +661,29 @@ export function MenuCheckout({
                   {locating ? "Detectando..." : "Usar minha localização"}
                 </Button>
               </div>
+              {/* Quick-select: endereços salvos do cliente (max 5) — só mostra se >1 salvo */}
+              {session?.addresses && session.addresses.length > 1 && (
+                <div className="flex flex-wrap gap-1.5 pb-1">
+                  {session.addresses.map((addr, idx) => {
+                    const selected = formData.address === addr;
+                    return (
+                      <button
+                        key={`${addr}-${idx}`}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, address: addr })}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors max-w-[200px] truncate ${
+                          selected
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-muted/50 border-input hover:bg-muted"
+                        }`}
+                        title={addr}
+                      >
+                        📍 {addr.length > 30 ? addr.slice(0, 30) + "..." : addr}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <Textarea
                 id="address"
                 value={formData.address}

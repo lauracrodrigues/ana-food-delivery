@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Plus, Edit, Trash2, Upload, Copy, ImageIcon, Loader2, X } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Upload, Copy, ImageIcon, Loader2, X, FileText, RefreshCw } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { MenuImportDialog } from "@/components/products/MenuImportDialog";
 import { formatCurrency } from "@/lib/currency-formatter";
@@ -72,6 +72,37 @@ export function Products() {
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [regeneratingPdf, setRegeneratingPdf] = useState(false); // loading do botão regenerar PDF cardápio
+
+  // Regenera PDF do cardápio (força hash novo) + faz download
+  const handleRegenerateMenuPDF = async (downloadAfter = false) => {
+    if (!companyId) return;
+    setRegeneratingPdf(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-menu-document", {
+        body: { company_id: companyId, force: true },
+      });
+      if (error || !data?.success) throw new Error(data?.error || error?.message || "Falha");
+      toast({
+        title: "Cardápio PDF atualizado!",
+        description: `${data.stats?.categories ?? 0} categorias · ${data.stats?.products ?? 0} produtos`,
+      });
+      // Faz download direto (cliente solicita)
+      if (downloadAfter && data.pdf_base64) {
+        const blob = new Blob([Uint8Array.from(atob(data.pdf_base64), c => c.charCodeAt(0))], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = data.filename || "cardapio.pdf";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (e: any) {
+      toast({ title: "Erro", description: e?.message || "Falha ao gerar PDF", variant: "destructive" });
+    } finally {
+      setRegeneratingPdf(false);
+    }
+  };
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<Partial<Product>>(emptyForm());
@@ -247,10 +278,19 @@ export function Products() {
     <PageLayout
       title="Produtos"
       actions={
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={() => setShowImport(true)}>
             <Upload className="mr-2 h-4 w-4" />
             Importar Cardápio
+          </Button>
+          {/* Regenera + baixa PDF cardápio (também atualiza cache pra bot WhatsApp) */}
+          <Button variant="outline" onClick={() => handleRegenerateMenuPDF(true)} disabled={regeneratingPdf} title="Regenera o PDF do cardápio enviado pelo bot WhatsApp e baixa cópia">
+            {regeneratingPdf ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileText className="mr-2 h-4 w-4" />
+            )}
+            {regeneratingPdf ? "Gerando..." : "Cardápio PDF"}
           </Button>
           <Button onClick={() => openModal()}>
             <Plus className="mr-2 h-4 w-4" />

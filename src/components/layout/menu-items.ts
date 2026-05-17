@@ -54,6 +54,7 @@ export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuIte
         { title: "Cupons",              url: "/coupons",          icon: Ticket },
         { title: "Campanhas",           url: "/campaigns",        icon: Sparkles },
         { title: "Combos",              url: "/combos",           icon: Gift },
+        { title: "Avaliações",          url: "/reviews",          icon: MessageSquare },
       ],
     },
     {

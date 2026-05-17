@@ -3,6 +3,9 @@ project_id = "jgdyklzrxygvwuhlnbat"
 [functions.whatsapp-evolution]
 verify_jwt = false
 
+[functions.generate-menu-document]
+verify_jwt = false
+
 [functions.uptime-webhook]
 verify_jwt = false
 

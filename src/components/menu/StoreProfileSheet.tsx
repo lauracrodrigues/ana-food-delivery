@@ -1,11 +1,13 @@
-// v1.0.0 — Sheet de perfil da loja (horários, endereço, formas de pagamento, contato)
+// v2.0.0 — Sheet de perfil da loja (horários, endereço, taxa entrega + cálculo localização, contato)
+import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Instagram, MapPin, Clock, CreditCard, Share2, Phone } from "lucide-react";
+import { MessageCircle, Instagram, MapPin, Clock, CreditCard, Share2, Phone, Truck, LocateFixed, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/currency-formatter";
 
 interface Company {
+  id?: string;
   name: string;
   fantasy_name: string;
   logo_url: string | null;
@@ -19,12 +21,27 @@ interface Company {
   subdomain?: string | null;
   google_maps_url?: string | null;
   address?: any;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  delivery_fee?: number | null;
+  avg_delivery_minutes?: number | null;
 }
 
 interface StoreProfileSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   company: Company;
+}
+
+// Calcula distância em km entre duas coordenadas (Haversine)
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 const WEEKDAY_LABELS: Record<string, string> = {
@@ -49,6 +66,40 @@ export function StoreProfileSheet({ open, onOpenChange, company }: StoreProfileS
   const { toast } = useToast();
   const displayName = company.fantasy_name || company.name;
   const open24 = isOpenNow(company.schedule);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [calculatingDistance, setCalculatingDistance] = useState(false);
+
+  // Calcula distância usando geolocation do navegador → Haversine com lat/lng da loja
+  const handleCalcDistance = () => {
+    // Coords top-level (companies.latitude/longitude) > fallback address jsonb
+    const storeLat = parseFloat(
+      String(company.latitude ?? company.address?.latitude ?? company.address?.lat ?? "")
+    );
+    const storeLng = parseFloat(
+      String(company.longitude ?? company.address?.longitude ?? company.address?.lng ?? "")
+    );
+    if (!storeLat || !storeLng || isNaN(storeLat) || isNaN(storeLng)) {
+      toast({ title: "Loja sem coordenadas cadastradas", variant: "destructive" });
+      return;
+    }
+    if (!navigator.geolocation) {
+      toast({ title: "Navegador não suporta geolocalização", variant: "destructive" });
+      return;
+    }
+    setCalculatingDistance(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const km = haversineKm(pos.coords.latitude, pos.coords.longitude, storeLat, storeLng);
+        setDistanceKm(km);
+        setCalculatingDistance(false);
+      },
+      () => {
+        toast({ title: "Não foi possível obter sua localização", variant: "destructive" });
+        setCalculatingDistance(false);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -69,20 +120,22 @@ export function StoreProfileSheet({ open, onOpenChange, company }: StoreProfileS
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl p-0">
+      <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl p-0 flex flex-col">
         <SheetHeader className="sr-only">
           <SheetTitle>Perfil da loja — {displayName}</SheetTitle>
         </SheetHeader>
 
-        <ScrollArea className="h-full">
-          {/* Banner topo */}
+        {/* Native overflow — Radix ScrollArea corta topo dentro de Sheet em mobile */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          {/* Banner topo — só se tiver */}
           {company.banner_url && (
             <div className="w-full h-32 overflow-hidden">
               <img src={company.banner_url} alt={displayName} className="w-full h-full object-cover" />
             </div>
           )}
 
-          <div className="px-4 pb-6 -mt-10">
+          {/* Padding top compensa SheetContent close button (X) + garante logo visível mesmo sem banner */}
+          <div className={`px-4 pb-6 ${company.banner_url ? "-mt-10" : "pt-8"}`}>
             {/* Logo + nome */}
             <div className="flex items-end gap-3 mb-4">
               {company.logo_url ? (
@@ -166,6 +219,50 @@ export function StoreProfileSheet({ open, onOpenChange, company }: StoreProfileS
               </div>
             )}
 
+            {/* Taxa entrega + cálculo distância */}
+            {(company.delivery_fee != null || company.avg_delivery_minutes) && (
+              <div className="bg-card border rounded-xl p-3 mb-3 space-y-2">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <Truck className="h-4 w-4" /> Entrega
+                </h3>
+                <div className="flex flex-wrap gap-3 text-sm">
+                  {company.delivery_fee != null && (
+                    <div>
+                      <span className="text-muted-foreground text-xs">Taxa: </span>
+                      <span className="font-semibold">
+                        {company.delivery_fee === 0 ? "Grátis" : formatCurrency(company.delivery_fee)}
+                      </span>
+                    </div>
+                  )}
+                  {company.avg_delivery_minutes && (
+                    <div>
+                      <span className="text-muted-foreground text-xs">Tempo: </span>
+                      <span className="font-semibold">~{company.avg_delivery_minutes} min</span>
+                    </div>
+                  )}
+                </div>
+                {/* Botão calcular distância até cliente */}
+                <button
+                  onClick={handleCalcDistance}
+                  disabled={calculatingDistance}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-blue-300 text-blue-700 bg-blue-50 text-sm font-medium hover:bg-blue-100 disabled:opacity-60"
+                >
+                  {calculatingDistance ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <LocateFixed className="h-4 w-4" />
+                  )}
+                  {calculatingDistance ? "Calculando..." : "Calcular distância até você"}
+                </button>
+                {distanceKm != null && (
+                  <div className="text-center text-sm bg-green-50 border border-green-200 rounded-lg py-2">
+                    <span className="font-bold text-green-700">{distanceKm.toFixed(1)} km</span>
+                    <span className="text-muted-foreground text-xs ml-1">da loja até você</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Formas de pagamento (estático — pode ler de payment_methods se quiser dinâmico) */}
             <div className="bg-card border rounded-xl p-3 mb-3">
               <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
@@ -211,7 +308,7 @@ export function StoreProfileSheet({ open, onOpenChange, company }: StoreProfileS
               );
             })()}
           </div>
-        </ScrollArea>
+        </div>
       </SheetContent>
     </Sheet>
   );

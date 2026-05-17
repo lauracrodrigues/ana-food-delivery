@@ -126,7 +126,14 @@ export function TablesSettings() {
         .eq('company_id', companyId)
         .order('table_number');
       if (error) throw error;
-      return data.map((t: any) => ({
+      // Sort numérico — table_number text "1, 2, ..., 10" (não "1, 10, 2")
+      const sorted = (data || []).slice().sort((a: any, b: any) => {
+        const numA = parseInt(String(a.table_number).replace(/\D/g, ""), 10) || 0;
+        const numB = parseInt(String(b.table_number).replace(/\D/g, ""), 10) || 0;
+        if (numA !== numB) return numA - numB;
+        return String(a.table_number).localeCompare(String(b.table_number));
+      });
+      return sorted.map((t: any) => ({
         ...t,
         area_name: t.table_areas?.name,
       })) as TableData[];

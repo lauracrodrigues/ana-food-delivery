@@ -1,4 +1,4 @@
-// v1.0.0 — Sheet de promoções (cupons + cashback + compre e ganhe)
+// v2.0.0 — Sheet de promoções (cupons + cashback + compre e ganhe). Exporta também PromosContent reusável (sem Sheet) pra embedar em outras Sheets
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency-formatter";
@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tag, Sparkles, Gift, Copy, Loader2, CheckCircle2 } from "lucide-react";
 import type { LoyaltyConfig } from "@/hooks/useLoyaltyPoints";
+import { ReferralCard } from "./ReferralCard";
 
 interface PublicCoupon {
   id: string;
@@ -102,24 +103,150 @@ export function PromosSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl px-0">
-        <SheetHeader className="px-4 pb-3 border-b">
+      <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl px-0 flex flex-col">
+        <SheetHeader className="px-4 pb-3 border-b shrink-0">
           <SheetTitle className="flex items-center gap-2 text-base">
             <Tag className="h-4 w-4" /> Promoções
           </SheetTitle>
         </SheetHeader>
 
-        <Tabs defaultValue="coupons" className="flex flex-col h-[calc(85vh-80px)]">
-          <TabsList className="mx-4 mt-3 grid grid-cols-3">
-            <TabsTrigger value="coupons" className="gap-1.5">
+        <PromosTabsInner
+          coupons={coupons}
+          combos={combos}
+          loading={loading}
+          customerPhone={customerPhone}
+          loyaltyPoints={loyaltyPoints}
+          perReal={perReal}
+          minRedeem={minRedeem}
+          redeemValue={redeemValue}
+          cashbackInReais={cashbackInReais}
+          copyCode={copyCode}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// PromosContent reusável — buscar dados + renderizar tabs (sem Sheet wrapper)
+// Usado dentro de outras Sheets (CustomerSheet) pra evitar duplicação
+interface PromosContentProps {
+  companyId: string;
+  customerPhone?: string | null;
+  loyaltyPoints?: number;
+  loyaltyConfig?: LoyaltyConfig;
+  storeSubdomain?: string | null;     // pra montar link de indicação
+  storeName?: string;                  // nome da loja exibido no convite
+  referralRewardPoints?: number;       // pontos por indicação (config loja)
+}
+
+export function PromosContent({
+  companyId, customerPhone, loyaltyPoints = 0, loyaltyConfig,
+  storeSubdomain, storeName, referralRewardPoints,
+}: PromosContentProps) {
+  const { toast } = useToast();
+  const [coupons, setCoupons] = useState<PublicCoupon[]>([]);
+  const [combos, setCombos] = useState<ComboCampaign[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!companyId) return;
+    (async () => {
+      setLoading(true);
+      const [couponsRes, combosRes] = await Promise.all([
+        supabase.from("coupons").select("*").eq("company_id", companyId).eq("is_active", true).order("created_at", { ascending: false }),
+        supabase.from("combo_campaigns" as any).select(`
+          *,
+          reward_product:products!combo_campaigns_reward_product_id_fkey(name),
+          trigger_product:products!combo_campaigns_trigger_product_id_fkey(name)
+        `).eq("company_id", companyId).eq("is_active", true).order("created_at", { ascending: false }),
+      ]);
+      const now = new Date();
+      const availableCoupons = (couponsRes.data || []).filter((c: any) => {
+        if (c.valid_until && new Date(c.valid_until) < now) return false;
+        if (c.max_uses != null && (c.uses_count ?? 0) >= c.max_uses) return false;
+        return true;
+      });
+      setCoupons(availableCoupons as PublicCoupon[]);
+      const today = now.toISOString().slice(0, 10);
+      const availableCombos = (combosRes.data || []).filter((c: any) => {
+        if (c.valid_until && c.valid_until < today) return false;
+        return true;
+      });
+      setCombos(availableCombos as ComboCampaign[]);
+      setLoading(false);
+    })();
+  }, [companyId]);
+
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    toast({ title: "Código copiado!", description: `Use ${code} no checkout.` });
+  };
+
+  const perReal = loyaltyConfig?.loyalty_points_per_real ?? 1;
+  const minRedeem = loyaltyConfig?.loyalty_min_redeem ?? 100;
+  const redeemValue = loyaltyConfig?.loyalty_redeem_value ?? 1;
+  const cashbackInReais = loyaltyPoints >= minRedeem
+    ? Math.floor(loyaltyPoints / minRedeem) * redeemValue
+    : 0;
+
+  return (
+    <PromosTabsInner
+      coupons={coupons}
+      combos={combos}
+      loading={loading}
+      customerPhone={customerPhone}
+      loyaltyPoints={loyaltyPoints}
+      perReal={perReal}
+      minRedeem={minRedeem}
+      redeemValue={redeemValue}
+      cashbackInReais={cashbackInReais}
+      copyCode={copyCode}
+      companyId={companyId}
+      storeSubdomain={storeSubdomain}
+      storeName={storeName}
+      referralRewardPoints={referralRewardPoints}
+    />
+  );
+}
+
+// Tabs internas — reusadas por PromosSheet e PromosContent
+interface PromosTabsInnerProps {
+  coupons: PublicCoupon[];
+  combos: ComboCampaign[];
+  loading: boolean;
+  customerPhone?: string | null;
+  loyaltyPoints: number;
+  perReal: number;
+  minRedeem: number;
+  redeemValue: number;
+  cashbackInReais: number;
+  copyCode: (code: string) => void;
+  companyId?: string;
+  storeSubdomain?: string | null;
+  storeName?: string;
+  referralRewardPoints?: number;
+}
+
+function PromosTabsInner({
+  coupons, combos, loading, customerPhone, loyaltyPoints,
+  perReal, minRedeem, redeemValue, cashbackInReais, copyCode,
+  companyId, storeSubdomain, storeName, referralRewardPoints,
+}: PromosTabsInnerProps) {
+  return (
+    <Tabs defaultValue="coupons" className="flex-1 flex flex-col min-h-0">
+          <TabsList className="mx-4 mt-3 grid grid-cols-4">
+            <TabsTrigger value="coupons" className="gap-1 text-xs">
               <Tag className="h-3.5 w-3.5" /> Cupons
               {coupons.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1 rounded-full">{coupons.length}</span>}
             </TabsTrigger>
-            <TabsTrigger value="cashback" className="gap-1.5">
-              <Sparkles className="h-3.5 w-3.5" /> Cashback
+            <TabsTrigger value="cashback" className="gap-1 text-xs">
+              <Sparkles className="h-3.5 w-3.5" /> Pontos
             </TabsTrigger>
-            <TabsTrigger value="combos" className="gap-1.5">
+            <TabsTrigger value="combos" className="gap-1 text-xs">
               <Gift className="h-3.5 w-3.5" /> Combos
+            </TabsTrigger>
+            <TabsTrigger value="referral" className="gap-1 text-xs">
+              <Gift className="h-3.5 w-3.5" /> Indicar
             </TabsTrigger>
           </TabsList>
 
@@ -270,8 +397,25 @@ export function PromosSheet({
               )}
             </ScrollArea>
           </TabsContent>
+
+          {/* === INDICAR AMIGOS === */}
+          <TabsContent value="referral" className="flex-1 overflow-y-auto mt-0 px-4 pt-2">
+            <div className="pb-4">
+              {companyId ? (
+                <ReferralCard
+                  companyId={companyId}
+                  customerPhone={customerPhone}
+                  storeSubdomain={storeSubdomain}
+                  storeName={storeName}
+                  rewardPoints={referralRewardPoints}
+                />
+              ) : (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  Programa de indicações indisponível
+                </div>
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
-      </SheetContent>
-    </Sheet>
   );
 }

@@ -19,7 +19,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const { company_id, customer_name, customer_phone, total, items, type,
             address, payment_method, observations, delivery_fee, estimated_time,
-            table_id, table_number } = body;
+            table_id, table_number, scheduled_for, referred_by_phone } = body;
 
     if (!company_id || !customer_name || !total) {
       return json({ error: 'company_id, customer_name e total são obrigatórios' }, 400);
@@ -35,8 +35,14 @@ Deno.serve(async (req: Request) => {
 
     if (!company) return json({ error: 'Empresa não encontrada ou inativa' }, 404);
 
-    // PIX MP fica em 'awaiting_payment' até webhook confirmar — não aparece no kanban
-    const initialStatus = payment_method === 'pix_mp' ? 'awaiting_payment' : 'pending';
+    // Status inicial:
+    // - PIX MP em 'awaiting_payment' (espera confirmação webhook)
+    // - Agendado (scheduled_for futuro) em 'scheduled' (entra kanban quando hora chegar)
+    // - Resto em 'pending' (entra kanban imediato)
+    const isScheduled = scheduled_for && new Date(scheduled_for).getTime() > Date.now() + 60000; // 1min+ no futuro
+    const initialStatus = payment_method === 'pix_mp' ? 'awaiting_payment'
+      : isScheduled ? 'scheduled'
+      : 'pending';
 
     const orderData: Record<string, any> = {
       company_id,
@@ -52,6 +58,8 @@ Deno.serve(async (req: Request) => {
       source: 'digital_menu',
       delivery_fee: delivery_fee ?? 0,
       estimated_time: estimated_time ?? 30,
+      scheduled_for: scheduled_for ?? null,
+      referred_by_phone: referred_by_phone ?? null,
     };
 
     if (table_id) {

@@ -85,6 +85,14 @@ export default function Tables() {
       });
     }
 
+    // Sort numérico — table_number é text mas deve ordenar 1,2,3,...,10,11 (não 1,10,11,2)
+    result = [...result].sort((a, b) => {
+      const numA = parseInt(String(a.table_number).replace(/\D/g, ""), 10) || 0;
+      const numB = parseInt(String(b.table_number).replace(/\D/g, ""), 10) || 0;
+      if (numA !== numB) return numA - numB;
+      return String(a.table_number).localeCompare(String(b.table_number));
+    });
+
     return result;
   }, [tables, statusFilter, searchTerm]);
 
@@ -147,26 +155,26 @@ export default function Tables() {
     const idleColor = table.idle_minutes ? getIdleColor(table.idle_minutes) : null;
 
     return (
-      <Card 
+      <Card
         key={table.id}
         className={cn(
-          "cursor-pointer hover:border-primary transition-all",
+          "cursor-pointer hover:border-primary transition-all h-full flex flex-col min-h-[170px] overflow-hidden",
           table.status === 'occupied' && "border-blue-500/30"
         )}
         onClick={() => handleTableClick(table)}
       >
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <UtensilsCrossed className={cn("w-5 h-5", iconColor)} />
-              <span className="font-bold text-lg">
+        <CardContent className="p-3 flex-1 flex flex-col min-w-0">
+          <div className="flex items-start justify-between gap-2 mb-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <UtensilsCrossed className={cn("w-5 h-5 shrink-0", iconColor)} />
+              <span className="font-bold text-base truncate">
                 {table.name || `Mesa ${table.table_number}`}
               </span>
             </div>
-            <Badge 
-              variant="outline" 
+            <Badge
+              variant="outline"
               className={cn(
-                "text-xs",
+                "text-[10px] shrink-0 px-1.5 py-0",
                 iconColor === 'text-green-500' && "border-green-500 text-green-600",
                 iconColor === 'text-blue-500' && "border-blue-500 text-blue-600",
                 iconColor === 'text-orange-500' && "border-orange-500 text-orange-600",
@@ -177,22 +185,22 @@ export default function Tables() {
           </div>
 
           {table.capacity && (
-            <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
-              <Users className="w-4 h-4" />
+            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+              <Users className="w-3 h-3 shrink-0" />
               <span>{table.capacity} lugares</span>
             </div>
           )}
 
           {table.status === 'occupied' && table.active_check && (
-            <div className="mt-3 pt-3 border-t space-y-1">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-1">
-                  <Receipt className="w-4 h-4" />
-                  <span>Comanda #{table.active_check.check_number}</span>
+            <div className="mt-auto pt-2 border-t space-y-1">
+              <div className="flex items-center justify-between text-xs gap-1 min-w-0">
+                <div className="flex items-center gap-1 min-w-0">
+                  <Receipt className="w-3 h-3 shrink-0" />
+                  <span className="truncate">Comanda #{table.active_check.check_number}</span>
                 </div>
                 {table.idle_minutes && table.idle_minutes > 0 && (
-                  <div 
-                    className="flex items-center gap-1"
+                  <div
+                    className="flex items-center gap-1 shrink-0"
                     style={{ color: idleColor || undefined }}
                   >
                     <Clock className="w-3 h-3" />
@@ -200,12 +208,13 @@ export default function Tables() {
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  {table.check_items_count || 0} itens
+              <div className="flex items-center justify-between gap-1 flex-wrap">
+                <span className="text-[11px] text-muted-foreground">
+                  {/* check_items_total da view (real) > check_items_count fallback */}
+                  {((table as any).check_items_total ?? table.check_items_count ?? 0)} {(((table as any).check_items_total ?? table.check_items_count ?? 0) === 1 ? 'item' : 'itens')}
                 </span>
-                <span className="font-bold text-primary">
-                  {formatCurrency(table.check_total || 0)}
+                <span className="font-bold text-primary text-sm whitespace-nowrap">
+                  {formatCurrency((table as any).current_total ?? table.check_total ?? 0)}
                 </span>
               </div>
             </div>

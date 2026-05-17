@@ -159,28 +159,32 @@ export function CartBottomBar({
                     <p className="text-sm font-semibold text-primary mt-1">
                       {formatCurrency((item.product.price + item.extrasTotal) * item.quantity)}
                     </p>
-                    {/* Botão remover individual — destacado em vermelho com texto */}
+                  </div>
+
+                  {/* Direita: quantidade +/- + trash icon (mesma linha, trash na ponta direita) */}
+                  <div className="flex items-center gap-2 self-start">
+                    <div className="flex items-center gap-1 bg-muted rounded-lg h-9">
+                      <Button variant="ghost" size="icon" className="h-9 w-9"
+                        onClick={() => onUpdateQuantity(item.cartItemId, item.quantity - 1)}
+                        aria-label="Diminuir quantidade">
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
+                      <Button variant="ghost" size="icon" className="h-9 w-9"
+                        onClick={() => onUpdateQuantity(item.cartItemId, item.quantity + 1)}
+                        aria-label="Aumentar quantidade">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {/* Trash icon-only — maior, na ponta direita */}
                     <button
                       onClick={() => onRemoveItem(item.cartItemId)}
-                      className="flex items-center gap-1 mt-1.5 text-xs text-destructive hover:underline font-medium"
+                      className="h-9 w-9 flex items-center justify-center rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
                       type="button"
                       aria-label={`Remover ${item.product.name}`}
                     >
-                      <Trash2 className="h-3 w-3" />
-                      Remover item
+                      <Trash2 className="h-5 w-5" />
                     </button>
-                  </div>
-
-                  <div className="flex items-center gap-1 bg-muted rounded-lg self-start h-9">
-                    <Button variant="ghost" size="icon" className="h-9 w-9"
-                      onClick={() => onUpdateQuantity(item.cartItemId, item.quantity - 1)}>
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                    <Button variant="ghost" size="icon" className="h-9 w-9"
-                      onClick={() => onUpdateQuantity(item.cartItemId, item.quantity + 1)}>
-                      <Plus className="h-3 w-3" />
-                    </Button>
                   </div>
                 </div>
               ))}
@@ -196,7 +200,7 @@ export function CartBottomBar({
             </div>
           </ScrollArea>
 
-          <div className="px-4 pt-3 border-t space-y-3">
+          <div className="px-4 pt-3 pb-6 border-t space-y-3">
             <div className="flex items-center justify-between font-bold text-lg">
               <span>Total</span>
               <span className="text-primary">{formatCurrency(total)}</span>
