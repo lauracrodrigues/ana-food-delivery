@@ -92,7 +92,7 @@ export default function WhatsApp() {
   const { data: botSettings, isLoading: loadingBotSettings } = useQuery({
     queryKey: ["bot-settings", companyId],
     queryFn: async () => {
-      if (!companyId) return { debounce_ms: 1000, typing_debounce_ms: 1000, followup_minutes: 10, cancel_minutes: 20, human_takeover_resume_minutes: 15, tts_enabled: false, tts_voice: 'pt-BR-Neural2-C', tts_speed: 'normal' };
+      if (!companyId) return { debounce_ms: 1000, typing_debounce_ms: 1000, followup_minutes: 10, cancel_minutes: 20, human_takeover_resume_minutes: 15, tts_enabled: false, tts_voice: 'pt-BR-Chirp3-HD-Aoede', tts_speed: 'normal' };
       const { data } = await supabase
         .from("store_settings")
         .select("debounce_ms, typing_debounce_ms, followup_minutes, cancel_minutes, human_takeover_resume_minutes, tts_enabled, tts_voice, tts_speed, send_status_messages")
@@ -105,7 +105,7 @@ export default function WhatsApp() {
         cancel_minutes: data?.cancel_minutes ?? 20,
         human_takeover_resume_minutes: data?.human_takeover_resume_minutes ?? 15,
         tts_enabled: (data as any)?.tts_enabled ?? false,
-        tts_voice: (data as any)?.tts_voice ?? 'pt-BR-Neural2-C',
+        tts_voice: (data as any)?.tts_voice ?? 'pt-BR-Chirp3-HD-Aoede',
         tts_speed: (data as any)?.tts_speed ?? 'normal',
         send_status_messages: (data as any)?.send_status_messages !== false,
       };
@@ -899,11 +899,17 @@ export default function WhatsApp() {
                       <Label>Voz do agente</Label>
                       <div className="space-y-2">
                         {([
-                          { id: 'pt-BR-Neural2-C', label: 'Clara',  desc: 'Feminina, natural',  badge: 'Recomendada' },
-                          { id: 'pt-BR-Neural2-B', label: 'Bruno',  desc: 'Masculina' },
-                          { id: 'pt-BR-Standard-A', label: 'Duda',  desc: 'Feminina' },
+                          // Chirp 3 HD — modelo generativo novo, entonação natural
+                          { id: 'pt-BR-Chirp3-HD-Aoede',  label: 'Aoede',  desc: 'Feminina suave (caloroso)', badge: 'Recomendada' },
+                          { id: 'pt-BR-Chirp3-HD-Kore',   label: 'Kore',   desc: 'Feminina firme' },
+                          { id: 'pt-BR-Chirp3-HD-Leda',   label: 'Leda',   desc: 'Feminina jovem informal' },
+                          { id: 'pt-BR-Chirp3-HD-Charon', label: 'Charon', desc: 'Masculino grave' },
+                          { id: 'pt-BR-Chirp3-HD-Zephyr', label: 'Zephyr', desc: 'Leve (anúncios)' },
+                          // Legado Neural2 — manter pra retro-compat
+                          { id: 'pt-BR-Neural2-C',        label: 'Clara',  desc: 'Feminina Neural2 (legado)' },
+                          { id: 'pt-BR-Neural2-B',        label: 'Bruno',  desc: 'Masculina Neural2 (legado)' },
                         ] as { id: string; label: string; desc: string; badge?: string }[]).map(v => {
-                          const isSelected = (botSettings?.tts_voice ?? 'pt-BR-Neural2-C') === v.id;
+                          const isSelected = (botSettings?.tts_voice ?? 'pt-BR-Chirp3-HD-Aoede') === v.id;
                           const isPlayingThis = isTesting === v.id;
                           const speed = localSpeed;
                           const STORAGE_URL = `https://jgdyklzrxygvwuhlnbat.supabase.co/storage/v1/object/public/voice-samples/${companyId}`;
