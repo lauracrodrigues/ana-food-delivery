@@ -92,15 +92,18 @@ export default function WhatsApp() {
   const { data: botSettings, isLoading: loadingBotSettings } = useQuery({
     queryKey: ["bot-settings", companyId],
     queryFn: async () => {
-      if (!companyId) return { debounce_ms: 1000, typing_debounce_ms: 1000, followup_minutes: 10, cancel_minutes: 20, human_takeover_resume_minutes: 15, tts_enabled: false, tts_voice: 'pt-BR-Chirp3-HD-Aoede', tts_speed: 'normal' };
+      if (!companyId) return { debounce_ms: 1000, typing_debounce_ms: 1000, typing_duration_ms: 2500, recording_duration_ms: 7500, presence_enabled: true, followup_minutes: 10, cancel_minutes: 20, human_takeover_resume_minutes: 15, tts_enabled: false, tts_voice: 'pt-BR-Chirp3-HD-Aoede', tts_speed: 'normal' };
       const { data } = await supabase
         .from("store_settings")
-        .select("debounce_ms, typing_debounce_ms, followup_minutes, cancel_minutes, human_takeover_resume_minutes, tts_enabled, tts_voice, tts_speed, send_status_messages")
+        .select("debounce_ms, typing_debounce_ms, typing_duration_ms, recording_duration_ms, presence_enabled, followup_minutes, cancel_minutes, human_takeover_resume_minutes, tts_enabled, tts_voice, tts_speed, send_status_messages")
         .eq("company_id", companyId)
         .single();
       return {
         debounce_ms: data?.debounce_ms ?? 1000,
         typing_debounce_ms: data?.typing_debounce_ms ?? 1000,
+        typing_duration_ms: (data as any)?.typing_duration_ms ?? 2500,
+        recording_duration_ms: (data as any)?.recording_duration_ms ?? 7500,
+        presence_enabled: (data as any)?.presence_enabled !== false,
         followup_minutes: data?.followup_minutes ?? 10,
         cancel_minutes: data?.cancel_minutes ?? 20,
         human_takeover_resume_minutes: data?.human_takeover_resume_minutes ?? 15,
@@ -119,7 +122,7 @@ export default function WhatsApp() {
   }, [botSettings?.tts_speed]);
 
   const updateBotSettingsMutation = useMutation({
-    mutationFn: async (values: Partial<{ debounce_ms: number; typing_debounce_ms: number; followup_minutes: number; cancel_minutes: number; human_takeover_resume_minutes: number; tts_enabled: boolean; tts_voice: string; tts_speed: string; send_status_messages: boolean }>) => {
+    mutationFn: async (values: Partial<{ debounce_ms: number; typing_debounce_ms: number; typing_duration_ms: number; recording_duration_ms: number; presence_enabled: boolean; followup_minutes: number; cancel_minutes: number; human_takeover_resume_minutes: number; tts_enabled: boolean; tts_voice: string; tts_speed: string; send_status_messages: boolean }>) => {
       if (!companyId) throw new Error("No company");
       const { error } = await supabase
         .from("store_settings")
@@ -706,6 +709,61 @@ export default function WhatsApp() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Switch ativar/desativar indicadores presença (digitando/gravando) */}
+                <div className="flex items-center justify-between border-b pb-4">
+                  <div>
+                    <Label className="text-base">Mostrar "digitando..." / "gravando..."</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Desligado = bot responde sem mostrar indicador (mais rápido).
+                    </p>
+                  </div>
+                  <Switch
+                    checked={botSettings?.presence_enabled !== false}
+                    onCheckedChange={(v) => updateBotSettingsMutation.mutate({ presence_enabled: v })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Duração indicador "digitando" (texto)</Label>
+                  <Select
+                    value={String(botSettings?.typing_duration_ms ?? 2500)}
+                    onValueChange={(v) => updateBotSettingsMutation.mutate({ typing_duration_ms: parseInt(v) })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending || botSettings?.presence_enabled === false}
+                  >
+                    <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1500">1.5s — bem rápido</SelectItem>
+                      <SelectItem value="2500">2.5s — padrão (rápido)</SelectItem>
+                      <SelectItem value="5000">5s — normal</SelectItem>
+                      <SelectItem value="8000">8s — devagar</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Tempo que "digitando..." aparece antes do envio. Menor = bot responde mais cedo.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Duração indicador "gravando" (áudio)</Label>
+                  <Select
+                    value={String(botSettings?.recording_duration_ms ?? 7500)}
+                    onValueChange={(v) => updateBotSettingsMutation.mutate({ recording_duration_ms: parseInt(v) })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending || botSettings?.presence_enabled === false}
+                  >
+                    <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3000">3s — bem rápido</SelectItem>
+                      <SelectItem value="7500">7.5s — padrão (rápido)</SelectItem>
+                      <SelectItem value="15000">15s — normal</SelectItem>
+                      <SelectItem value="30000">30s — devagar</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Tempo que "gravando..." aparece. Áudio TTS leva ~5-10s, manter próximo disso.
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label>Typing Debounce — aguardar antes de mostrar "digitando"</Label>
                   <Select
