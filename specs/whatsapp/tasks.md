@@ -34,7 +34,7 @@
 - Sidebar WhatsApp > Cardápio do Dia
 
 ### Falta no agente externo (`agentHarness.js` em api.anafood.vip)
-- [ ] **Detectar primeiro contato do dia** por (`company_id`, `customer_phone`):
+- [x] **Detectar primeiro contato do dia** por (`company_id`, `customer_phone`):
   - Lookup `orders` por `customer_phone` → se >0, é recorrente; senão, novo
   - Considerar primeiro contato dentro de janela de 6h (não enviar boas-vindas em cada msg)
 - [ ] **Variáveis do template**:
