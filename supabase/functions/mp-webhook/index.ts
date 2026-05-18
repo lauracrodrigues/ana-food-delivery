@@ -1,5 +1,7 @@
-// Edge Function: mp-webhook — sem JWT verification (MP não envia token)
-// Valida assinatura HMAC-SHA256 do MP antes de processar
+// Edge Function: mp-webhook v2.0.0 — validação HMAC obrigatória
+// Secret vem de env (MP_WEBHOOK_SECRET) — nunca hardcoded
+// Verifica assinatura ANTES de processar (rejeita forjados)
+// Defense in depth: ainda consulta API MP com access_token pra confirmar status
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 
 const corsHeaders = {
@@ -8,10 +10,15 @@ const corsHeaders = {
 };
 
 const MP_API = 'https://api.mercadopago.com';
-const MP_WEBHOOK_SECRET = '048ed4b6a772747b5988897f1308535ee6fff4dc1da8428f70989b5e719653d2';
 
-// Verifica assinatura HMAC-SHA256 do Mercado Pago
+// Verifica assinatura HMAC-SHA256 do Mercado Pago.
+// Secret obtido via Deno.env (configurado em Supabase Edge Functions secrets).
 async function verifySignature(req: Request, body: string): Promise<boolean> {
+  const secret = Deno.env.get('MP_WEBHOOK_SECRET');
+  if (!secret) {
+    console.error('mp-webhook.no_secret_env');
+    return false; // sem secret, não confia
+  }
   try {
     const xSignature = req.headers.get('x-signature');
     const xRequestId = req.headers.get('x-request-id');
@@ -33,7 +40,7 @@ async function verifySignature(req: Request, body: string): Promise<boolean> {
 
     const key = await crypto.subtle.importKey(
       'raw',
-      new TextEncoder().encode(MP_WEBHOOK_SECRET),
+      new TextEncoder().encode(secret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign'],
@@ -53,6 +60,17 @@ Deno.serve(async (req: Request) => {
 
   const rawBody = await req.text();
 
+  // SECURITY: rejeita webhook sem assinatura válida do MP
+  // Retorna 200 (não 401) pra MP não retentar — apenas loga e ignora
+  const signatureOk = await verifySignature(req, rawBody);
+  if (!signatureOk) {
+    console.warn('mp-webhook.invalid_signature', {
+      hasSignature: !!req.headers.get('x-signature'),
+      hasRequestId: !!req.headers.get('x-request-id'),
+    });
+    return new Response('ok', { status: 200, headers: corsHeaders });
+  }
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -60,7 +78,7 @@ Deno.serve(async (req: Request) => {
     );
 
     const body = JSON.parse(rawBody);
-    console.log('MP webhook recebido:', JSON.stringify(body));
+    console.log('MP webhook recebido (signature OK):', JSON.stringify(body));
 
     const paymentId = body?.data?.id ?? body?.resource?.split('/').pop();
 
