@@ -4,7 +4,7 @@ import { WaiterCallsAlert } from "@/components/orders/WaiterCallsAlert";
 import { ManualOrderSidebar } from "@/components/orders/ManualOrderSidebar";
 import { Button } from "@/components/ui/button";
 import { Store, Bot, Flame, PlusCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { HeatmapDialog } from "@/components/heatmap/HeatmapDialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +14,7 @@ import { useStoreSettings } from "@/hooks/useStoreSettings";
 export default function Orders() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const navigate = useNavigate(); // nav pra /heatmap (botão "Mapa de Calor")
+  const [showHeatmap, setShowHeatmap] = useState(false); // controla modal Mapa de Calor
   const [storeOpen, setStoreOpen] = useState(true);
   const [robotEnabled, setRobotEnabled] = useState(true);
   const [subdomain, setSubdomain] = useState("");
@@ -142,11 +142,11 @@ export default function Orders() {
             Robô {robotEnabled ? "Ativo" : "Inativo"}
           </Button>
 
-          {/* Heatmap: análise visual de pedidos por dia/hora — substitui antigo "Horários" */}
+          {/* Heatmap: abre modal pra visualização rápida (sem navegar) */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/heatmap')}
+            onClick={() => setShowHeatmap(true)}
           >
             <Flame className="w-4 h-4 mr-2" />
             Mapa de Calor
@@ -181,6 +181,9 @@ export default function Orders() {
         onClose={() => setShowManualOrder(false)}
         companyId={companyId ?? ""}
       />
+
+      {/* Modal mapa de calor — acesso rápido sem sair da página de pedidos */}
+      <HeatmapDialog open={showHeatmap} onOpenChange={setShowHeatmap} />
     </div>
   );
 }
