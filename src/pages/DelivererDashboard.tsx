@@ -1,5 +1,7 @@
-// v3.0.0 — Tabs Entregas/Relatório + drag-and-drop + diária + GPS cliente + call nativo
+// v4.0.0 — Bater Ponto + GPS só com pedido (economia bateria)
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useDelivererGPS, WorkStatus } from "@/hooks/useDelivererGPS";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -14,6 +16,7 @@ import {
   ChevronDown, ChevronUp, Route, KeyRound, Eye, EyeOff,
   ArrowRightLeft, X, LocateFixed, GripVertical,
   BarChart3, Calendar, TrendingUp, XCircle, PhoneCall,
+  Power, BatteryLow,
 } from "lucide-react";
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
@@ -661,8 +664,8 @@ export default function DelivererDashboard() {
   const [transferOrder, setTransferOrder] = useState<Order | null>(null);
 
   const prevOrderCountRef = useRef<number>(-1);
-  const lastSentLocationRef = useRef<{ lat: number; lng: number } | null>(null);
-  const gpsWatchIdRef = useRef<number | null>(null);
+  // "Bater ponto": entregador escolhe ficar disponível ou offline. Persiste por device.
+  const [punchedIn, setPunchedIn] = useLocalStorage<boolean>("deliverer:punchedIn", false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -819,41 +822,20 @@ export default function DelivererDashboard() {
     prevOrderCountRef.current = count;
   }, [orders.length, dashboardActive]);
 
-  // GPS do entregador: watchPosition com debounce de 50m
-  useEffect(() => {
-    if (!dashboardActive || !deliverer?.id) return;
-    if (!navigator.geolocation) return;
+  // Estado de trabalho derivado:
+  //   - sem "bater ponto" → offline (sem GPS, sem presença no servidor)
+  //   - bateu ponto + 0 pedidos → available (presença, mas SEM GPS)
+  //   - bateu ponto + tem pedido → delivering (GPS alta acurácia, 30s)
+  const workStatus: WorkStatus = !punchedIn
+    ? "offline"
+    : orders.length > 0 ? "delivering" : "available";
 
-    const MIN_DISTANCE_M = 50;
-    let lastUpdateTime = 0;
-    const MIN_INTERVAL_MS = 60_000;
-
-    const sendLocation = async (lat: number, lng: number) => {
-      const now = Date.now();
-      const last = lastSentLocationRef.current;
-      if (last && haversineMeters(last.lat, last.lng, lat, lng) < MIN_DISTANCE_M
-          && now - lastUpdateTime < MIN_INTERVAL_MS) return;
-      lastUpdateTime = now;
-      lastSentLocationRef.current = { lat, lng };
-      // @ts-expect-error -- Supabase generated types don't include this table yet
-      await supabase.from('deliverers').update({
-        lat, lng, last_location_at: new Date().toISOString(),
-      }).eq('id', deliverer.id);
-    };
-
-    gpsWatchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => sendLocation(pos.coords.latitude, pos.coords.longitude),
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 30_000, timeout: 15_000 },
-    );
-
-    return () => {
-      if (gpsWatchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(gpsWatchIdRef.current);
-        gpsWatchIdRef.current = null;
-      }
-    };
-  }, [dashboardActive, deliverer?.id]);  
+  // Hook GPS adaptativo (faz watchPosition condicional + battery + RPC)
+  const { batteryLow, effectiveStatus } = useDelivererGPS({
+    delivererId: deliverer?.id ?? null,
+    workStatus,
+    enabled: dashboardActive,
+  });
 
   // Early returns DEPOIS de todos os hooks
   if (authState === 'loading') return null;
@@ -955,6 +937,31 @@ export default function DelivererDashboard() {
           >
             <LogOut className="w-5 h-5" />
           </Button>
+        </div>
+
+        {/* Bater Ponto + status GPS — controla consumo de bateria */}
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onClick={() => setPunchedIn(!punchedIn)}
+            className={`flex-1 inline-flex items-center justify-center gap-2 rounded-md px-3 h-10 text-sm font-semibold transition-colors ${
+              punchedIn
+                ? "bg-emerald-500 hover:bg-emerald-600 text-white"
+                : "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground border border-primary-foreground/30"
+            }`}
+            title={punchedIn ? "Você está disponível para receber pedidos" : "Bater ponto para ficar disponível"}
+          >
+            <Power className="w-4 h-4" />
+            {punchedIn ? "No turno — disponível" : "Bater ponto"}
+          </button>
+
+          {/* Indicador de modo GPS — feedback claro pro entregador */}
+          <div className="text-xs text-primary-foreground/80 px-2 py-1 rounded bg-primary-foreground/10 whitespace-nowrap">
+            {effectiveStatus === "offline" && (batteryLow ? (
+              <span className="flex items-center gap-1"><BatteryLow className="w-3 h-3" /> Bateria baixa</span>
+            ) : "GPS off")}
+            {effectiveStatus === "available" && <span title="Sem pedido: GPS desligado pra economizar bateria">💚 Disponível</span>}
+            {effectiveStatus === "delivering" && <span className="flex items-center gap-1" title="GPS ativo durante entrega"><LocateFixed className="w-3 h-3" /> GPS ativo</span>}
+          </div>
         </div>
 
         {/* Rota otimizada — link nativo para não ser bloqueado no PWA */}
