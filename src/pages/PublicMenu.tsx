@@ -440,33 +440,13 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
 
   const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!company) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Estabelecimento não encontrado</h1>
-          <p className="text-muted-foreground">Verifique se o link está correto</p>
-        </div>
-      </div>
-    );
-  }
-
-  const activeCategories = categories.filter(c => c.on_off);
-
-  // Context value memoizado — evita re-render desnecessário em subscribers
+  // Context value memoizado — DEVE vir ANTES de qualquer early return (React Hooks rule)
+  // Guards permitem company null durante loading (não usa context nesses casos)
   const menuContextValue = useMemo(() => ({
-    companyId: company.id,
-    storeSubdomain: company.subdomain ?? null,
-    storeName: company.fantasy_name || company.name,
-    referralRewardPoints: (company as any).referral_reward_points ?? 100,
+    companyId: company?.id ?? '',
+    storeSubdomain: company?.subdomain ?? null,
+    storeName: company?.fantasy_name || company?.name || '',
+    referralRewardPoints: (company as any)?.referral_reward_points ?? 100,
     session,
     history,
     favorites,
@@ -487,12 +467,33 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
     onSetDefaultAddress: setDefaultAddress,
     onClearReferral: clearReferral,
   }), [
-    company.id, company.subdomain, company.fantasy_name, company.name,
+    company?.id, company?.subdomain, company?.fantasy_name, company?.name,
     session, history, favorites, products, loyaltyPoints, loyaltyConfig,
     referrerPhone, identify, clearSession, handleRepeatOrder,
     saveAddress, removeAddress, setDefaultAddress, clearReferral,
     loadFromServer, refreshStatuses,
   ]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!company) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-2">Estabelecimento não encontrado</h1>
+          <p className="text-muted-foreground">Verifique se o link está correto</p>
+        </div>
+      </div>
+    );
+  }
+
+  const activeCategories = categories.filter(c => c.on_off);
 
   return (
     <MenuProvider value={menuContextValue}>
