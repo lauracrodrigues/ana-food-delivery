@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { User, ShoppingBag, Heart, LogOut, RefreshCw, Eye, Sparkles, MapPin, Plus, Trash2, Check, LocateFixed, Search, Loader2, Tag } from "lucide-react";
 import { PromosContent } from "./PromosSheet";
 import { masks } from "@/lib/masks";
+import { useMenuContextOptional } from "@/contexts/MenuContext";
 import type { CustomerSession } from "@/hooks/useCustomerSession";
 import type { OrderHistoryItem } from "@/hooks/useOrderHistory";
 import type { LoyaltyConfig } from "@/hooks/useLoyaltyPoints";
@@ -23,28 +24,28 @@ interface Product {
   price: number;
 }
 
+// Todas props opcionais — componente lê do MenuContext como fallback.
+// Permite uso legado (props) + uso novo (context) sem quebrar callers.
 interface CustomerSheetProps {
-  companyId: string;
-  session: CustomerSession | null;
-  history: OrderHistoryItem[];
-  favorites: string[];
-  products: Product[];
+  companyId?: string;
+  session?: CustomerSession | null;
+  history?: OrderHistoryItem[];
+  favorites?: string[];
+  products?: Product[];
   loyaltyPoints?: number;
   loyaltyConfig?: LoyaltyConfig;
-  // Controle externo opcional — quando setado, sobrescreve estado interno
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   hideTrigger?: boolean;
   defaultTab?: "orders" | "favorites" | "promos" | "addresses";
-  onIdentify: (name: string, phone: string) => void;
-  onClearSession: () => void;
-  onRefreshHistory: () => void;
-  onRepeatOrder: (items: OrderHistoryItem["items"]) => void;
-  onViewOrder: (orderId: string) => void;
+  onIdentify?: (name: string, phone: string) => void;
+  onClearSession?: () => void;
+  onRefreshHistory?: () => void;
+  onRepeatOrder?: (items: OrderHistoryItem["items"]) => void;
+  onViewOrder?: (orderId: string) => void;
   onSaveAddress?: (address: string) => void;
   onRemoveAddress?: (address: string) => void;
   onSetDefaultAddress?: (address: string) => void;
-  // Indicações — passado pra aba Promos > Indicar
   storeSubdomain?: string | null;
   storeName?: string;
   referralRewardPoints?: number;
@@ -89,12 +90,47 @@ export function CustomerSheetTrigger({ session, favoritesCount, onClick }: {
 }
 
 export function CustomerSheet({
-  companyId, session, history, favorites, products, loyaltyPoints = 0, loyaltyConfig,
+  companyId: propCompanyId,
+  session: propSession,
+  history: propHistory,
+  favorites: propFavorites,
+  products: propProducts,
+  loyaltyPoints: propLoyaltyPoints,
+  loyaltyConfig: propLoyaltyConfig,
   open: externalOpen, onOpenChange: externalOnOpenChange, hideTrigger, defaultTab = "orders",
-  onIdentify, onClearSession, onRefreshHistory, onRepeatOrder, onViewOrder,
-  onSaveAddress, onRemoveAddress, onSetDefaultAddress,
-  storeSubdomain, storeName, referralRewardPoints,
+  onIdentify: propOnIdentify,
+  onClearSession: propOnClearSession,
+  onRefreshHistory: propOnRefreshHistory,
+  onRepeatOrder: propOnRepeatOrder,
+  onViewOrder: propOnViewOrder,
+  onSaveAddress: propOnSaveAddress,
+  onRemoveAddress: propOnRemoveAddress,
+  onSetDefaultAddress: propOnSetDefaultAddress,
+  storeSubdomain: propStoreSubdomain,
+  storeName: propStoreName,
+  referralRewardPoints: propReferralRewardPoints,
 }: CustomerSheetProps) {
+  // Context fallback — caller pode passar props OU usar provider
+  const ctx = useMenuContextOptional();
+  const companyId = propCompanyId ?? ctx?.companyId ?? '';
+  const session = propSession !== undefined ? propSession : (ctx?.session ?? null);
+  const history = propHistory ?? ctx?.history ?? [];
+  const favorites = propFavorites ?? ctx?.favorites ?? [];
+  const products = propProducts ?? ctx?.products ?? [];
+  const loyaltyPoints = propLoyaltyPoints ?? ctx?.loyaltyPoints ?? 0;
+  const loyaltyConfig = propLoyaltyConfig ?? ctx?.loyaltyConfig;
+  const storeSubdomain = propStoreSubdomain ?? ctx?.storeSubdomain ?? null;
+  const storeName = propStoreName ?? ctx?.storeName ?? '';
+  const referralRewardPoints = propReferralRewardPoints ?? ctx?.referralRewardPoints ?? 100;
+  const onIdentify = propOnIdentify ?? ctx?.onIdentify ?? (() => {});
+  const onClearSession = propOnClearSession ?? ctx?.onClearSession ?? (() => {});
+  const onRefreshHistory = propOnRefreshHistory ?? ctx?.onRefreshHistory ?? (() => {});
+  const onRepeatOrder = propOnRepeatOrder ?? ctx?.onRepeatOrder ?? (() => {});
+  const onViewOrder = propOnViewOrder ?? ctx?.onViewOrder ?? (() => {});
+  const onSaveAddress = propOnSaveAddress ?? ctx?.onSaveAddress;
+  const onRemoveAddress = propOnRemoveAddress ?? ctx?.onRemoveAddress;
+  const onSetDefaultAddress = propOnSetDefaultAddress ?? ctx?.onSetDefaultAddress;
+
   const [internalOpen, setInternalOpen] = useState(false);
   // Modo controlado se props externas presentes
   const open = externalOpen !== undefined ? externalOpen : internalOpen;

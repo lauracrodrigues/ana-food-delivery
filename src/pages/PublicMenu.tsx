@@ -22,6 +22,7 @@ import { TrackingScripts, trackEvent } from "@/components/menu/TrackingScripts";
 import { useAbandonedCartReminder } from "@/hooks/useAbandonedCartReminder";
 import { useExitConfirmation } from "@/hooks/useExitConfirmation";
 import { useReferralCapture } from "@/hooks/useReferralCapture";
+import { MenuProvider } from "@/contexts/MenuContext";
 import { CallWaiterButton } from "@/components/menu/CallWaiterButton";
 import { Loader2, ChefHat, Search, X } from "lucide-react";
 import { resetPalette, initializeColorPalette } from "@/hooks/use-color-palette";
@@ -460,7 +461,41 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
 
   const activeCategories = categories.filter(c => c.on_off);
 
+  // Context value memoizado — evita re-render desnecessário em subscribers
+  const menuContextValue = useMemo(() => ({
+    companyId: company.id,
+    storeSubdomain: company.subdomain ?? null,
+    storeName: company.fantasy_name || company.name,
+    referralRewardPoints: (company as any).referral_reward_points ?? 100,
+    session,
+    history,
+    favorites,
+    products,
+    loyaltyPoints,
+    loyaltyConfig,
+    referrerPhone,
+    onIdentify: identify,
+    onClearSession: clearSession,
+    onRefreshHistory: async () => {
+      if (session?.phone) await loadFromServer(session.phone);
+      await refreshStatuses();
+    },
+    onRepeatOrder: handleRepeatOrder,
+    onViewOrder: (orderId: string) => setTrackingOrderId(orderId),
+    onSaveAddress: saveAddress,
+    onRemoveAddress: removeAddress,
+    onSetDefaultAddress: setDefaultAddress,
+    onClearReferral: clearReferral,
+  }), [
+    company.id, company.subdomain, company.fantasy_name, company.name,
+    session, history, favorites, products, loyaltyPoints, loyaltyConfig,
+    referrerPhone, identify, clearSession, handleRepeatOrder,
+    saveAddress, removeAddress, setDefaultAddress, clearReferral,
+    loadFromServer, refreshStatuses,
+  ]);
+
   return (
+    <MenuProvider value={menuContextValue}>
     <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <MenuHeader
         company={company}
@@ -740,5 +775,6 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
         </a>
       </footer>
     </div>
+    </MenuProvider>
   );
 }
