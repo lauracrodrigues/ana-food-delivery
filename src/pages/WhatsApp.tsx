@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppSessionList } from "@/components/whatsapp/WhatsAppSessionList";
 import { WhatsAppTestMessage } from "@/components/whatsapp/WhatsAppTestMessage";
 import { WelcomeMessageEditor } from "@/components/whatsapp/WelcomeMessageEditor";
+import { UpgradeGate } from "@/components/billing/UpgradeGate";
 import { WhatsAppStatusMessages } from "@/components/whatsapp/WhatsAppStatusMessages";
 import { WhatsAppSessionDialog } from "@/components/whatsapp/WhatsAppSessionDialog";
 import { WhatsAppQRCodeDialog } from "@/components/whatsapp/WhatsAppQRCodeDialog";
@@ -896,7 +897,8 @@ export default function WhatsApp() {
               </CardContent>
             </Card>
 
-            {/* Seção TTS — resposta por voz */}
+            {/* Seção TTS — resposta por voz (gated por plano) */}
+            <UpgradeGate feature="tts">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -1043,6 +1045,7 @@ export default function WhatsApp() {
                 )}
               </CardContent>
             </Card>
+            </UpgradeGate>
           </div>
         </TabsContent>
 

@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useModules } from "@/hooks/useModules";
+import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { getMenuItems } from "@/components/layout/menu-items";
 import {
   Sidebar,
@@ -51,15 +52,18 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isAdmin } = useUserRole();
-  const { isEnabled } = useModules(); // checa modules_enabled da empresa
+  const { isEnabled } = useModules(); // checa modules_enabled da empresa (override admin)
+  const { hasExtra } = usePlanFeatures(); // checa feature_flags do plano contratado
   const [openGroups, setOpenGroups] = useLocalStorage<string[]>("sidebar:openGroups", []);
   const [isHovered, setIsHovered] = useState(false);
   const [isPinned, setIsPinned] = useLocalStorage<boolean>("sidebar:pinned", false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Menu: passa isAdmin + flag de distribuidora (Movimentações só aparece se habilitado)
-  const menuItems = getMenuItems({ isAdmin, isDistribuidora: isEnabled("distribuidoras") });
+  // Menu: distribuidoras aparece se plano permite E company tem o módulo ativo
+  // (plano = contratual / módulo = override do admin)
+  const distribuidorasOK = hasExtra("distribuidoras") && isEnabled("distribuidoras");
+  const menuItems = getMenuItems({ isAdmin, isDistribuidora: distribuidorasOK });
 
   // Check if mobile
   useEffect(() => {

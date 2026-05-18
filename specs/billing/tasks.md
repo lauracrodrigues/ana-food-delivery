@@ -9,7 +9,7 @@
 
 ## Pendente / Backlog
 
-- [ ] Controle de acesso por status de assinatura (feature flags por plano)
+- [x] Controle de acesso por status de assinatura (feature flags por plano) — v1.0.0
 - [ ] Histórico de faturas
 - [ ] Downgrade/upgrade de plano
 - [ ] Período de trial com limite de pedidos
