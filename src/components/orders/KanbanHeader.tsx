@@ -9,6 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+// v2.0.0 — Botão "Mapa" renomeado pra "Entregadores"
+// - Ícone moto + badge contador GPS ativos
+// - Disable quando 0 entregadores cadastrados
+// - Tooltip explicativo
 import {
   Store,
   Truck,
@@ -17,8 +21,8 @@ import {
   BellOff,
   Filter,
   Check,
-  Map,
 } from "lucide-react";
+import { MotoIcon } from "@/components/ui/moto-icon";
 import { StoreSettings, STATUS_COLUMNS } from "./types";
 
 const TIME_OPTIONS = [15, 30, 45, 60, 90, 120] as const;
@@ -35,6 +39,8 @@ interface KanbanHeaderProps {
   showSaved?: boolean;
   showMap?: boolean;
   onToggleMap?: () => void;
+  delivererGpsCount?: number;   // entregadores com GPS ativo
+  delivererTotalCount?: number; // entregadores cadastrados (pra disable)
 }
 
 export function KanbanHeader({
@@ -49,7 +55,14 @@ export function KanbanHeader({
   showSaved = false,
   showMap = false,
   onToggleMap,
+  delivererGpsCount = 0,
+  delivererTotalCount = 0,
 }: KanbanHeaderProps) {
+  // Sem entregadores cadastrados → botão desabilitado
+  const mapDisabled = delivererTotalCount === 0;
+  const mapTooltip = mapDisabled
+    ? "Cadastre entregadores primeiro (Cadastros → Entregadores)"
+    : `GPS ao vivo dos motoboys — ${delivererGpsCount}/${delivererTotalCount} online`;
   return (
     <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 border-b pb-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -154,10 +167,18 @@ export function KanbanHeader({
             variant={showMap ? "default" : "outline"}
             size="sm"
             onClick={onToggleMap}
-            title="Mapa de entregadores"
+            title={mapTooltip}
+            disabled={mapDisabled}
+            className="relative"
           >
-            <Map className="w-4 h-4 mr-1" />
-            Mapa
+            <MotoIcon className="w-4 h-4 mr-1" />
+            Entregadores
+            {/* Badge contador GPS ativos — só aparece quando >0 */}
+            {delivererGpsCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold leading-none">
+                {delivererGpsCount}
+              </span>
+            )}
           </Button>
         )}
 

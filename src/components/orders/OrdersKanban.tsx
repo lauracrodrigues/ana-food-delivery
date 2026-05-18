@@ -15,7 +15,8 @@ import { KanbanColumn } from "./KanbanColumn";
 import { OrderDetailsDialog } from "./OrderDetailsDialog";
 import { CancelOrderDialog } from "./CancelOrderDialog";
 import { AssignDelivererDialog } from "./AssignDelivererDialog";
-import { DeliveryMap } from "./DeliveryMap";
+import { AssignOrderToDelivererDialog } from "./AssignOrderToDelivererDialog";
+import { DeliveryMapDialog } from "./DeliveryMapDialog";
 import {
   Order,
   StoreSettings,
@@ -50,6 +51,8 @@ export function OrdersKanban() {
   // Pedido aguardando seleção de entregador antes de avançar para Em Entrega
   const [orderPendingDeliverer, setOrderPendingDeliverer] = useState<Order | null>(null);
   const [showDeliveryMap, setShowDeliveryMap] = useState(false);
+  // Fluxo inverso: clica entregador no mapa → escolhe pedido pra atribuir
+  const [delivererForAssign, setDelivererForAssign] = useState<{ id: string; name: string } | null>(null);
   
   // Settings state (grouped)
   const [settings, setSettings] = useState<StoreSettings>({
@@ -137,6 +140,26 @@ export function OrdersKanban() {
       return data?.session_name ?? null;
     },
     enabled: !!companyId,
+  });
+
+  // Contadores entregadores (total cadastrados + com GPS) — alimenta badge do botão
+  const { data: delivererCounts = { total: 0, gps: 0 } } = useQuery({
+    queryKey: ["deliverer-counts", companyId],
+    queryFn: async () => {
+      if (!companyId) return { total: 0, gps: 0 };
+      // @ts-expect-error -- tabela ainda fora dos types gerados
+      const { data } = await supabase.from("deliverers")
+        .select("id, lat, lng, active")
+        .eq("company_id", companyId)
+        .eq("active", true);
+      const list = (data || []) as Array<{ lat: number | null; lng: number | null }>;
+      return {
+        total: list.length,
+        gps: list.filter(d => d.lat !== null && d.lng !== null).length,
+      };
+    },
+    enabled: !!companyId,
+    staleTime: 30_000,
   });
 
   // Load company data for printing
@@ -920,15 +943,28 @@ export function OrdersKanban() {
           showSaved={savedIndicator}
           showMap={showDeliveryMap}
           onToggleMap={() => setShowDeliveryMap(v => !v)}
+          delivererGpsCount={delivererCounts.gps}
+          delivererTotalCount={delivererCounts.total}
         />
       </div>
 
-      {/* Mapa de entregadores — expande acima das colunas */}
-      {showDeliveryMap && (
-        <div className="flex-shrink-0 h-80 border border-border rounded-lg overflow-hidden mb-2">
-          <DeliveryMap onClose={() => setShowDeliveryMap(false)} />
-        </div>
-      )}
+      {/* Mapa entregadores virou modal — visualização rápida sem tirar foco do kanban */}
+      <DeliveryMapDialog
+        open={showDeliveryMap}
+        onOpenChange={setShowDeliveryMap}
+        onAssign={(d) => {
+          setShowDeliveryMap(false);              // fecha mapa
+          setDelivererForAssign(d);               // abre seletor de pedido
+        }}
+      />
+
+      {/* Atribuir pedido pronto a entregador escolhido no mapa */}
+      <AssignOrderToDelivererDialog
+        deliverer={delivererForAssign}
+        open={!!delivererForAssign}
+        onClose={() => setDelivererForAssign(null)}
+        onConfirm={handleConfirmDeliverer}
+      />
 
       {/* Colunas: scroll horizontal, cada coluna scroll vertical independente */}
       <div className="flex-1 min-h-0 flex gap-4 overflow-x-auto pt-3 pb-2">

@@ -1,4 +1,7 @@
-// v2.0.0 — Mapa de entregadores (Leaflet + OpenStreetMap — sem token)
+// v3.0.0 — Mapa entregadores
+// - Sem refetchInterval (realtime já invalida cache)
+// - Modo compact (modal): sem header próprio
+// - Popup com botão "Atribuir pedido" via callback onAssign
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
@@ -6,7 +9,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyId } from "@/hooks/useCompanyId";
-import { X, MapPin } from "lucide-react";
+import { X, MapPin, PackagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Corrige bug do webpack/vite com ícones padrão do Leaflet
@@ -35,7 +38,9 @@ interface DelivererPos {
 }
 
 interface DeliveryMapProps {
-  onClose: () => void;
+  onClose?: () => void;
+  compact?: boolean; // modal: skip own header
+  onAssign?: (deliverer: { id: string; name: string }) => void; // popup → atribuir pedido
 }
 
 // Componente auxiliar para recentrar mapa quando entregadores mudam
@@ -52,7 +57,7 @@ function AutoFitBounds({ positions }: { positions: [number, number][] }) {
   return null;
 }
 
-export function DeliveryMap({ onClose }: DeliveryMapProps) {
+export function DeliveryMap({ onClose, compact = false, onAssign }: DeliveryMapProps) {
   const { companyId } = useCompanyId();
   const queryClient = useQueryClient();
 
@@ -69,7 +74,7 @@ export function DeliveryMap({ onClose }: DeliveryMapProps) {
       return (data || []) as DelivererPos[];
     },
     enabled: !!companyId,
-    refetchInterval: 30000,
+    // refetchInterval removido — realtime postgres_changes basta
   });
 
   // Realtime: atualiza mapa quando entregador move
@@ -94,22 +99,26 @@ export function DeliveryMap({ onClose }: DeliveryMapProps) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Cabeçalho */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-background shrink-0">
-        <div className="flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-orange-500" />
-          <span className="text-sm font-semibold">Mapa de Entregadores</span>
-          <span className="text-xs text-muted-foreground">
-            {withPos.length} com GPS ativo
-          </span>
+      {/* Cabeçalho — escondido em modo compact (modal já tem título) */}
+      {!compact && (
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-background shrink-0">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-orange-500" />
+            <span className="text-sm font-semibold">Mapa de Entregadores</span>
+            <span className="text-xs text-muted-foreground">
+              {withPos.length} com GPS ativo
+            </span>
+          </div>
+          {onClose && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+              <X className="w-4 h-4" />
+            </Button>
+          )}
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-          <X className="w-4 h-4" />
-        </Button>
-      </div>
+      )}
 
       {/* Mapa Leaflet */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative min-h-[400px]">
         <MapContainer
           center={positions.length > 0 ? positions[0] : [-16.7, -49.2]}
           zoom={13}
@@ -126,14 +135,23 @@ export function DeliveryMap({ onClose }: DeliveryMapProps) {
           {withPos.map(d => (
             <Marker key={d.id} position={[d.lat!, d.lng!]} icon={delivererIcon}>
               <Popup>
-                <div className="font-sans text-sm">
-                  <strong>{d.name}</strong><br />
-                  <small className="text-gray-500">
+                <div className="font-sans text-sm space-y-1.5 min-w-[180px]">
+                  <strong className="block">{d.name}</strong>
+                  <small className="block text-gray-500">
                     {d.last_location_at
-                      ? `Atualizado: ${new Date(d.last_location_at).toLocaleTimeString("pt-BR")}`
+                      ? `GPS: ${new Date(d.last_location_at).toLocaleTimeString("pt-BR")}`
                       : "Sem localização recente"
                     }
                   </small>
+                  {onAssign && (
+                    <button
+                      onClick={() => onAssign({ id: d.id, name: d.name })}
+                      className="mt-1 w-full inline-flex items-center justify-center gap-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium px-2 py-1 rounded transition"
+                    >
+                      <PackagePlus className="w-3 h-3" />
+                      Atribuir pedido
+                    </button>
+                  )}
                 </div>
               </Popup>
             </Marker>
