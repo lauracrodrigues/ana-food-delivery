@@ -1,4 +1,4 @@
-// v1.6.0 — Items extraídos pra menu-items.ts (reduz 80 linhas)
+// v1.7.0 — Sidebar passa flag isDistribuidora pra menu (gera "Movimentações" condicional)
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useUserRole } from "@/hooks/use-user-role";
+import { useModules } from "@/hooks/useModules";
 import { getMenuItems } from "@/components/layout/menu-items";
 import {
   Sidebar,
@@ -50,14 +51,15 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isAdmin } = useUserRole();
+  const { isEnabled } = useModules(); // checa modules_enabled da empresa
   const [openGroups, setOpenGroups] = useLocalStorage<string[]>("sidebar:openGroups", []);
   const [isHovered, setIsHovered] = useState(false);
   const [isPinned, setIsPinned] = useLocalStorage<boolean>("sidebar:pinned", false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Get menu items based on user role
-  const menuItems = getMenuItems({ isAdmin });
+  // Menu: passa isAdmin + flag de distribuidora (Movimentações só aparece se habilitado)
+  const menuItems = getMenuItems({ isAdmin, isDistribuidora: isEnabled("distribuidoras") });
 
   // Check if mobile
   useEffect(() => {

@@ -45,7 +45,6 @@ const CashRegister = lazy(() => import("./pages/CashRegister"));
 const CashRegisterHistory = lazy(() => import("./pages/CashRegisterHistory"));
 const WhatsAppChat = lazy(() => import("./pages/WhatsAppChat"));
 const Billing = lazy(() => import("./pages/Billing"));
-const Estoque = lazy(() => import("./pages/Estoque"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
 const Distribuidoras = lazy(() => import("./pages/Distribuidoras"));
 const Coupons = lazy(() => import("./pages/Coupons"));
@@ -57,6 +56,7 @@ const Titulos = lazy(() => import("./pages/Titulos"));
 const DRE = lazy(() => import("./pages/DRE"));
 const EstoqueMP = lazy(() => import("./pages/EstoqueMP"));
 const ContasFin = lazy(() => import("./pages/ContasFin"));
+const Movimentos = lazy(() => import("./pages/Movimentos"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
 const Loyalty = lazy(() => import("./pages/Loyalty"));
@@ -209,7 +209,7 @@ const App = () => {
               <Route path="/customers" element={<Customers />} />
               <Route path="/products" element={<Products />} />
               <Route path="/categories" element={<Categories />} />
-              <Route path="/estoque" element={<Estoque />} />
+              {/* /estoque registrado abaixo apontando p/ EstoqueMP (MP + lotes) — Estoque antigo descontinuado */}
               <Route path="/extras" element={<Extras />} />
               <Route path="/delivery-fees" element={<DeliveryFees />} />
               <Route path="/entregadores" element={<Deliverers />} />
@@ -238,6 +238,7 @@ const App = () => {
               <Route path="/titulos" element={<Titulos />} />
               <Route path="/dre" element={<DRE />} />
               <Route path="/estoque" element={<EstoqueMP />} />
+              <Route path="/movimentos" element={<Movimentos />} />
               <Route path="/financeiro/contas" element={<ContasFin />} />
               <Route path="/retention" element={<Retention />} />
               <Route path="/analytics" element={<Analytics />} />

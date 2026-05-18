@@ -1,9 +1,13 @@
-// v1.0.0 — Definição de items do menu da sidebar (separado pra reduzir AppSidebar.tsx)
+// v2.0.0 — Menu lateral reorganizado
+// - Financeiro vira grupo (Visão Geral + Contas + Receitas + Despesas + Títulos + DRE/Fluxo)
+// - Caixa expediente movido pra dentro de Vendas (histórico) — caixa em si é tab do PDV
+// - Movimentações condicional (só aparece se modules_enabled.distribuidoras=true)
+// - Removidos items soltos (Caixa, Títulos, DRE, Contas Fin, Estoque)
 import {
   ShoppingBag, Settings, Package, Users, Tag, MessageSquare, Building2, MapPin,
   Store, CreditCard, Menu, LayoutGrid, Wallet, Receipt, Clock,
   TrendingUp, Truck, Ticket, BarChart3, Sparkles, Megaphone, LayoutDashboard, Gift, Calendar,
-  ShoppingCart, Coffee, Bike, Flame, Wallet, FileText,
+  ShoppingCart, Coffee, Bike, Flame, FileText,
 } from "lucide-react";
 import { MotoIcon } from "@/components/ui/moto-icon";
 
@@ -22,13 +26,14 @@ export interface MenuItem {
 
 export interface MenuItemsConfig {
   isAdmin?: boolean;
+  isDistribuidora?: boolean; // mostra item "Movimentações" quando true
 }
 
-export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuItem[] {
+export function getMenuItems({ isAdmin = false, isDistribuidora = false }: MenuItemsConfig = {}): MenuItem[] {
   return [
-    { title: "Dashboard",  url: "/dashboard",  icon: LayoutDashboard },
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+
     {
-      // PDV + Caixa removidos — substituídos por seção "Vendas" (caixa fica como tab interna do PDV)
       title: "Vendas", icon: ShoppingCart,
       subItems: [
         { title: "Balcão",          url: "/vendas/balcao",   icon: Coffee },
@@ -37,15 +42,37 @@ export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuIte
         { title: "Histórico Caixa", url: "/caixa/historico", icon: Clock },
       ],
     },
-    { title: "Financeiro", url: "/financeiro", icon: TrendingUp },
-    { title: "Caixa",      url: "/caixa",      icon: Wallet },
-    { title: "Títulos",    url: "/titulos",    icon: Receipt },
-    { title: "DRE / Fluxo", url: "/dre",       icon: FileText },
-    { title: "Contas Fin.", url: "/financeiro/contas", icon: Wallet },
-    { title: "Estoque (MP+Lotes)", url: "/estoque", icon: Package },
-    { title: "Pedidos",    url: "/orders",     icon: ShoppingBag },
-    { title: "Mapa de Calor", url: "/heatmap",  icon: Flame },
-    { title: "Cardápio",   url: "/menu",       icon: Menu }, // tabs internas: Visual, Cardápio do Dia, Analytics, Fidelidade, Marketing
+
+    // Movimentações: distribuidora (pedidos venda + orçamentos + estoque/lotes)
+    ...(isDistribuidora ? [{
+      title: "Movimentações", icon: FileText,
+      subItems: [
+        { title: "Pedidos de Venda", url: "/movimentos?tab=pedidos",    icon: ShoppingBag },
+        { title: "Orçamentos",       url: "/movimentos?tab=orcamentos", icon: FileText },
+        { title: "Faturados",        url: "/movimentos?tab=faturados",  icon: CreditCard },
+        { title: "Estoque + Lotes",  url: "/estoque",                   icon: Package },
+      ],
+    }] : []),
+
+    // Pedidos (delivery)
+    { title: "Pedidos", url: "/orders", icon: ShoppingBag },
+
+    // Financeiro consolidado
+    {
+      title: "Financeiro", icon: TrendingUp,
+      subItems: [
+        { title: "Visão Geral", url: "/financeiro",          icon: BarChart3 },
+        { title: "Contas",      url: "/financeiro/contas",   icon: Wallet },
+        { title: "Receitas",    url: "/financeiro/receitas", icon: TrendingUp },
+        { title: "Despesas",    url: "/financeiro/despesas", icon: TrendingUp },
+        { title: "Títulos",     url: "/titulos",             icon: Receipt },
+        { title: "DRE / Fluxo", url: "/dre",                 icon: FileText },
+      ],
+    },
+
+    { title: "Mapa de Calor", url: "/heatmap", icon: Flame },
+    { title: "Cardápio", url: "/menu", icon: Menu },
+
     {
       title: "Cadastros", icon: Package,
       subItems: [
@@ -63,6 +90,7 @@ export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuIte
         { title: "Avaliações",          url: "/reviews",          icon: MessageSquare },
       ],
     },
+
     {
       title: "WhatsApp", icon: MessageSquare,
       subItems: [
@@ -70,6 +98,7 @@ export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuIte
         { title: "Configurações", url: "/whatsapp",      icon: Settings },
       ],
     },
+
     {
       title: "Configurações", icon: Settings,
       subItems: [
