@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tag, Sparkles, Gift, Copy, Loader2, CheckCircle2 } from "lucide-react";
 import type { LoyaltyConfig } from "@/hooks/useLoyaltyPoints";
 import { ReferralCard } from "./ReferralCard";
+import { useMenuContextOptional } from "@/contexts/MenuContext";
 
 interface PublicCoupon {
   id: string;
@@ -127,22 +128,26 @@ export function PromosSheet({
   );
 }
 
-// PromosContent reusável — buscar dados + renderizar tabs (sem Sheet wrapper)
-// Usado dentro de outras Sheets (CustomerSheet) pra evitar duplicação
+// PromosContent — todas props opcionais, lê do MenuContext como fallback
 interface PromosContentProps {
-  companyId: string;
+  companyId?: string;
   customerPhone?: string | null;
   loyaltyPoints?: number;
   loyaltyConfig?: LoyaltyConfig;
-  storeSubdomain?: string | null;     // pra montar link de indicação
-  storeName?: string;                  // nome da loja exibido no convite
-  referralRewardPoints?: number;       // pontos por indicação (config loja)
+  storeSubdomain?: string | null;
+  storeName?: string;
+  referralRewardPoints?: number;
 }
 
-export function PromosContent({
-  companyId, customerPhone, loyaltyPoints = 0, loyaltyConfig,
-  storeSubdomain, storeName, referralRewardPoints,
-}: PromosContentProps) {
+export function PromosContent(props: PromosContentProps) {
+  const ctx = useMenuContextOptional();
+  const companyId = props.companyId ?? ctx?.companyId ?? '';
+  const customerPhone = props.customerPhone ?? ctx?.session?.phone ?? null;
+  const loyaltyPoints = props.loyaltyPoints ?? ctx?.loyaltyPoints ?? 0;
+  const loyaltyConfig = props.loyaltyConfig ?? ctx?.loyaltyConfig;
+  const storeSubdomain = props.storeSubdomain ?? ctx?.storeSubdomain ?? null;
+  const storeName = props.storeName ?? ctx?.storeName;
+  const referralRewardPoints = props.referralRewardPoints ?? ctx?.referralRewardPoints ?? 100;
   const { toast } = useToast();
   const [coupons, setCoupons] = useState<PublicCoupon[]>([]);
   const [combos, setCombos] = useState<ComboCampaign[]>([]);

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Gift, Share2, Copy, Loader2 } from "lucide-react";
+import { useMenuContextOptional } from "@/contexts/MenuContext";
 
 interface ReferralStats {
   total: number;
@@ -14,14 +15,20 @@ interface ReferralStats {
 }
 
 interface ReferralCardProps {
-  companyId: string;
+  companyId?: string;
   customerPhone?: string | null;
   storeSubdomain?: string | null;
   storeName?: string;
-  rewardPoints?: number; // pontos por indicação (config da loja)
+  rewardPoints?: number;
 }
 
-export function ReferralCard({ companyId, customerPhone, storeSubdomain, storeName = "loja", rewardPoints = 100 }: ReferralCardProps) {
+export function ReferralCard(props: ReferralCardProps) {
+  const ctx = useMenuContextOptional();
+  const companyId = props.companyId ?? ctx?.companyId ?? '';
+  const customerPhone = props.customerPhone ?? ctx?.session?.phone ?? null;
+  const storeSubdomain = props.storeSubdomain ?? ctx?.storeSubdomain ?? null;
+  const storeName = props.storeName ?? ctx?.storeName ?? "loja";
+  const rewardPoints = props.rewardPoints ?? ctx?.referralRewardPoints ?? 100;
   const { toast } = useToast();
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [loading, setLoading] = useState(false);
