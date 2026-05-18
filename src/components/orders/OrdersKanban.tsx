@@ -142,20 +142,22 @@ export function OrdersKanban() {
     enabled: !!companyId,
   });
 
-  // Contadores entregadores (total cadastrados + com GPS) — alimenta badge do botão
+  // Contadores entregadores (total cadastrados + em rota via work_status)
+  // delivering = bateu ponto + tem pedido = GPS realmente ativo
+  // Cron deliverer-cleanup marca offline após 30min stale (PM2)
   const { data: delivererCounts = { total: 0, gps: 0 } } = useQuery({
     queryKey: ["deliverer-counts", companyId],
     queryFn: async () => {
       if (!companyId) return { total: 0, gps: 0 };
       // @ts-expect-error -- tabela ainda fora dos types gerados
       const { data } = await supabase.from("deliverers")
-        .select("id, lat, lng, active")
+        .select("id, work_status, active")
         .eq("company_id", companyId)
         .eq("active", true);
-      const list = (data || []) as Array<{ lat: number | null; lng: number | null }>;
+      const list = (data || []) as Array<{ work_status: string }>;
       return {
         total: list.length,
-        gps: list.filter(d => d.lat !== null && d.lng !== null).length,
+        gps: list.filter(d => d.work_status === "delivering").length,
       };
     },
     enabled: !!companyId,

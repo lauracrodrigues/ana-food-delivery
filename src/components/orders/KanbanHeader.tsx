@@ -62,7 +62,7 @@ export function KanbanHeader({
   const mapDisabled = delivererTotalCount === 0;
   const mapTooltip = mapDisabled
     ? "Cadastre entregadores primeiro (Cadastros → Entregadores)"
-    : `GPS ao vivo dos motoboys — ${delivererGpsCount}/${delivererTotalCount} online`;
+    : `Entregadores cadastrados: ${delivererTotalCount} · ${delivererGpsCount} em rota agora (GPS ativo)`;
   return (
     <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 border-b pb-4">
       <div className="flex flex-wrap items-center gap-3">

@@ -31,8 +31,8 @@
 
 ## Fase 4 — Melhorias futuras
 
-- [ ] Cron job no PM2 do bot chamando `cleanup_stale_deliverer_locations` a cada 5min
-- [ ] Painel loja: contador online deve usar `work_status='delivering'` (não só coords)
+- [x] Cron job no PM2 do bot chamando `cleanup_stale_deliverer_locations` a cada 5min
+- [x] Painel loja: contador online deve usar `work_status='delivering'` (não só coords)
 - [ ] Reportar `battery_level` na RPC (campo já previsto)
 - [ ] Notificação push pro entregador quando bateria <15% durante entrega
 - [ ] Histórico de pontos: tabela `deliverer_shifts` (bateu ponto X, encerrou Y) → relatório horas trabalhadas
