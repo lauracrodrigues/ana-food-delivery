@@ -70,7 +70,7 @@ export function getMenuItems({ isAdmin = false, isDistribuidora = false }: MenuI
       ],
     },
 
-    { title: "Mapa de Calor", url: "/heatmap", icon: Flame },
+    // Mapa de Calor movido pra dentro de Pedidos (botão top, no lugar do antigo "Horários")
     { title: "Cardápio", url: "/menu", icon: Menu },
 
     {

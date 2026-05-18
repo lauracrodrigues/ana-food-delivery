@@ -3,7 +3,8 @@ import { OrdersKanban } from "@/components/orders/OrdersKanban";
 import { WaiterCallsAlert } from "@/components/orders/WaiterCallsAlert";
 import { ManualOrderSidebar } from "@/components/orders/ManualOrderSidebar";
 import { Button } from "@/components/ui/button";
-import { Store, Bot, Clock, PlusCircle } from "lucide-react";
+import { Store, Bot, Flame, PlusCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +14,7 @@ import { useStoreSettings } from "@/hooks/useStoreSettings";
 export default function Orders() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate(); // nav pra /heatmap (botão "Mapa de Calor")
   const [storeOpen, setStoreOpen] = useState(true);
   const [robotEnabled, setRobotEnabled] = useState(true);
   const [subdomain, setSubdomain] = useState("");
@@ -140,13 +142,14 @@ export default function Orders() {
             Robô {robotEnabled ? "Ativo" : "Inativo"}
           </Button>
 
+          {/* Heatmap: análise visual de pedidos por dia/hora — substitui antigo "Horários" */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => window.location.href = '/settings#horarios'}
+            onClick={() => navigate('/heatmap')}
           >
-            <Clock className="w-4 h-4 mr-2" />
-            Horários
+            <Flame className="w-4 h-4 mr-2" />
+            Mapa de Calor
           </Button>
 
           <Button
