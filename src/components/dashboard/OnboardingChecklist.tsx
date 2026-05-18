@@ -72,12 +72,13 @@ const CHECKLIST_ITEMS: ChecklistItem[] = [
   },
 ];
 
-const DISMISSED_KEY = "onboarding_dismissed";
+// Scope por company — empresas diferentes podem ter onboarding em estados diferentes
+const dismissedKey = (companyId: string) => `onboarding_dismissed_${companyId}`;
 
 export function OnboardingChecklist({ companyId }: { companyId: string }) {
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(() => {
-    return localStorage.getItem(DISMISSED_KEY) === "true";
+    return localStorage.getItem(dismissedKey(companyId)) === "true";
   });
 
   // Busca dados para checar progresso
@@ -115,18 +116,20 @@ export function OnboardingChecklist({ companyId }: { companyId: string }) {
   const allDone = completedCount === totalCount;
   const progressPercent = (completedCount / totalCount) * 100;
 
-  // Auto-dismiss quando tudo completo
+  // Auto-dismiss IMEDIATO quando tudo completo (persiste no localStorage por company)
+  // Sem timer 5s — esconde direto e não volta a aparecer
   useEffect(() => {
-    if (allDone && !dismissed) {
-      const timer = setTimeout(() => setDismissed(true), 5000);
-      return () => clearTimeout(timer);
+    if (allDone && !dismissed && companyId) {
+      localStorage.setItem(dismissedKey(companyId), "true");
+      setDismissed(true);
     }
-  }, [allDone, dismissed]);
+  }, [allDone, dismissed, companyId]);
 
-  if (dismissed || isLoading || !checkData) return null;
+  // Esconde se: já dismissed OU loading OU tudo done (extra-segurança)
+  if (dismissed || isLoading || !checkData || allDone) return null;
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, "true");
+    localStorage.setItem(dismissedKey(companyId), "true");
     setDismissed(true);
   };
 
