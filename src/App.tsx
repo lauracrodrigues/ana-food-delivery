@@ -51,6 +51,7 @@ const Distribuidoras = lazy(() => import("./pages/Distribuidoras"));
 const Coupons = lazy(() => import("./pages/Coupons"));
 const Reviews = lazy(() => import("./pages/Reviews"));
 const Retention = lazy(() => import("./pages/Retention"));
+const Heatmap = lazy(() => import("./pages/Heatmap"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
 const Loyalty = lazy(() => import("./pages/Loyalty"));
@@ -227,6 +228,7 @@ const App = () => {
               <Route path="/distribuidoras" element={<Distribuidoras />} />
               <Route path="/coupons" element={<Coupons />} />
               <Route path="/reviews" element={<Reviews />} />
+              <Route path="/heatmap" element={<Heatmap />} />
               <Route path="/retention" element={<Retention />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/campaigns" element={<Campaigns />} />

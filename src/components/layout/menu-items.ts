@@ -3,7 +3,7 @@ import {
   ShoppingBag, Settings, Package, Users, Tag, MessageSquare, Building2, MapPin,
   Store, CreditCard, Menu, LayoutGrid, Wallet, Receipt, Clock,
   TrendingUp, Truck, Ticket, BarChart3, Sparkles, Megaphone, LayoutDashboard, Gift, Calendar,
-  ShoppingCart, Coffee, Bike,
+  ShoppingCart, Coffee, Bike, Flame,
 } from "lucide-react";
 import { MotoIcon } from "@/components/ui/moto-icon";
 
@@ -39,6 +39,7 @@ export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuIte
     },
     { title: "Financeiro", url: "/financeiro", icon: TrendingUp },
     { title: "Pedidos",    url: "/orders",     icon: ShoppingBag },
+    { title: "Mapa de Calor", url: "/heatmap",  icon: Flame },
     { title: "Cardápio",   url: "/menu",       icon: Menu }, // tabs internas: Visual, Cardápio do Dia, Analytics, Fidelidade, Marketing
     {
       title: "Cadastros", icon: Package,
