@@ -41,6 +41,8 @@ export function getMenuItems({ isAdmin = false }: MenuItemsConfig = {}): MenuIte
     { title: "Caixa",      url: "/caixa",      icon: Wallet },
     { title: "Títulos",    url: "/titulos",    icon: Receipt },
     { title: "DRE / Fluxo", url: "/dre",       icon: FileText },
+    { title: "Contas Fin.", url: "/financeiro/contas", icon: Wallet },
+    { title: "Estoque (MP+Lotes)", url: "/estoque", icon: Package },
     { title: "Pedidos",    url: "/orders",     icon: ShoppingBag },
     { title: "Mapa de Calor", url: "/heatmap",  icon: Flame },
     { title: "Cardápio",   url: "/menu",       icon: Menu }, // tabs internas: Visual, Cardápio do Dia, Analytics, Fidelidade, Marketing

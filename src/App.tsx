@@ -55,6 +55,8 @@ const Heatmap = lazy(() => import("./pages/Heatmap"));
 const Caixa = lazy(() => import("./pages/Caixa"));
 const Titulos = lazy(() => import("./pages/Titulos"));
 const DRE = lazy(() => import("./pages/DRE"));
+const EstoqueMP = lazy(() => import("./pages/EstoqueMP"));
+const ContasFin = lazy(() => import("./pages/ContasFin"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
 const Loyalty = lazy(() => import("./pages/Loyalty"));
@@ -235,6 +237,8 @@ const App = () => {
               <Route path="/caixa" element={<Caixa />} />
               <Route path="/titulos" element={<Titulos />} />
               <Route path="/dre" element={<DRE />} />
+              <Route path="/estoque" element={<EstoqueMP />} />
+              <Route path="/financeiro/contas" element={<ContasFin />} />
               <Route path="/retention" element={<Retention />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/campaigns" element={<Campaigns />} />
