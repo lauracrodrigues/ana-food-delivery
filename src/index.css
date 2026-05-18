@@ -217,3 +217,43 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 }
+
+/* ── IMPRESSÃO A4 (default) ─────────────────────────────────────────── */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  /* Esconde elementos com .print-hide ou tailwind print:hidden */
+  .no-print, [class*="print:hidden"], nav, aside, .sidebar, header.app-header {
+    display: none !important;
+  }
+  /* Cards em fundo branco */
+  [class*="bg-card"], [class*="bg-primary"] {
+    background: white !important;
+    border: 1px solid #ccc !important;
+  }
+  /* Quebra de página */
+  .print-break { page-break-before: always; }
+  .print-avoid-break { page-break-inside: avoid; }
+}
+
+/* ── IMPRESSÃO 80mm (cupom térmico) — adicionar class .print-cupom no root da página ─ */
+@media print {
+  .print-cupom-mode {
+    @page { size: 80mm auto; margin: 2mm; }
+  }
+  .print-cupom-mode * {
+    font-family: 'Courier New', monospace !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+  .print-cupom-mode h1, .print-cupom-mode h2 {
+    font-size: 13px !important;
+    font-weight: bold;
+  }
+}

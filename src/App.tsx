@@ -52,6 +52,9 @@ const Coupons = lazy(() => import("./pages/Coupons"));
 const Reviews = lazy(() => import("./pages/Reviews"));
 const Retention = lazy(() => import("./pages/Retention"));
 const Heatmap = lazy(() => import("./pages/Heatmap"));
+const Caixa = lazy(() => import("./pages/Caixa"));
+const Titulos = lazy(() => import("./pages/Titulos"));
+const DRE = lazy(() => import("./pages/DRE"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
 const Loyalty = lazy(() => import("./pages/Loyalty"));
@@ -229,6 +232,9 @@ const App = () => {
               <Route path="/coupons" element={<Coupons />} />
               <Route path="/reviews" element={<Reviews />} />
               <Route path="/heatmap" element={<Heatmap />} />
+              <Route path="/caixa" element={<Caixa />} />
+              <Route path="/titulos" element={<Titulos />} />
+              <Route path="/dre" element={<DRE />} />
               <Route path="/retention" element={<Retention />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/campaigns" element={<Campaigns />} />
