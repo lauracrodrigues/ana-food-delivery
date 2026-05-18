@@ -88,11 +88,11 @@ QZ Tray envia para impressora via USB/Serial/Rede
 
 ---
 
-## Mapbox (Mapas)
+## Leaflet + OpenStreetMap (Mapas)
 
-**Uso**: Busca de endereço e visualização de zona de entrega  
-**Auth**: Token público via `VITE_MAPBOX_TOKEN`  
-**Componente**: `AddressSearchWithMap`
+**Uso**: Mapa de entregadores (`DeliveryMap`), mapa de calor (`HeatmapView`), busca de endereço (`AddressSearchWithMap`)
+**Auth**: nenhum (OpenStreetMap é público, sem token)
+**Bibliotecas**: `leaflet`, `react-leaflet`, `leaflet.heat`
 
 ---
 

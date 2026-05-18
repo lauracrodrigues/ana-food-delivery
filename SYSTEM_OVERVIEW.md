@@ -141,7 +141,7 @@ Operador → POS UI → posStore (Zustand)
 - React Router v6
 - Recharts (gráficos)
 - @dnd-kit (drag-and-drop kanban)
-- Mapbox GL (mapa de entregas)
+- Leaflet + OpenStreetMap (mapa de entregadores, mapa de calor, endereços)
 - Sentry (error tracking)
 
 ### Backend (Serverless)
