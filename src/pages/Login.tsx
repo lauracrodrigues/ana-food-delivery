@@ -46,11 +46,14 @@ export default function Login() {
 
   const checkUserRole = async (userId: string, email?: string) => {
     try {
-      const profile = await supabaseQueryNullable(
-        supabase.from('profiles').select('role').eq('id', userId).single()
+      // Role vem de user_roles (não profiles.role que é legado/null)
+      const roles = await supabaseQueryNullable(
+        supabase.from('user_roles').select('role').eq('user_id', userId)
       );
+      const roleList = Array.isArray(roles) ? roles.map((r: any) => r.role) : [];
+      const isSuperAdmin = roleList.includes('super_admin') || roleList.includes('master_admin');
 
-      if (profile?.role === 'super_admin' || profile?.role === 'master_admin') {
+      if (isSuperAdmin) {
         navigate('/admin');
         return;
       }
@@ -68,7 +71,7 @@ export default function Login() {
       navigate('/dashboard');
     } catch (err) {
       console.error('[Login] Erro ao verificar role:', err);
-      navigate('/dashboard'); // Fallback seguro
+      navigate('/dashboard');
     }
   };
 
