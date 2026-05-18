@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -23,6 +24,7 @@ type LoginData = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -92,11 +94,14 @@ export default function Login() {
       }
 
       if (authData.user) {
+        // SECURITY: limpa cache React Query da sessão anterior pra evitar vazamento entre tenants
+        queryClient.clear();
+
         toast({
           title: "Login realizado!",
           description: "Bem-vindo de volta!",
         });
-        
+
         await checkUserRole(authData.user.id, authData.user.email ?? undefined);
       }
     } catch (error) {

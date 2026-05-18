@@ -1,5 +1,6 @@
 // v1.6.0 — Items extraídos pra menu-items.ts (reduz 80 linhas)
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import {
   LogOut, ChevronDown, Store, Mail, User, Pin, PinOff, X, Menu, Sun, Moon,
@@ -37,6 +38,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 export function AppSidebar() {
   const { state, toggleSidebar, setOpen } = useSidebar();
   const { theme, setTheme } = useTheme();
+  const queryClient = useQueryClient();
 
   // Toggle dark mode — persiste por usuário (localStorage + DB), não global
   const toggleTheme = () => {
@@ -105,6 +107,16 @@ export function AppSidebar() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    // SECURITY: limpa TODO cache React Query pra evitar vazamento entre sessões
+    queryClient.clear();
+    // SECURITY: limpa localStorage scopados por user (tema, prefs, etc)
+    try {
+      Object.keys(localStorage).forEach((k) => {
+        if (k.startsWith("anafood_") || k.startsWith("user_theme_")) {
+          localStorage.removeItem(k);
+        }
+      });
+    } catch {}
     toast({ title: "Logout realizado", description: "Você foi desconectado com sucesso." });
     navigate("/login");
   };
