@@ -767,43 +767,43 @@ export default function WhatsApp() {
                 <div className="space-y-2">
                   <Label>Typing Debounce — aguardar antes de mostrar "digitando"</Label>
                   <Select
-                    value={String(botSettings?.typing_debounce_ms ?? 3000)}
+                    value={String(botSettings?.typing_debounce_ms ?? 1500)}
                     onValueChange={(v) => updateBotSettingsMutation.mutate({ typing_debounce_ms: parseInt(v) })}
-                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending || botSettings?.presence_enabled === false}
                   >
                     <SelectTrigger className="w-72">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1000">1 segundo</SelectItem>
-                      <SelectItem value="2000">2 segundos</SelectItem>
-                      <SelectItem value="3000">3 segundos — padrão</SelectItem>
-                      <SelectItem value="5000">5 segundos</SelectItem>
+                      <SelectItem value="500">0.5s — instantâneo</SelectItem>
+                      <SelectItem value="1000">1s</SelectItem>
+                      <SelectItem value="1500">1.5s — padrão (rápido)</SelectItem>
+                      <SelectItem value="3000">3s — normal</SelectItem>
+                      <SelectItem value="5000">5s — devagar</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-sm text-muted-foreground">
-                    Tempo de silêncio antes de disparar o indicador "digitando". Se cliente enviar outra msg, timer reseta.
+                    Tempo de silêncio antes de disparar "digitando". Reset se cliente envia outra msg.
                   </p>
                 </div>
 
                 <div className="space-y-2">
                   <Label>Debounce de Mensagens — buffer de acúmulo</Label>
                   <Select
-                    value={String(botSettings?.debounce_ms ?? 10000)}
+                    value={String(botSettings?.debounce_ms ?? 5000)}
                     onValueChange={(v) => updateBotSettingsMutation.mutate({ debounce_ms: parseInt(v) })}
-                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending || botSettings?.presence_enabled === false}
                   >
                     <SelectTrigger className="w-72">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="3000">3 segundos — resposta rápida</SelectItem>
-                      <SelectItem value="5000">5 segundos</SelectItem>
-                      <SelectItem value="8000">8 segundos</SelectItem>
-                      <SelectItem value="10000">10 segundos — padrão</SelectItem>
-                      <SelectItem value="15000">15 segundos — clientes que digitam devagar</SelectItem>
-                      <SelectItem value="20000">20 segundos</SelectItem>
-                      <SelectItem value="30000">30 segundos — máximo</SelectItem>
+                      <SelectItem value="1500">1.5s — bem rápido</SelectItem>
+                      <SelectItem value="3000">3s — rápido</SelectItem>
+                      <SelectItem value="5000">5s — padrão</SelectItem>
+                      <SelectItem value="8000">8s</SelectItem>
+                      <SelectItem value="10000">10s — devagar</SelectItem>
+                      <SelectItem value="15000">15s — clientes que digitam devagar</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-sm text-muted-foreground">
