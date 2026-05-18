@@ -21,10 +21,26 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    const { order_id, company_id, customer_name, customer_email, total } = await req.json();
+    const { order_id, company_id, customer_name, customer_email, customer_phone, total } = await req.json();
 
     if (!order_id || !company_id || !total) {
       return json({ error: 'order_id, company_id e total são obrigatórios' }, 400);
+    }
+
+    // Rate limit: 3 falhas PIX em 30min bloqueia novo PIX pra este phone+company
+    if (customer_phone) {
+      const { data: rl } = await supabase.rpc('check_pix_rate_limit', {
+        p_company_id: company_id,
+        p_phone: customer_phone,
+      });
+      if (rl && rl.allowed === false) {
+        return json({
+          error: 'pix_rate_limited',
+          message: `⚠️ Muitas tentativas de PIX sem pagamento. PIX bloqueado por ${rl.retry_in_min} min. Use Dinheiro ou Cartão por enquanto.`,
+          retry_in_min: rl.retry_in_min,
+          attempts: rl.attempts,
+        }, 429);
+      }
     }
 
     // Busca credenciais MP ativas da empresa
@@ -94,6 +110,15 @@ Deno.serve(async (req: Request) => {
         payment_expires_at:    expiresAt,
       })
       .eq('id', order_id);
+
+    // Rate limit: registra attempt pra contar futura falha/sucesso
+    if (customer_phone) {
+      await supabase.rpc('register_pix_attempt', {
+        p_company_id: company_id,
+        p_phone: customer_phone,
+        p_order_id: order_id,
+      }).catch(() => {});
+    }
 
     return json({ payment_id: paymentId, qr_code: qrCode, qr_code_base64: qrCodeBase64, expires_at: expiresAt });
 

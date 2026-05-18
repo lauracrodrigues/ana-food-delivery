@@ -58,12 +58,17 @@ export function useOrderCreation(): UseOrderCreationResult {
       if (payload.payment_method === "pix_mp" && orderId) {
         const { data: fnData, error: fnError } = await supabase.functions.invoke("create-pix-payment", {
           body: {
-            order_id:      orderId,
-            company_id:    payload.company_id,
-            customer_name: payload.customer_name,
-            total:         payload.total,
+            order_id:       orderId,
+            company_id:     payload.company_id,
+            customer_name:  payload.customer_name,
+            customer_phone: payload.customer_phone, // rate limit anti-abuso PIX
+            total:          payload.total,
           },
         });
+        // Rate limit (429): cliente fez 3+ PIX sem pagar nos últimos 30min
+        if (fnData?.error === 'pix_rate_limited') {
+          throw new Error(fnData.message || `PIX bloqueado por ${fnData.retry_in_min}min. Use Dinheiro ou Cartão.`);
+        }
         if (fnError || fnData?.error) throw new Error(fnData?.error ?? "Erro ao gerar PIX");
         setPixData({ orderId, qrCode: fnData.qr_code, qrCodeBase64: fnData.qr_code_base64, expiresAt: fnData.expires_at });
         return; // aguarda confirmação via polling

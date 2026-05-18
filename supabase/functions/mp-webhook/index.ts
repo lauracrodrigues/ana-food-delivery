@@ -137,6 +137,19 @@ Deno.serve(async (req: Request) => {
     await supabase.from('orders').update(updates).eq('id', order.id);
     console.log(`Order ${order.id} atualizada:`, updates);
 
+    // Rate limit PIX: resolve attempt (paid/expired/cancelled)
+    // Approved → 'paid', cancelled/rejected → 'cancelled' (conta como falha pro contador)
+    const attemptStatus = newPaymentStatus === 'approved' ? 'paid'
+                        : ['cancelled', 'rejected'].includes(newPaymentStatus) ? 'cancelled'
+                        : null;
+    if (attemptStatus) {
+      try {
+        await supabase.rpc('resolve_pix_attempt', { p_order_id: order.id, p_status: attemptStatus });
+      } catch (e) {
+        console.warn('resolve_pix_attempt falhou:', e);
+      }
+    }
+
     // WhatsApp confirmação de pedido criado (delayed até receber pagamento)
     if (shouldNotifyWhatsApp) {
       try {
