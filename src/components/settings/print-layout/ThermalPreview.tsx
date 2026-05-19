@@ -31,8 +31,9 @@ export function ThermalPreview({
   const lines = formatReceipt(order, config, companyData);
 
   // Helper para aplicar classes CSS baseadas na formatação
+  // SEM tracking-tighter — impressora térmica usa fonte fixa, sem ajuste de espaço
   const getLineClasses = (line: FormattedLine): string => {
-    const classes: string[] = ['font-mono', 'tracking-tighter'];
+    const classes: string[] = ['font-mono'];
     
     if (line.formatting) {
       // Bold
@@ -81,16 +82,28 @@ export function ThermalPreview({
     <div className="space-y-4">
       <Card className="bg-muted/30">
         <CardContent className="py-3 px-1">
-          <div className="flex justify-center">
-            <div 
+          <div className="flex flex-col items-center">
+            {/* Indicador da largura do papel (fiel à impressora) */}
+            <p className="text-xs text-muted-foreground mb-2">
+              📄 Papel {config.paper_width} · {config.chars_per_line} caracteres por linha
+            </p>
+            <div
               className="bg-[#F5E6D3] text-black shadow-lg rounded-sm overflow-hidden"
-              style={{ width: '320px' }}
+              style={{
+                // 80mm = ~302px @ 96dpi (largura real do papel térmico)
+                // 58mm = ~219px (impressoras pequenas)
+                // A4 = ~595px (folha completa — preview reduzido)
+                width: config.paper_width === '58mm' ? '219px'
+                  : config.paper_width === 'A4' ? '480px'
+                  : '302px',
+              }}
             >
-              {/* Preview com formatação aplicada */}
-              <div className="p-3 leading-tight" style={{ letterSpacing: '-0.5px' }}>
+              {/* Preview com formatação aplicada — fonte mono, sem letter-spacing
+                  pra bater 1:1 com impressora térmica que usa fonte de largura fixa */}
+              <div className="p-3 leading-tight font-mono">
                 {lines.map((line, idx) => (
-                  <div key={idx} className={getLineClasses(line)}>
-                    {line.text}
+                  <div key={idx} className={getLineClasses(line)} style={{ whiteSpace: 'pre' }}>
+                    {line.text || ' '}
                   </div>
                 ))}
               </div>

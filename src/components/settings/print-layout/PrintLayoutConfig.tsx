@@ -171,6 +171,17 @@ export function PrintLayoutConfig() {
       setAvailablePrinters(printers);
       printerCache.set(printers);
 
+      // Auto-seleciona primeira impressora pro CAIXA quando vazio
+      // (caixa vem enabled=true por default — facilita first-run)
+      if (printers.length > 0) {
+        setSectorsConfig(prev => {
+          if (!prev.caixa.printer_name && prev.caixa.enabled) {
+            return { ...prev, caixa: { ...prev.caixa, printer_name: printers[0] } };
+          }
+          return prev;
+        });
+      }
+
       if (showToast) {
         toast.success(`${printers.length} impressora(s) encontrada(s)`);
       }
