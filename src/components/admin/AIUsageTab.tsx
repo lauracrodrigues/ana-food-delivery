@@ -144,6 +144,26 @@ export function AIUsageTab() {
   }
   const modelos = Object.entries(porModelo).sort((a, b) => b[1].custo - a[1].custo);
 
+  // v1.1.0 — Por provider (OpenAI, Google, Anthropic, Gemini, Groq, etc)
+  const porProvider: Record<string, { custo: number; chamadas: number; modelos: Set<string>; kinds: Set<string> }> = {};
+  for (const l of logs) {
+    const p = l.provider || "?";
+    if (!porProvider[p]) porProvider[p] = { custo: 0, chamadas: 0, modelos: new Set(), kinds: new Set() };
+    porProvider[p].custo += Number(l.custo_usd) || 0;
+    porProvider[p].chamadas += 1;
+    porProvider[p].modelos.add(l.model || "?");
+    porProvider[p].kinds.add(l.kind || "text");
+  }
+  const providers = Object.entries(porProvider).sort((a, b) => b[1].custo - a[1].custo);
+  // Cores por provider (consistência visual)
+  const PROVIDER_COLOR: Record<string, string> = {
+    openai: "bg-emerald-500",
+    google: "bg-blue-500",
+    anthropic: "bg-orange-500",
+    gemini: "bg-purple-500",
+    groq: "bg-amber-500",
+  };
+
   // Por empresa (top 10)
   const porEmpresa: Record<string, { custo: number; chamadas: number; tokens: number; audio_seconds: number }> = {};
   for (const l of logs) {
@@ -230,6 +250,45 @@ export function AIUsageTab() {
               );
             })}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* v1.1.0 — Por provider de IA */}
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Por provider de IA</CardTitle></CardHeader>
+        <CardContent>
+          {providers.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">Sem dados no período</p>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {providers.map(([prov, agg]) => {
+                const pct = totalCusto > 0 ? (agg.custo / totalCusto) * 100 : 0;
+                const color = PROVIDER_COLOR[prov] || "bg-slate-500";
+                return (
+                  <div key={prov} className="border rounded-lg p-3 space-y-1">
+                    <div className="flex items-center gap-2 text-sm font-medium capitalize">
+                      <div className={`h-2 w-2 rounded-full ${color}`} />
+                      {prov}
+                    </div>
+                    <div className="text-2xl font-bold tabular-nums">{fmtUSD(agg.custo)}</div>
+                    <div className="text-xs text-muted-foreground tabular-nums">
+                      {fmtNum(agg.chamadas)} chamadas · {pct.toFixed(1)}%
+                    </div>
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {Array.from(agg.kinds).map((k) => (
+                        <Badge key={k} variant="secondary" className="text-[10px] px-1.5 py-0">
+                          {KIND_LABEL[k]?.label || k}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground pt-0.5">
+                      {agg.modelos.size} modelo{agg.modelos.size !== 1 ? "s" : ""}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
