@@ -83,8 +83,13 @@ function getSubdomain(): string | null {
   const parts = host.split(".");
   if (parts.length < 3) return null;
   const sub = parts[0];
-  if (["www", "api", "evo", "admin"].includes(sub)) return null;
-  // Subdomain anafood.vip
+  // Subdomínios reservados (não são lojas — sistema/infra)
+  const RESERVED = [
+    "www", "api", "evo", "admin", "app", "mail", "blog",
+    "gestao", "login", "auth", "dashboard", "panel", "support",
+    "help", "docs", "status", "cdn", "static", "assets",
+  ];
+  if (RESERVED.includes(sub)) return null;
   if (host.endsWith(".anafood.vip")) return sub;
   return null;
 }
