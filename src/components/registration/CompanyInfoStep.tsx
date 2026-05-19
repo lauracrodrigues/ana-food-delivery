@@ -144,17 +144,29 @@ export function CompanyInfoStep({ onNext, initialData }: CompanyInfoStepProps) {
   };
 
   const checkSubdomainAvailability = async (subdomain: string) => {
-    if (!subdomain || subdomain.length < 3) {
+    const sub = (subdomain || '').toLowerCase().trim();
+    if (!sub || sub.length < 3) {
       setSubdomainStatus(null);
       return;
     }
 
+    // Check 1: regex + reservados (sem ir no DB)
+    if (!validators.subdomain(sub)) {
+      setSubdomainStatus('taken');
+      const msg = validators.isReservedSubdomain(sub)
+        ? `"${sub}" é reservado pelo sistema. Tente outro nome.`
+        : 'Use letras minúsculas, números e hífen (não no início/fim, 3-30 chars).';
+      form.setError('subdomain', { type: 'manual', message: msg });
+      return;
+    }
+
+    // Check 2: unicidade no banco
     setIsCheckingSubdomain(true);
     try {
       const { data, error } = await supabase
         .from('companies')
         .select('id')
-        .eq('subdomain', subdomain.toLowerCase())
+        .eq('subdomain', sub)
         .maybeSingle();
 
       const isAvailable = !data && !error;
@@ -163,7 +175,7 @@ export function CompanyInfoStep({ onNext, initialData }: CompanyInfoStepProps) {
       if (!isAvailable) {
         form.setError('subdomain', {
           type: 'manual',
-          message: 'Este subdomínio já está em uso'
+          message: `"${sub}" já está em uso. Tente: ${sub}-2, ${sub}-loja ou ${sub}-${new Date().getFullYear()}`,
         });
       } else {
         form.clearErrors('subdomain');

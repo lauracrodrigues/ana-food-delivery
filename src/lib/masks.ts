@@ -177,6 +177,26 @@ export const validators = {
 
   subdomain: (subdomain: string) => {
     const subdomainRegex = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
-    return subdomainRegex.test(subdomain) && subdomain.length >= 3 && subdomain.length <= 63;
-  }
+    if (!subdomainRegex.test(subdomain)) return false;
+    if (subdomain.length < 3 || subdomain.length > 30) return false;
+    // Bloqueia reservados (mesma lista do edge + trigger DB)
+    const RESERVED = [
+      "www", "api", "evo", "admin", "app", "mail", "blog",
+      "gestao", "login", "auth", "dashboard", "panel", "support",
+      "help", "docs", "status", "cdn", "static", "assets",
+      "menu", "menus", "orders", "pedidos", "checkout", "cart",
+      "webhook", "webhooks", "billing", "pay", "pagamento",
+    ];
+    return !RESERVED.includes(subdomain);
+  },
+  isReservedSubdomain: (subdomain: string) => {
+    const RESERVED = [
+      "www", "api", "evo", "admin", "app", "mail", "blog",
+      "gestao", "login", "auth", "dashboard", "panel", "support",
+      "help", "docs", "status", "cdn", "static", "assets",
+      "menu", "menus", "orders", "pedidos", "checkout", "cart",
+      "webhook", "webhooks", "billing", "pay", "pagamento",
+    ];
+    return RESERVED.includes(subdomain.toLowerCase());
+  },
 };
