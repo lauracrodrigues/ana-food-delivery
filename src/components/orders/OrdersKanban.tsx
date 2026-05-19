@@ -43,6 +43,8 @@ export function OrdersKanban() {
   const [draggedOrder, setDraggedOrder] = useState<Order | null>(null);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
+  // Filtro por período — sticky no kanban (não persiste entre logins, é da sessão)
+  const [periodFilter, setPeriodFilter] = useState<"today" | "yesterday" | "week" | "month" | "all">("today");
   const [isPrinting, setIsPrinting] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   // localStorage: persiste entre recargas e navegação — usuário não precisa reativar toda vez
@@ -903,7 +905,30 @@ export function OrdersKanban() {
     }
   };
 
+  // Helper: limites do período pra filtrar created_at
+  const periodBounds = (() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfYesterday = new Date(startOfToday.getTime() - 86400000);
+    const startOfWeek = new Date(startOfToday.getTime() - 7 * 86400000);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    switch (periodFilter) {
+      case "today":     return { from: startOfToday, to: null };
+      case "yesterday": return { from: startOfYesterday, to: startOfToday };
+      case "week":      return { from: startOfWeek, to: null };
+      case "month":     return { from: startOfMonth, to: null };
+      default:          return { from: null, to: null };
+    }
+  })();
+
   const filteredOrders = orders.filter((order) => {
+    // Filtro período (created_at)
+    if (periodBounds.from || periodBounds.to) {
+      const t = new Date(order.created_at).getTime();
+      if (periodBounds.from && t < periodBounds.from.getTime()) return false;
+      if (periodBounds.to   && t >= periodBounds.to.getTime()) return false;
+    }
+    // Filtro busca
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -912,6 +937,36 @@ export function OrdersKanban() {
       order.customer_phone?.includes(searchTerm)
     );
   });
+
+  // Export CSV — flat orders do período/busca atual
+  const handleExportCSV = () => {
+    if (filteredOrders.length === 0) return;
+    const rows = filteredOrders.map(o => ({
+      numero: o.order_number || "",
+      cliente: o.customer_name || "",
+      telefone: o.customer_phone || "",
+      status: o.status || "",
+      total: o.total ?? 0,
+      pagamento: o.payment_method || "",
+      endereco: [o.address, o.address_number, o.neighborhood, o.city].filter(Boolean).join(", "),
+      criado_em: o.created_at ? new Date(o.created_at).toLocaleString("pt-BR") : "",
+    }));
+    const headers = Object.keys(rows[0]);
+    const csv = [
+      headers.join(","),
+      ...rows.map(r => headers.map(h => {
+        const v = String((r as any)[h] ?? "").replace(/"/g, '""');
+        return v.includes(",") || v.includes("\n") ? `"${v}"` : v;
+      }).join(",")),
+    ].join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `pedidos_${periodFilter}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (isLoading) return <SkeletonKanban />;
 
@@ -947,6 +1002,10 @@ export function OrdersKanban() {
           onToggleMap={() => setShowDeliveryMap(v => !v)}
           delivererGpsCount={delivererCounts.gps}
           delivererTotalCount={delivererCounts.total}
+          periodFilter={periodFilter}
+          onPeriodChange={setPeriodFilter}
+          onExportCSV={handleExportCSV}
+          totalFiltered={filteredOrders.length}
         />
       </div>
 

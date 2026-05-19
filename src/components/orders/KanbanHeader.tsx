@@ -21,8 +21,19 @@ import {
   BellOff,
   Filter,
   Check,
+  Calendar,
+  Download,
 } from "lucide-react";
 import { MotoIcon } from "@/components/ui/moto-icon";
+
+const PERIOD_OPTIONS = [
+  { id: "today",     label: "Hoje" },
+  { id: "yesterday", label: "Ontem" },
+  { id: "week",      label: "Últimos 7 dias" },
+  { id: "month",     label: "Este mês" },
+  { id: "all",       label: "Todos" },
+] as const;
+type PeriodId = typeof PERIOD_OPTIONS[number]["id"];
 import { StoreSettings, STATUS_COLUMNS } from "./types";
 
 const TIME_OPTIONS = [15, 30, 45, 60, 90, 120] as const;
@@ -41,6 +52,11 @@ interface KanbanHeaderProps {
   onToggleMap?: () => void;
   delivererGpsCount?: number;   // entregadores com GPS ativo
   delivererTotalCount?: number; // entregadores cadastrados (pra disable)
+  // Filtro período + export CSV
+  periodFilter?: PeriodId;
+  onPeriodChange?: (p: PeriodId) => void;
+  onExportCSV?: () => void;
+  totalFiltered?: number;
 }
 
 export function KanbanHeader({
@@ -57,6 +73,10 @@ export function KanbanHeader({
   onToggleMap,
   delivererGpsCount = 0,
   delivererTotalCount = 0,
+  periodFilter = "today",
+  onPeriodChange,
+  onExportCSV,
+  totalFiltered = 0,
 }: KanbanHeaderProps) {
   // Sem entregadores cadastrados → botão desabilitado
   const mapDisabled = delivererTotalCount === 0;
@@ -161,6 +181,37 @@ export function KanbanHeader({
           <Filter className="w-4 h-4 mr-1" />
           Filtros
         </Button>
+
+        {/* Filtro período pedidos */}
+        {onPeriodChange && (
+          <div className="flex items-center gap-1">
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+            <Select value={periodFilter} onValueChange={(v) => onPeriodChange(v as PeriodId)}>
+              <SelectTrigger className="w-36 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PERIOD_OPTIONS.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Export CSV — só habilita se tem pedidos filtrados */}
+        {onExportCSV && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExportCSV}
+            disabled={totalFiltered === 0}
+            title={totalFiltered === 0 ? "Sem pedidos no período" : `Exportar ${totalFiltered} pedidos`}
+          >
+            <Download className="w-4 h-4 mr-1" />
+            CSV ({totalFiltered})
+          </Button>
+        )}
 
         {onToggleMap && (
           <Button
