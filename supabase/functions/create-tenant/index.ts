@@ -6,6 +6,32 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Subdomínios reservados (sistema/infra) — não podem ser usados por lojas
+const RESERVED_SUBDOMAINS = [
+  'www', 'api', 'evo', 'admin', 'app', 'mail', 'blog',
+  'gestao', 'login', 'auth', 'dashboard', 'panel', 'support',
+  'help', 'docs', 'status', 'cdn', 'static', 'assets',
+  'menu', 'menus', 'orders', 'pedidos', 'checkout', 'cart',
+  'webhook', 'webhooks', 'billing', 'pay', 'pagamento',
+];
+
+// Regex: começa+termina com letra/dígito, permite hífen no meio, 3-30 chars
+const SUBDOMAIN_REGEX = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/;
+
+function validateSubdomain(sub: string): { valid: boolean; error?: string } {
+  const s = (sub || '').toLowerCase().trim();
+  if (!s) return { valid: false, error: 'Subdomínio é obrigatório' };
+  if (s.length < 3) return { valid: false, error: 'Subdomínio deve ter pelo menos 3 caracteres' };
+  if (s.length > 30) return { valid: false, error: 'Subdomínio máximo 30 caracteres' };
+  if (!SUBDOMAIN_REGEX.test(s)) {
+    return { valid: false, error: 'Subdomínio só aceita letras minúsculas, números e hífen (não no início/fim)' };
+  }
+  if (RESERVED_SUBDOMAINS.includes(s)) {
+    return { valid: false, error: `Subdomínio "${s}" é reservado pelo sistema. Escolha outro.` };
+  }
+  return { valid: true };
+}
+
 interface CreateTenantRequest {
   companyData: {
     companyName: string;
@@ -49,6 +75,30 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { companyData, storeConfig, userInfo }: CreateTenantRequest = await req.json();
+
+    // Valida subdomínio antes de qualquer operação
+    const subCheck = validateSubdomain(companyData.subdomain);
+    if (!subCheck.valid) {
+      return new Response(JSON.stringify({ error: subCheck.error }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // Normaliza pra lowercase (DNS é case-insensitive)
+    companyData.subdomain = companyData.subdomain.toLowerCase().trim();
+
+    // Verifica unicidade do subdomain
+    const { data: existingSub } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('subdomain', companyData.subdomain)
+      .maybeSingle();
+    if (existingSub) {
+      return new Response(JSON.stringify({ error: `Subdomínio "${companyData.subdomain}" já está em uso. Escolha outro.` }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Start transaction-like operations
     console.log('Creating user account...');
