@@ -1,5 +1,6 @@
-// Hook para verificar quais módulos estão habilitados para a empresa atual
-import { useQuery } from "@tanstack/react-query";
+// v2.0.0 — Hook módulos com realtime + Mercado Pago como extra do plano
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyId } from "./useCompanyId";
 
@@ -9,9 +10,9 @@ export type ModuleKey =
   | "pdv"
   | "financeiro"
   | "app_entregador"
-  | "distribuidoras";
+  | "distribuidoras"
+  | "mercado_pago"; // PIX dinâmico via MP — disponível no plano Enterprise
 
-// Módulos habilitados por padrão quando a empresa não tem configuração
 const DEFAULT_MODULES: Record<ModuleKey, boolean> = {
   cardapio_digital: true,
   whatsapp:        true,
@@ -19,10 +20,12 @@ const DEFAULT_MODULES: Record<ModuleKey, boolean> = {
   financeiro:      true,
   app_entregador:  true,
   distribuidoras:  false,
+  mercado_pago:    false, // extra premium
 };
 
 export function useModules() {
   const { companyId } = useCompanyId();
+  const queryClient = useQueryClient();
 
   const { data: modules } = useQuery({
     queryKey: ["modules", companyId],
@@ -36,8 +39,27 @@ export function useModules() {
       return { ...DEFAULT_MODULES, ...(data?.modules_enabled ?? {}) } as Record<ModuleKey, boolean>;
     },
     enabled: !!companyId,
-    staleTime: 5 * 60 * 1000,
+    // staleTime reduzido pra refletir mudanças do admin sem deslogar
+    staleTime: 30 * 1000, // 30s (era 5min)
+    refetchOnWindowFocus: true,
   });
+
+  // Realtime: admin altera modules_enabled → invalida cache imediato
+  useEffect(() => {
+    if (!companyId) return;
+    const ch = supabase
+      .channel(`company-modules-${companyId}`)
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "companies",
+        filter: `id=eq.${companyId}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["modules", companyId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [companyId, queryClient]);
 
   const isEnabled = (module: ModuleKey): boolean =>
     modules ? modules[module] : DEFAULT_MODULES[module];

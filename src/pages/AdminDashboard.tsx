@@ -66,15 +66,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { TenantUsersTab } from "@/components/admin/TenantUsersTab";
 
-export type ModuleKey = "cardapio_digital" | "whatsapp" | "pdv" | "financeiro" | "app_entregador" | "distribuidoras";
+export type ModuleKey = "cardapio_digital" | "whatsapp" | "pdv" | "financeiro" | "app_entregador" | "distribuidoras" | "mercado_pago";
 
-const MODULE_DEFINITIONS: { key: ModuleKey; label: string; description: string; icon: React.ReactNode; defaultEnabled: boolean }[] = [
+const MODULE_DEFINITIONS: { key: ModuleKey; label: string; description: string; icon: React.ReactNode; defaultEnabled: boolean; premium?: boolean }[] = [
   { key: "cardapio_digital", label: "Cardápio Digital",   description: "Cardápio público acessível pelos clientes via link/QR Code", icon: <UtensilsCrossed className="w-5 h-5" />, defaultEnabled: true  },
   { key: "whatsapp",         label: "WhatsApp",           description: "Integração com WhatsApp para notificações e pedidos",         icon: <MessageSquare   className="w-5 h-5" />, defaultEnabled: true  },
   { key: "pdv",              label: "PDV",                description: "Ponto de venda — lançamento de pedidos internos",             icon: <MonitorSmartphone className="w-5 h-5" />, defaultEnabled: true  },
   { key: "financeiro",       label: "Financeiro",         description: "Relatórios financeiros, faturamento e caixa",                 icon: <BarChart2       className="w-5 h-5" />, defaultEnabled: true  },
   { key: "app_entregador",   label: "App Entregador",     description: "Aplicativo mobile para gerenciamento das entregas",           icon: <Bike            className="w-5 h-5" />, defaultEnabled: true  },
-  { key: "distribuidoras",   label: "Distribuidoras",     description: "Módulo de pedidos para distribuidoras e atacado",             icon: <Truck           className="w-5 h-5" />, defaultEnabled: false },
+  { key: "distribuidoras",   label: "Distribuidoras",     description: "Módulo de pedidos para distribuidoras e atacado (premium)",   icon: <Truck           className="w-5 h-5" />, defaultEnabled: false, premium: true },
+  { key: "mercado_pago",     label: "Mercado Pago (PIX)", description: "PIX dinâmico + checkout integrado via Mercado Pago (extra premium)", icon: <BarChart2 className="w-5 h-5" />, defaultEnabled: false, premium: true },
 ];
 
 interface Tenant {
