@@ -62,10 +62,12 @@ export default function Orders() {
       return res.json();
     },
     enabled: !!companyId,
-    onSuccess: (data: any) => {
-      if (data) setRobotEnabled(data.robot_enabled !== false);
-    },
   });
+
+  // React Query v5 removeu onSuccess da useQuery — sincronizar via useEffect
+  useEffect(() => {
+    if (whatsappSettings) setRobotEnabled(whatsappSettings.robot_enabled !== false);
+  }, [whatsappSettings]);
 
   // Mutation toggle robô
   const toggleWhatsappMutation = useMutation({
@@ -76,15 +78,29 @@ export default function Orders() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       });
-      if (!res.ok) throw new Error('Failed to update settings');
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`${res.status}: ${body || 'Failed to update settings'}`);
+      }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-settings", companyId] });
-      toast({ title: "Configuração atualizada" });
+      const enabled = variables?.robot_enabled;
+      toast({
+        title: enabled === false ? "Robô pausado ⏸️" : enabled === true ? "Robô ativo ▶️" : "Configuração atualizada",
+      });
     },
-    onError: () => {
-      toast({ title: "Erro", description: "Não foi possível atualizar.", variant: "destructive" });
+    onError: (err: any, variables) => {
+      // Reverte estado local se mutation falhar (optimistic update reverso)
+      if (typeof variables?.robot_enabled === 'boolean') {
+        setRobotEnabled(!variables.robot_enabled);
+      }
+      toast({
+        title: "Erro ao alterar robô",
+        description: err?.message || "Não foi possível atualizar.",
+        variant: "destructive",
+      });
     },
   });
 
