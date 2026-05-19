@@ -78,6 +78,15 @@ export function ProductAddModal({
     if (!product) return;
     setLoading(true);
     try {
+      // Tenta novo schema primeiro (catalogo-modifiers): se produto tem modifier_groups,
+      // usa o novo. Caso contrário fallback pro legado (product_group_links).
+      const newGroups = await loadNewSchemaGroups(product.id);
+      if (newGroups.length > 0) {
+        setGroups(newGroups);
+        return;
+      }
+
+      // Schema legado (product_group_links + product_groups + extras)
       const { data: links } = await supabase
         .from("product_group_links")
         .select(`
@@ -135,6 +144,34 @@ export function ProductAddModal({
       setGroups(built);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Carrega via novo schema (catalogo-modifiers). Mapeia pra interface Group existente
+  // pra reaproveitar render. RPC get_product_with_modifiers já aplica overrides.
+  const loadNewSchemaGroups = async (productId: string): Promise<Group[]> => {
+    try {
+      const { data } = await supabase.rpc("get_product_with_modifiers" as any, { p_product_id: productId });
+      const groupsRaw = (data as any)?.groups ?? [];
+      if (!Array.isArray(groupsRaw) || groupsRaw.length === 0) return [];
+      return groupsRaw.map((g: any) => ({
+        id: g.id,
+        name: g.name,
+        // Schema antigo usa max_selection nullable, novo usa max_select int. Converte:
+        min_selection: g.min_select ?? 0,
+        max_selection: g.max_select ?? null,
+        extras: (g.items ?? []).map((it: any) => ({
+          id: it.id,
+          name: it.name,
+          // No novo schema é price_delta (não price), mas reusa mesmo formato
+          price: Number(it.price_delta) || 0,
+          available_weekdays: null,
+          available_start_time: null,
+          available_end_time: null,
+        })),
+      })).filter((g: Group) => g.extras.length > 0);
+    } catch {
+      return [];
     }
   };
 

@@ -21,10 +21,10 @@
 - [x] Sort order via setas (drag futuro)
 
 ## Fase 4 — PublicMenu cliente
-- [ ] Componente ProductModifierSelector
-- [ ] Estado de seleção + validação min/max
-- [ ] Cálculo total dinâmico (price + Σ deltas selecionados)
-- [ ] Render condicional de preço (esconde R$ 0,00)
+- [x] ProductAddModal lê novo schema via RPC get_product_with_modifiers (fallback pra legado)
+- [x] Estado de seleção + validação min/max (já existia)
+- [x] Cálculo total dinâmico (já existia)
+- [x] Render condicional de preço (extra.price > 0 esconde R$ 0,00) — já existia
 
 ## Fase 5 — Checkout
 - [ ] Snapshot em order_item_modifiers ao criar pedido
