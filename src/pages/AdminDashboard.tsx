@@ -65,6 +65,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { TenantUsersTab } from "@/components/admin/TenantUsersTab";
+import { TenantMetricsTab } from "@/components/admin/TenantMetricsTab";
+import { TenantDataEditTab } from "@/components/admin/TenantDataEditTab";
 
 export type ModuleKey = "cardapio_digital" | "whatsapp" | "pdv" | "financeiro" | "app_entregador" | "distribuidoras" | "mercado_pago";
 
@@ -744,13 +746,14 @@ export default function AdminDashboard() {
               </SheetHeader>
 
               <Tabs defaultValue="overview" className="mt-6">
-                <TabsList className="grid w-full grid-cols-6">
-                  <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-7">
+                  <TabsTrigger value="overview">Geral</TabsTrigger>
+                  <TabsTrigger value="data">Dados</TabsTrigger>
                   <TabsTrigger value="users">Usuários</TabsTrigger>
                   <TabsTrigger value="modules" className="flex items-center gap-1">
                     <Puzzle className="w-3.5 h-3.5" />Módulos
                   </TabsTrigger>
-                  <TabsTrigger value="integrations">Integrações</TabsTrigger>
+                  <TabsTrigger value="metrics">📊 Métricas</TabsTrigger>
                   <TabsTrigger value="financial">Financeiro</TabsTrigger>
                   <TabsTrigger value="logs">Logs</TabsTrigger>
                 </TabsList>
@@ -864,22 +867,8 @@ export default function AdminDashboard() {
                         variant="outline"
                         size="sm"
                       >
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                        Forçar Sync
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                      >
                         <Key className="w-4 h-4 mr-2" />
                         Reset Senha
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Settings className="w-4 h-4 mr-2" />
-                        Configurações
                       </Button>
                     </div>
                   </div>
@@ -999,8 +988,9 @@ export default function AdminDashboard() {
 
                 <TabsContent value="logs" className="space-y-4">
                   <h4 className="text-sm font-medium">Últimas Atividades</h4>
-                  <ScrollArea className="h-[300px]">
-                    <div className="space-y-2">
+                  {/* Scroll completo até o fim — altura calculada (was: h-[300px] truncava) */}
+                  <ScrollArea className="h-[calc(100vh-220px)]">
+                    <div className="space-y-2 pr-3">
                       {[1, 2, 3, 4, 5].map((i) => (
                         <div key={i} className="p-3 border rounded-lg">
                           <div className="flex items-center justify-between mb-1">
@@ -1016,6 +1006,16 @@ export default function AdminDashboard() {
                       ))}
                     </div>
                   </ScrollArea>
+                </TabsContent>
+
+                {/* Dados — edição rápida do cliente (admin master pode corrigir) */}
+                <TabsContent value="data" className="space-y-4">
+                  <TenantDataEditTab tenant={selectedTenant} onSaved={() => loadTenants()} />
+                </TabsContent>
+
+                {/* Métricas — KPIs do tenant (ticket médio, total, por tipo, cancelamentos) */}
+                <TabsContent value="metrics" className="space-y-4">
+                  <TenantMetricsTab companyId={selectedTenant.id} />
                 </TabsContent>
               </Tabs>
             </>
