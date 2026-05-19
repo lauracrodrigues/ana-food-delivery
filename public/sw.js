@@ -1,5 +1,5 @@
-// v1.4.0 — Stale-while-revalidate pra JS/CSS (carregamento percebido instantâneo)
-const CACHE_NAME = 'anafood-v6';
+// v1.5.0 — Cache bump v7 (força refresh do JS pra todos browsers)
+const CACHE_NAME = 'anafood-v7';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
