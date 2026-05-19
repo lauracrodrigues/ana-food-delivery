@@ -451,9 +451,10 @@ export function OrdersKanban() {
                 .filter(Boolean);
 
               if (productIds.length > 0) {
+                // v1.0.1 — fallback: produto.print_sector NULL → herda categories.print_sector
                 const { data: products } = await supabase
                   .from("products")
-                  .select("id, name, print_sector")
+                  .select("id, name, print_sector, categories(print_sector)")
                   .in("id", productIds);
 
                 // Map: setor → array de items
@@ -461,8 +462,9 @@ export function OrdersKanban() {
                 for (const item of orderItems) {
                   const prodId = item.id || item.product_id;
                   const prod = (products || []).find((p: any) => p.id === prodId);
-                  const sector = prod?.print_sector;
-                  if (!sector || sector === 'caixa') continue; // caixa já impresso acima
+                  // Herança: produto override, senão categoria. "none" = não imprime.
+                  const sector = prod?.print_sector ?? (prod?.categories as any)?.print_sector;
+                  if (!sector || sector === 'none' || sector === 'caixa') continue; // caixa já impresso acima
                   if (!bySector[sector]) bySector[sector] = [];
                   bySector[sector].push(item);
                 }

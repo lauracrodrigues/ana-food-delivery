@@ -14,6 +14,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input"; // v1.0.1 — máscara R$
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -54,7 +55,8 @@ export function ProductEditDialog({
     price: product?.price?.toString() || "",
     description: product?.description || "",
     category_id: product?.category_id || defaultCategoryId || "",
-    print_sector: product?.print_sector || "",
+    // v1.0.1 — null = herda categoria.print_sector; valor explícito = override
+    print_sector: product?.print_sector ?? null,
     image_url: product?.image_url || "",
     internal_code: product?.internal_code || "",
     on_off: product?.on_off ?? true,
@@ -73,7 +75,7 @@ export function ProductEditDialog({
         price: product.price?.toString() || "",
         description: product.description || "",
         category_id: product.category_id || defaultCategoryId || "",
-        print_sector: product.print_sector || "",
+        print_sector: product.print_sector ?? null,
         image_url: product.image_url || "",
         internal_code: product.internal_code || "",
         on_off: product.on_off ?? true,
@@ -246,27 +248,23 @@ export function ProductEditDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="price">Preço *</Label>
-                <Input
+                {/* Máscara R$ — converte number↔string no formData */}
+                <CurrencyInput
                   id="price"
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) =>
-                    setFormData({ ...formData, price: e.target.value })
+                  value={parseFloat(formData.price) || 0}
+                  onChange={(n) =>
+                    setFormData({ ...formData, price: n > 0 ? String(n) : "" })
                   }
-                  placeholder="0.00"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="promotional_price">Preço Promocional</Label>
-                <Input
+                <CurrencyInput
                   id="promotional_price"
-                  type="number"
-                  step="0.01"
-                  value={formData.promotional_price}
-                  onChange={(e) =>
-                    setFormData({ ...formData, promotional_price: e.target.value })
+                  value={parseFloat(formData.promotional_price) || 0}
+                  onChange={(n) =>
+                    setFormData({ ...formData, promotional_price: n > 0 ? String(n) : "" })
                   }
                   placeholder="Opcional"
                 />
@@ -334,17 +332,26 @@ export function ProductEditDialog({
 
               <div className="space-y-2">
                 <Label htmlFor="print_sector">Setor de Impressão</Label>
+                {/* v1.0.1 — "inherit" = herda categoria (NULL no DB); valor explícito = override */}
                 <Select
-                  value={formData.print_sector || "none"}
+                  value={formData.print_sector === null ? "inherit" : formData.print_sector}
                   onValueChange={(value) =>
-                    setFormData({ ...formData, print_sector: value === "none" ? "" : value })
+                    setFormData({ ...formData, print_sector: value === "inherit" ? null : value })
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione um setor" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Nenhum</SelectItem>
+                    {/* Mostra o setor herdado da categoria selecionada */}
+                    <SelectItem value="inherit">
+                      Definido pela categoria
+                      {(() => {
+                        const cat = categories.find((c: any) => c.id === formData.category_id);
+                        return cat?.print_sector ? ` (${cat.print_sector})` : "";
+                      })()}
+                    </SelectItem>
+                    <SelectItem value="none">Nenhum (não imprime)</SelectItem>
                     <SelectItem value="caixa">Caixa</SelectItem>
                     <SelectItem value="cozinha1">Cozinha 1</SelectItem>
                     <SelectItem value="cozinha2">Cozinha 2</SelectItem>

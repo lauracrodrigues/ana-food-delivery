@@ -9,6 +9,7 @@ import { useCompanyId } from "@/hooks/useCompanyId";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input"; // v1.0.1 — máscara R$
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -347,11 +348,11 @@ export default function ModifierGroups() {
                       }
                     }}
                   />
-                  <Input
-                    type="number" step="0.01" placeholder="0,00 (opcional)"
+                  {/* Máscara R$ — preço adicional do item (opcional) */}
+                  <CurrencyInput
                     className="w-32"
-                    value={newItem.price_delta || ""}
-                    onChange={e => setNewItem(p => ({ ...p, price_delta: Number(e.target.value) }))}
+                    value={newItem.price_delta}
+                    onChange={(n) => setNewItem(p => ({ ...p, price_delta: n }))}
                   />
                   <Button
                     onClick={() => addItemMutation.mutate({ group_id: currentEditing.id, ...newItem })}

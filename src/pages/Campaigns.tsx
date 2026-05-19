@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input"; // v1.0.1 — máscara R$ (só se discount_type=fixed)
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -292,8 +293,15 @@ export default function Campaigns() {
                 </div>
                 <div className="space-y-2">
                   <Label>Valor</Label>
-                  <Input type="number" step="0.01" min="0" value={editing.discount_value}
-                    onChange={e => setEditing({ ...editing, discount_value: Number(e.target.value) })} />
+                  {/* Máscara R$ só quando desconto for fixo; % usa number puro */}
+                  {editing.discount_type === "fixed" ? (
+                    <CurrencyInput value={editing.discount_value}
+                      onChange={(n) => setEditing({ ...editing, discount_value: n })} />
+                  ) : (
+                    <Input type="number" step="0.01" min="0" max="100" value={editing.discount_value}
+                      onChange={e => setEditing({ ...editing, discount_value: Number(e.target.value) })}
+                      placeholder="0-100%" />
+                  )}
                 </div>
               </div>
 

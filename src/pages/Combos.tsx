@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input"; // v1.0.1 — máscara R$
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -251,8 +252,9 @@ export default function Combos() {
               ) : (
                 <div className="space-y-2">
                   <Label>Valor mínimo (R$)</Label>
-                  <Input type="number" step="0.01" min="0" value={editing.trigger_value ?? 0}
-                    onChange={e => setEditing({ ...editing, trigger_value: Number(e.target.value) })} />
+                  {/* Máscara R$ */}
+                  <CurrencyInput value={editing.trigger_value ?? 0}
+                    onChange={(n) => setEditing({ ...editing, trigger_value: n })} />
                 </div>
               )}
 

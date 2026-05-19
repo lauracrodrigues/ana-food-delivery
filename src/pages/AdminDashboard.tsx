@@ -8,6 +8,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { AIUsageTab } from "@/components/admin/AIUsageTab"; // v1.0.0 — painel uso de IA
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -447,6 +448,14 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-4 sm:py-8">
+        {/* v1.0.0 — Tabs raiz: Lojas vs Uso de IA */}
+        <Tabs defaultValue="tenants" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="tenants">🏢 Lojas</TabsTrigger>
+            <TabsTrigger value="ai">🧠 Uso de IA</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="tenants" className="space-y-4">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <Card className="bg-gradient-card border-0 shadow-lg">
@@ -731,6 +740,13 @@ export default function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+          </TabsContent>
+
+          {/* Aba IA — painel realtime de uso */}
+          <TabsContent value="ai" className="space-y-4">
+            <AIUsageTab />
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Details Panel */}

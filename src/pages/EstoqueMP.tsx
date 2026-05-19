@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/currency-formatter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input"; // v1.0.1 — máscara R$
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -226,7 +227,8 @@ export default function EstoqueMP() {
               <div><Label>Qtd esperada</Label><Input type="number" step="0.01" value={loteForm.qtd_esperada} onChange={e => setLoteForm({...loteForm, qtd_esperada: e.target.value})} /></div>
               <div><Label>Qtd recebida</Label><Input type="number" step="0.01" value={loteForm.qtd_recebida} onChange={e => setLoteForm({...loteForm, qtd_recebida: e.target.value})} /></div>
             </div>
-            <div><Label>Custo total (R$)</Label><Input type="number" step="0.01" value={loteForm.custo_total} onChange={e => setLoteForm({...loteForm, custo_total: e.target.value})} /></div>
+            {/* Máscara R$ — loteForm.custo_total armazena string, converte */}
+            <div><Label>Custo total (R$)</Label><CurrencyInput value={parseFloat(loteForm.custo_total) || 0} onChange={(n) => setLoteForm({...loteForm, custo_total: n > 0 ? String(n) : ""})} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenLote(null)}>Cancelar</Button>

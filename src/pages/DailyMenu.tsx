@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/currency-formatter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input"; // v1.0.1 — máscara R$
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -280,8 +281,9 @@ export default function DailyMenu() {
               </div>
               <div className="space-y-2">
                 <Label>Preço (opcional)</Label>
-                <Input type="number" step="0.01" min="0" value={editing.preco ?? ""}
-                  onChange={e => setEditing({ ...editing, preco: e.target.value ? Number(e.target.value) : null })}
+                {/* Máscara R$ — null quando 0 (sem preço) */}
+                <CurrencyInput value={editing.preco ?? 0}
+                  onChange={(n) => setEditing({ ...editing, preco: n > 0 ? n : null })}
                   placeholder="Vazio = sem preço (parte do prato)" />
               </div>
               <div className="flex items-center justify-between border rounded-lg p-3">

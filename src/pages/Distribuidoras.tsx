@@ -8,6 +8,7 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input'; // v1.0.1 — máscara R$
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -489,10 +490,10 @@ function PedidosTab() {
                       <Input className="h-8 text-xs" placeholder="Un" value={item.unit}
                         onChange={e => updateItem(idx, { unit: e.target.value })} />
                     </div>
-                    {/* Custo unit */}
+                    {/* Custo unit — máscara R$ */}
                     <div className="col-span-2">
-                      <Input className="h-8 text-xs font-mono" type="number" min="0" step="0.01" placeholder="R$/un"
-                        value={item.unit_cost ?? ''} onChange={e => updateItem(idx, { unit_cost: parseFloat(e.target.value) || null })} />
+                      <CurrencyInput className="h-8 text-xs font-mono" placeholder="R$/un"
+                        value={item.unit_cost ?? 0} onChange={(n) => updateItem(idx, { unit_cost: n > 0 ? n : null })} />
                     </div>
                     {/* Total */}
                     <div className="col-span-1 flex items-center justify-end gap-1">

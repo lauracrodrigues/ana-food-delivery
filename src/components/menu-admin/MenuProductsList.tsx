@@ -199,7 +199,8 @@ export function MenuProductsList({
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
-  const [sortOrder, setSortOrder] = useState<"custom" | "name" | "price_asc" | "price_desc">("custom");
+  // v1.0.1 — sort por categoria: default segue categories.sort_mode quando muda
+  const [sortOrder, setSortOrder] = useState<"custom" | "name" | "price_asc" | "price_desc" | "newest">("custom");
   const [currentPage, setCurrentPage] = useState(1);
   const [activeProductId, setActiveProductId] = useState<string | null>(null);
   const itemsPerPage = 20;
@@ -235,6 +236,40 @@ export function MenuProductsList({
     },
     enabled: !!companyId,
   });
+
+  // v1.0.1 — Busca sort_mode da categoria selecionada pra default do sort
+  const { data: selectedCategory } = useQuery({
+    queryKey: ["category-sort", selectedCategoryId],
+    queryFn: async () => {
+      if (!selectedCategoryId) return null;
+      const { data } = await supabase
+        .from("categories")
+        .select("sort_mode")
+        .eq("id", selectedCategoryId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!selectedCategoryId,
+  });
+
+  // Map categories.sort_mode → sortOrder local
+  const SORT_MAP: Record<string, "custom" | "name" | "price_asc" | "price_desc" | "newest"> = {
+    manual: "custom",
+    alphabetical: "name",
+    price_asc: "price_asc",
+    price_desc: "price_desc",
+    newest: "newest",
+  };
+
+  // Reset sortOrder quando muda categoria — respeita sort_mode salvo
+  useEffect(() => {
+    if (selectedCategory?.sort_mode) {
+      setSortOrder(SORT_MAP[selectedCategory.sort_mode] ?? "custom");
+    } else {
+      setSortOrder("custom");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategoryId, selectedCategory?.sort_mode]);
 
   // Toggle status
   const toggleStatusMutation = useMutation({
@@ -362,6 +397,7 @@ export function MenuProductsList({
       if (sortOrder === "name") return a.name.localeCompare(b.name);
       if (sortOrder === "price_asc") return a.price - b.price;
       if (sortOrder === "price_desc") return b.price - a.price;
+      if (sortOrder === "newest") return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
       return 0;
     });
   }
@@ -418,6 +454,7 @@ export function MenuProductsList({
                 </SelectContent>
               </Select>
 
+              {/* v1.0.1 — sort_mode default vem da categoria selecionada */}
               <Select value={sortOrder} onValueChange={(value: any) => setSortOrder(value)}>
                 <SelectTrigger className="flex-1">
                   <SelectValue placeholder="Ordenar" />
@@ -427,6 +464,7 @@ export function MenuProductsList({
                   <SelectItem value="name">Alfabética</SelectItem>
                   <SelectItem value="price_asc">Menor preço</SelectItem>
                   <SelectItem value="price_desc">Maior preço</SelectItem>
+                  <SelectItem value="newest">Mais recentes</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/currency-formatter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input"; // v1.0.1 — máscara R$
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -199,7 +200,8 @@ export default function ContasFin() {
                   <SelectContent><SelectItem value="entrada">Entrada</SelectItem><SelectItem value="saida">Saída</SelectItem></SelectContent>
                 </Select>
               </div>
-              <div><Label>Valor</Label><Input type="number" step="0.01" value={lancForm.valor} onChange={e => setLancForm({...lancForm, valor: e.target.value})} /></div>
+              {/* Máscara R$ */}
+              <div><Label>Valor</Label><CurrencyInput value={parseFloat(lancForm.valor) || 0} onChange={(n) => setLancForm({...lancForm, valor: n > 0 ? String(n) : ""})} /></div>
             </div>
             <div><Label>Conta</Label>
               <Select value={lancForm.conta_id} onValueChange={(v) => setLancForm({...lancForm, conta_id: v})}>
@@ -236,7 +238,8 @@ export default function ContasFin() {
                 <SelectContent>{contas.filter(c => c.id !== transfForm.origem).map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div><Label>Valor</Label><Input type="number" step="0.01" value={transfForm.valor} onChange={e => setTransfForm({...transfForm, valor: e.target.value})} /></div>
+            {/* Máscara R$ */}
+            <div><Label>Valor</Label><CurrencyInput value={parseFloat(transfForm.valor) || 0} onChange={(n) => setTransfForm({...transfForm, valor: n > 0 ? String(n) : ""})} /></div>
             <div><Label>Descrição</Label><Input value={transfForm.descricao} onChange={e => setTransfForm({...transfForm, descricao: e.target.value})} placeholder="Ex: fim de turno" /></div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setOpenTransf(false)}>Cancelar</Button><Button onClick={() => createTransf.mutate()} disabled={!transfForm.origem || !transfForm.destino || !transfForm.valor || createTransf.isPending}>{createTransf.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Transferir</Button></DialogFooter>

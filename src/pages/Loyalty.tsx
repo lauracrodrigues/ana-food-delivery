@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input"; // v1.0.1 — máscara R$
 import { Label } from "@/components/ui/label";
 import { Loader2, Sparkles, Users, TrendingUp, TrendingDown, Save, Search } from "lucide-react";
 
@@ -279,9 +280,10 @@ export default function Loyalty() {
 
               <div className="space-y-2">
                 <Label>Valor do resgate (R$)</Label>
-                <Input type="number" min="0" step="0.01"
+                {/* Máscara R$ */}
+                <CurrencyInput
                   value={editConfig.loyalty_redeem_value}
-                  onChange={e => setEditConfig({ ...editConfig, loyalty_redeem_value: Number(e.target.value) })} />
+                  onChange={(n) => setEditConfig({ ...editConfig, loyalty_redeem_value: n })} />
                 <p className="text-xs text-muted-foreground">
                   A cada {editConfig.loyalty_min_redeem} pontos = {formatCurrency(editConfig.loyalty_redeem_value)} de desconto
                 </p>
