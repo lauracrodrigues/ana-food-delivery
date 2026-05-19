@@ -256,7 +256,7 @@ export default function ModifierGroups() {
       </Card>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingGroup ? `Editar grupo: ${editingGroup.name}` : "Novo grupo"}</DialogTitle>
           </DialogHeader>

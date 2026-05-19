@@ -274,13 +274,29 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
 
       setCategories(categoriesData || []);
 
-      const { data: productsData } = await supabase
+      // Ordenação configurável via store_settings.menu_sort_mode
+      const { data: sortCfg } = await supabase
+        .from('store_settings')
+        .select('menu_sort_mode')
+        .eq('company_id', companyData.id)
+        .maybeSingle();
+      const sortMode = (sortCfg as any)?.menu_sort_mode || 'manual';
+
+      let prodQuery = supabase
         .from('products')
         .select('*')
         .eq('company_id', companyData.id)
-        .eq('on_off', true)
-        .order('name');
+        .eq('on_off', true);
 
+      switch (sortMode) {
+        case 'alphabetical': prodQuery = prodQuery.order('name'); break;
+        case 'price_asc':    prodQuery = prodQuery.order('price', { ascending: true }); break;
+        case 'price_desc':   prodQuery = prodQuery.order('price', { ascending: false }); break;
+        case 'newest':       prodQuery = prodQuery.order('created_at', { ascending: false }); break;
+        default:             prodQuery = prodQuery.order('display_order').order('name'); // manual
+      }
+
+      const { data: productsData } = await prodQuery;
       setProducts(productsData || []);
 
       const { data: bannersData } = await supabase

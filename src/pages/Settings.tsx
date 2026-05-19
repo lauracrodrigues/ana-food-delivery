@@ -37,6 +37,7 @@ import { PrintLayoutConfig } from "@/components/settings/print-layout/PrintLayou
 import { TablesSettings } from "@/components/settings/TablesSettings";
 import { BusinessHoursConfig } from "@/components/settings/BusinessHoursConfig";
 import { PaymentSettingsConfig } from "@/components/settings/PaymentSettingsConfig";
+import { MenuSortConfig } from "@/components/settings/MenuSortConfig";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { SkeletonTable } from "@/components/loading";
 
@@ -524,6 +525,7 @@ export function Settings() {
 
           {/* Appearance Settings */}
           <TabsContent value="appearance" className="space-y-6">
+            <MenuSortConfig />
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

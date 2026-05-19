@@ -21,6 +21,7 @@ import { Search, Plus, Edit, Trash2, Upload, Copy, ImageIcon, Loader2, X, FileTe
 import { PageLayout } from "@/components/layout/PageLayout";
 import { MenuImportDialog } from "@/components/products/MenuImportDialog";
 import { ProductModifierGroupsSection } from "@/components/products/ProductModifierGroupsSection";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { cn } from "@/lib/utils";
 import { SkeletonTable } from "@/components/loading";
@@ -197,7 +198,8 @@ export function Products() {
   const duplicateMutation = useMutation({
     mutationFn: async (product: Product) => {
       if (!companyId) throw new Error("Company ID não encontrado");
-      const { error } = await supabase.from("products").insert({
+      // Insert + retorna o registro pra abrir modal de edição direto
+      const { data, error } = await supabase.from("products").insert({
         company_id: companyId,
         name: `${product.name} (cópia)`,
         price: product.price,
@@ -207,12 +209,15 @@ export function Products() {
         on_off: false, // inicia desativado para revisão
         internal_code: null,
         print_sector: product.print_sector,
-      });
+      }).select().single();
       if (error) throw error;
+      return data as Product;
     },
-    onSuccess: () => {
+    onSuccess: (newProduct) => {
       queryClient.invalidateQueries({ queryKey: ["products", companyId] });
-      toast({ title: "Produto duplicado", description: "Cópia criada como inativa para revisão." });
+      toast({ title: "Produto duplicado", description: "Edite os dados e ative quando estiver pronto." });
+      // Abre modal de edição automaticamente com a cópia
+      if (newProduct) openModal(newProduct);
     },
     onError: (e: any) => toast({ title: "Erro ao duplicar", description: e.message, variant: "destructive" }),
   });
@@ -528,12 +533,9 @@ export function Products() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Preço *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                <CurrencyInput
                   value={formData.price ?? 0}
-                  onChange={e => setFormData(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
+                  onChange={(v) => setFormData(f => ({ ...f, price: v }))}
                 />
               </div>
               <div>
