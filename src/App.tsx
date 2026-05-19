@@ -25,8 +25,7 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const StoreDashboard = lazy(() => import("./pages/StoreDashboard"));
 const Orders = lazy(() => import("./pages/Orders"));
 const Customers = lazy(() => import("./pages/Customers").then(m => ({ default: m.Customers })));
-const Products = lazy(() => import("./pages/Products").then(m => ({ default: m.Products })));
-const Categories = lazy(() => import("./pages/Categories").then(m => ({ default: m.Categories })));
+// v1.0.1 — Produtos/Categorias unificados em /menu (Cardápio). Imports removidos.
 const Extras = lazy(() => import("./pages/Extras").then(m => ({ default: m.Extras })));
 const DeliveryFees = lazy(() => import("./pages/DeliveryFees").then(m => ({ default: m.DeliveryFees })));
 const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.Settings })));
@@ -57,7 +56,7 @@ const DRE = lazy(() => import("./pages/DRE"));
 const EstoqueMP = lazy(() => import("./pages/EstoqueMP"));
 const ContasFin = lazy(() => import("./pages/ContasFin"));
 const Movimentos = lazy(() => import("./pages/Movimentos"));
-const ModifierGroups = lazy(() => import("./pages/ModifierGroups"));
+// Grupos de Opções agora dentro da ficha do produto em /menu
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
 const Loyalty = lazy(() => import("./pages/Loyalty"));
@@ -213,8 +212,9 @@ const App = () => {
             <Route element={<DashboardLayoutWrapper />}>
               <Route path="/dashboard" element={<StoreDashboard />} />
               <Route path="/customers" element={<Customers />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/categories" element={<Categories />} />
+              {/* Páginas unificadas — redirecionam pra /menu (Cardápio) */}
+              <Route path="/products" element={<Navigate to="/menu" replace />} />
+              <Route path="/categories" element={<Navigate to="/menu" replace />} />
               {/* /estoque registrado abaixo apontando p/ EstoqueMP (MP + lotes) — Estoque antigo descontinuado */}
               <Route path="/extras" element={<Extras />} />
               <Route path="/delivery-fees" element={<DeliveryFees />} />
@@ -245,7 +245,7 @@ const App = () => {
               <Route path="/dre" element={<DRE />} />
               <Route path="/estoque" element={<EstoqueMP />} />
               <Route path="/movimentos" element={<Movimentos />} />
-              <Route path="/modifier-groups" element={<ModifierGroups />} />
+              <Route path="/modifier-groups" element={<Navigate to="/menu" replace />} />
               <Route path="/financeiro/contas" element={<ContasFin />} />
               <Route path="/retention" element={<Retention />} />
               <Route path="/analytics" element={<Analytics />} />

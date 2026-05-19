@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ProductEditDialog } from "./ProductEditDialog";
+import { ProductFullDialog } from "@/components/products/ProductFullDialog"; // v1.0.0 — ficha unificada
 import {
   DndContext,
   closestCenter,
@@ -587,7 +587,7 @@ export function MenuProductsList({
       </Card>
 
       {(editingProduct || isCreateDialogOpen) && (
-        <ProductEditDialog
+        <ProductFullDialog
           product={editingProduct}
           companyId={companyId}
           defaultCategoryId={selectedCategoryId}

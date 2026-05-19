@@ -88,9 +88,7 @@ export function getMenuItems({
     {
       title: "Cadastros", icon: Package,
       subItems: [
-        { title: "Produtos",            url: "/products",         icon: Package },
-        { title: "Categorias",          url: "/categories",       icon: Tag },
-        { title: "Grupos de Opções",    url: "/modifier-groups",  icon: LayoutGrid },
+        // v1.0.1 — Produtos/Categorias/Grupos unificados em "Cardápio" (/menu)
         { title: "Fornecedores",        url: "/distribuidoras",   icon: Truck },
         ...(isAdmin ? [{ title: "Usuários", url: "/users", icon: Users }] : []),
         { title: "Clientes",            url: "/customers",        icon: Users },
