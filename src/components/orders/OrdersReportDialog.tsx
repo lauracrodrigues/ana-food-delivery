@@ -14,6 +14,22 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Order } from "./types";
 
+// Tradução de status pra exibição no relatório (PT-BR)
+const STATUS_PT: Record<string, string> = {
+  pending: "Pendente",
+  confirmed: "Confirmado",
+  preparing: "Preparando",
+  ready: "Pronto",
+  delivering: "Em entrega",
+  completed: "Concluído",
+  cancelled: "Cancelado",
+  cancelado: "Cancelado",
+  scheduled: "Agendado",
+  awaiting_payment: "Aguardando pagamento",
+  archived: "Arquivado",
+};
+const statusPT = (s?: string) => (s ? STATUS_PT[s] || s : "—");
+
 interface OrdersReportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -46,7 +62,7 @@ export function OrdersReportDialog({
     const body = orders.map(o => [
       (o as any).order_number || "—",
       (o as any).customer_name || "—",
-      (o as any).status || "—",
+      statusPT((o as any).status),
       (o as any).payment_method || "—",
       formatCurrency(Number((o as any).total) || 0),
       new Date((o as any).created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
@@ -185,7 +201,7 @@ export function OrdersReportDialog({
                       <td className="px-3 py-2 font-mono text-xs">{(o as any).order_number || "—"}</td>
                       <td className="px-3 py-2">{(o as any).customer_name || "—"}</td>
                       <td className="px-3 py-2">
-                        <Badge variant="outline" className="text-xs">{(o as any).status || "—"}</Badge>
+                        <Badge variant="outline" className="text-xs">{statusPT((o as any).status)}</Badge>
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">{(o as any).payment_method || "—"}</td>
                       <td className="px-3 py-2 text-right font-semibold">{formatCurrency(Number((o as any).total) || 0)}</td>

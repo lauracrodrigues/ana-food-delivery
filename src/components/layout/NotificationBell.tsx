@@ -2,7 +2,7 @@
 // Animação shake quando há alertas critical pendentes.
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, ShoppingBag, Trash2, CheckCheck, AlertTriangle } from "lucide-react";
+import { Bell, ShoppingBag, Trash2, CheckCheck, AlertTriangle, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -103,20 +103,30 @@ export function NotificationBell() {
     queryClient.invalidateQueries({ queryKey: ["fallback-alerts", companyId] });
   };
 
+  // Abre conversa do cliente direto no WhatsApp Web + marca alerta resolvido
+  const openWhatsAppAndResolve = async (alertId: string, phone: string) => {
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length >= 10) {
+      window.open(`https://web.whatsapp.com/send?phone=${digits}`, "_blank", "noopener,noreferrer");
+    }
+    await resolveAlert(alertId);
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
-          className={`relative h-9 w-9 ${hasCritical ? "animate-shake" : ""}`}
+          className="relative h-9 w-9"
           aria-label={`${totalUnread} notificações não lidas`}
         >
-          <Bell className={`h-5 w-5 ${hasCritical ? "text-red-500" : ""}`} />
+          {/* Shake só no ícone do sino, não no botão inteiro (badge + popover ficam legíveis) */}
+          <Bell className={`h-5 w-5 ${hasCritical ? "text-red-500 animate-shake" : ""}`} />
           {totalUnread > 0 && (
             <span
-              className={`absolute -top-0.5 -right-0.5 text-white text-[10px] font-bold min-w-[1rem] h-4 px-0.5 rounded-full flex items-center justify-center leading-none animate-pulse ${
-                hasCritical ? "bg-red-600" : "bg-red-500"
+              className={`absolute -top-0.5 -right-0.5 text-white text-[10px] font-bold min-w-[1rem] h-4 px-0.5 rounded-full flex items-center justify-center leading-none ${
+                hasCritical ? "bg-red-600 animate-pulse" : "bg-red-500"
               }`}
             >
               {totalUnread > 9 ? "9+" : totalUnread}
@@ -191,14 +201,26 @@ export function NotificationBell() {
                             {timeAgo(a.detectado_em)}
                           </p>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => resolveAlert(a.id)}
-                        >
-                          ✓ OK
-                        </Button>
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="h-7 px-2 text-xs gap-1"
+                            onClick={() => openWhatsAppAndResolve(a.id, a.phone)}
+                            title="Abrir conversa no WhatsApp Web + marcar resolvido"
+                          >
+                            <MessageCircle className="h-3 w-3" />
+                            Atender
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => resolveAlert(a.id)}
+                          >
+                            ✓ OK
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   );
