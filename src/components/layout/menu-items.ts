@@ -78,6 +78,7 @@ export function getMenuItems({ isAdmin = false, isDistribuidora = false }: MenuI
       subItems: [
         { title: "Produtos",            url: "/products",         icon: Package },
         { title: "Categorias",          url: "/categories",       icon: Tag },
+        { title: "Grupos de Opções",    url: "/modifier-groups",  icon: LayoutGrid },
         { title: "Fornecedores",        url: "/distribuidoras",   icon: Truck },
         ...(isAdmin ? [{ title: "Usuários", url: "/users", icon: Users }] : []),
         { title: "Clientes",            url: "/customers",        icon: Users },

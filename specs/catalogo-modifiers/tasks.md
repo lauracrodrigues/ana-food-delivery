@@ -9,10 +9,10 @@
   - [ ] RPC validate_modifier_selection
 
 ## Fase 2 — Admin: CRUD modifier_groups
-- [ ] Página `/modifier-groups`
-- [ ] Hook useModifierGroups + useModifierItems
-- [ ] Modal criar/editar grupo + itens inline
-- [ ] Reordenação drag-and-drop
+- [x] Página `/modifier-groups`
+- [x] Hook useModifierGroups + useModifierItems (inline na page, sem extrair)
+- [x] Modal criar/editar grupo + itens inline
+- [ ] Reordenação drag-and-drop (futuro)
 
 ## Fase 3 — Admin: aba Acompanhamentos no produto
 - [ ] Componente ProductModifierGroups

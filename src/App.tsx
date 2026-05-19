@@ -57,6 +57,7 @@ const DRE = lazy(() => import("./pages/DRE"));
 const EstoqueMP = lazy(() => import("./pages/EstoqueMP"));
 const ContasFin = lazy(() => import("./pages/ContasFin"));
 const Movimentos = lazy(() => import("./pages/Movimentos"));
+const ModifierGroups = lazy(() => import("./pages/ModifierGroups"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
 const Loyalty = lazy(() => import("./pages/Loyalty"));
@@ -239,6 +240,7 @@ const App = () => {
               <Route path="/dre" element={<DRE />} />
               <Route path="/estoque" element={<EstoqueMP />} />
               <Route path="/movimentos" element={<Movimentos />} />
+              <Route path="/modifier-groups" element={<ModifierGroups />} />
               <Route path="/financeiro/contas" element={<ContasFin />} />
               <Route path="/retention" element={<Retention />} />
               <Route path="/analytics" element={<Analytics />} />
