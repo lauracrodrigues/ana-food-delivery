@@ -111,8 +111,8 @@ export default function Orders() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Header compacto fixo no topo */}
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-background/95 backdrop-blur-sm flex-shrink-0 overflow-x-auto">
+      {/* Header compacto fixo no topo — padding right pra liberar espaço do sino global */}
+      <div className="flex items-center justify-between px-4 py-2 pr-16 border-b bg-background/95 backdrop-blur-sm flex-shrink-0 overflow-x-auto">
         <div className="shrink-0 mr-4">
           <h1 className="text-base font-semibold leading-tight">Gestão de Pedidos</h1>
           {subdomain && (

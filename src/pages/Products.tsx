@@ -221,19 +221,62 @@ export function Products() {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !companyId) return;
+    if (!file) return;
+    if (!companyId) {
+      toast({ title: "Aguarde", description: "Empresa carregando...", variant: "destructive" });
+      return;
+    }
+    // Validações pré-upload
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Arquivo inválido", description: "Selecione uma imagem.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Imagem muito grande", description: "Máximo 10MB.", variant: "destructive" });
+      return;
+    }
+
     setUploading(true);
     try {
+      // Confirma sessão antes do upload (RLS exige authenticated)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({ title: "Sessão expirada", description: "Faça login novamente.", variant: "destructive" });
+        return;
+      }
+
       const optimized = await optimizeImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.85 });
-      const ext = optimized.name.split(".").pop();
-      const fileName = `${companyId}/products/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("company-logos").upload(fileName, optimized, { upsert: true });
-      if (upErr) throw upErr;
+      // Extensão robusta: usa MIME-type → ext (não confia em filename)
+      const mimeExt = optimized.type === "image/webp" ? "webp"
+        : optimized.type === "image/png" ? "png"
+        : optimized.type === "image/gif" ? "gif"
+        : "jpg";
+      const fileName = `${companyId}/products/${Date.now()}.${mimeExt}`;
+
+      const { error: upErr } = await supabase.storage
+        .from("company-logos")
+        .upload(fileName, optimized, {
+          upsert: true,
+          contentType: optimized.type,
+          cacheControl: "3600",
+        });
+
+      if (upErr) {
+        console.error("[upload] supabase error:", upErr);
+        throw upErr;
+      }
+
       const { data: { publicUrl } } = supabase.storage.from("company-logos").getPublicUrl(fileName);
       setFormData(f => ({ ...f, image_url: publicUrl }));
-      toast({ title: "Imagem enviada" });
+      toast({ title: "Imagem enviada ✓" });
     } catch (err: any) {
-      toast({ title: "Erro ao enviar imagem", description: err.message, variant: "destructive" });
+      console.error("[upload] exception:", err);
+      const msg = err?.message || err?.error_description || err?.statusText || "Erro desconhecido";
+      toast({
+        title: "Erro ao enviar imagem",
+        description: msg,
+        variant: "destructive",
+      });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
