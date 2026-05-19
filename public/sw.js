@@ -1,5 +1,5 @@
-// v1.5.0 — Cache bump v7 (força refresh do JS pra todos browsers)
-const CACHE_NAME = 'anafood-v7';
+// v1.6.0 — Cache bump v8
+const CACHE_NAME = 'anafood-v8';
 
 self.addEventListener('install', () => {
   self.skipWaiting();

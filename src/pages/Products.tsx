@@ -483,33 +483,43 @@ export function Products() {
           </DialogHeader>
 
           <div className="grid gap-4 py-2">
-            {/* Imagem */}
+            {/* Imagem — área inteira clicável (label + input hidden) */}
             <div className="flex items-center gap-4">
-              <div
-                className="w-24 h-24 rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer hover:border-primary transition-colors bg-muted/30 shrink-0"
-                onClick={() => fileInputRef.current?.click()}
+              <label
+                htmlFor="product-image-upload"
+                className={`w-24 h-24 rounded-lg border-2 border-dashed flex items-center justify-center transition-colors bg-muted/30 shrink-0 ${
+                  uploading ? "cursor-wait opacity-70" : "cursor-pointer hover:border-primary hover:bg-muted/50"
+                }`}
               >
                 {formData.image_url ? (
                   <div className="relative w-full h-full">
-                    <img src={formData.image_url} className="w-full h-full object-cover rounded-lg" alt="preview" />
+                    <img src={formData.image_url} className="w-full h-full object-cover rounded-lg pointer-events-none" alt="preview" />
                     <button
                       type="button"
-                      className="absolute -top-1 -right-1 bg-destructive text-white rounded-full w-5 h-5 flex items-center justify-center"
-                      onClick={e => { e.stopPropagation(); setFormData(f => ({ ...f, image_url: null })); }}
+                      className="absolute -top-1 -right-1 bg-destructive text-white rounded-full w-5 h-5 flex items-center justify-center z-10"
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); setFormData(f => ({ ...f, image_url: null })); }}
                     >
                       <X className="w-3 h-3" />
                     </button>
                   </div>
                 ) : uploading ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground pointer-events-none" />
                 ) : (
-                  <div className="text-center">
+                  <div className="text-center pointer-events-none">
                     <ImageIcon className="h-6 w-6 text-muted-foreground mx-auto" />
                     <p className="text-[10px] text-muted-foreground mt-1">Foto</p>
                   </div>
                 )}
-              </div>
-              <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageUpload} />
+              </label>
+              <input
+                id="product-image-upload"
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageUpload}
+                disabled={uploading}
+              />
               <div className="flex-1 space-y-3">
                 <div>
                   <Label>Nome *</Label>
