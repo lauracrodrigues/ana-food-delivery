@@ -32,10 +32,11 @@
 - [x] line_id (UUID por linha do carrinho) como FK lógico
 - [x] Fallback FK NULL se modifier_item_id for de schema legado
 
-## Fase 6 — Bot WhatsApp
-- [ ] cardapioService retorna grupos
-- [ ] stateMachine: tool escolher_modifiers
-- [ ] Fluxo conversacional pergunta cada grupo na ordem
+## Fase 6 — Bot WhatsApp (MVP)
+- [x] services/modifierService.js (RPC client + format helper)
+- [x] Tool escolher_modifier_items no agentHarness (valida via RPC, snapshot no state)
+- [~] Fluxo conversacional automático — LLM segue prompt (orientação via tool description). Refinamento do fluxo determinístico passo-a-passo é futuro.
+- [ ] Salvar state.pedidoAtual._modifierSelections em order_item_modifiers ao confirmar pedido (próxima iteração — integrar com flow de salvamento de pedido do bot)
 
 ## Fase 7 — Migração de dados (opcional)
 - [ ] Script identificar produtos-acompanhamento legados
