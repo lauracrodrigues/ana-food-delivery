@@ -20,6 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, Plus, Edit, Trash2, Upload, Copy, ImageIcon, Loader2, X, FileText, RefreshCw } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { MenuImportDialog } from "@/components/products/MenuImportDialog";
+import { ProductModifierGroupsSection } from "@/components/products/ProductModifierGroupsSection";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { cn } from "@/lib/utils";
 import { SkeletonTable } from "@/components/loading";
@@ -426,7 +427,7 @@ export function Products() {
 
       {/* ── Dialog: Criar/Editar */}
       <Dialog open={showModal} onOpenChange={v => !v && closeModal()}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingProduct ? "Editar Produto" : "Novo Produto"}</DialogTitle>
           </DialogHeader>
@@ -549,6 +550,13 @@ export function Products() {
                 onCheckedChange={v => setFormData(f => ({ ...f, on_off: v }))}
               />
             </div>
+
+            {/* Acompanhamentos — só aparece após produto criado (precisa de ID) */}
+            {editingProduct?.id && (
+              <div className="pt-3 border-t">
+                <ProductModifierGroupsSection productId={editingProduct.id} />
+              </div>
+            )}
           </div>
 
           <DialogFooter>

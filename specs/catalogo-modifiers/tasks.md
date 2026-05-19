@@ -15,10 +15,10 @@
 - [ ] Reordenação drag-and-drop (futuro)
 
 ## Fase 3 — Admin: aba Acompanhamentos no produto
-- [ ] Componente ProductModifierGroups
-- [ ] Drag-and-drop pra associar
-- [ ] Inputs override min/max por produto
-- [ ] Sort order
+- [x] Componente ProductModifierGroupsSection
+- [x] Select pra associar (drag-drop futuro, não bloqueante)
+- [x] Inputs override min/max por produto (placeholder mostra default do grupo)
+- [x] Sort order via setas (drag futuro)
 
 ## Fase 4 — PublicMenu cliente
 - [ ] Componente ProductModifierSelector
