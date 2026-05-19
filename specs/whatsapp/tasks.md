@@ -22,7 +22,7 @@
 - [x] **Auto-resume após intervenção humana** — v2.0.0 (Feature 2 FoodClub)
 - [x] **PIX Dinâmico + verificação automática** (Feature 3 FoodClub) — implementado anteriormente, hardening de segurança (signature HMAC obrigatória, secret em env) em 2026-05-18
 - [ ] Suporte a imagens de cardápio no WhatsApp
-- [ ] Multi-sessão (empresa com múltiplos números)
+- [x] Multi-sessão (empresa com múltiplos números) — v1.0.0 (is_primary + display_name + RPC set_primary, gate por plano)
 - [x] **TTS (Text-to-Speech — respostas em áudio)** — v1.0.0 (Feature 8)
 
 ## NOVO: Boas-vindas dinâmicas + comando /reset (precisa implementação no agente)

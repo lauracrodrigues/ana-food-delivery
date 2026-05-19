@@ -29,6 +29,8 @@ interface WhatsAppSession {
   is_active: boolean;
   created_at: string;
   connection_status?: 'open' | 'close' | 'connecting' | 'unknown';
+  is_primary?: boolean;        // multi-sessão: marca a sessão padrão de envio
+  display_name?: string | null; // apelido amigável ("Principal", "Backup")
 }
 
 interface SessionForm {
