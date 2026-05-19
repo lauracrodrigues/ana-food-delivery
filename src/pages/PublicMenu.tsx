@@ -274,30 +274,40 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
 
       setCategories(categoriesData || []);
 
-      // Ordenação configurável via store_settings.menu_sort_mode
-      const { data: sortCfg } = await supabase
-        .from('store_settings')
-        .select('menu_sort_mode')
-        .eq('company_id', companyData.id)
-        .maybeSingle();
-      const sortMode = (sortCfg as any)?.menu_sort_mode || 'manual';
-
-      let prodQuery = supabase
+      // Ordenação POR CATEGORIA — cada categoria tem seu sort_mode próprio
+      // (cardápio de marmita pode ser alfabético, bebidas por preço, etc)
+      const { data: productsData } = await supabase
         .from('products')
         .select('*')
         .eq('company_id', companyData.id)
         .eq('on_off', true);
 
-      switch (sortMode) {
-        case 'alphabetical': prodQuery = prodQuery.order('name'); break;
-        case 'price_asc':    prodQuery = prodQuery.order('price', { ascending: true }); break;
-        case 'price_desc':   prodQuery = prodQuery.order('price', { ascending: false }); break;
-        case 'newest':       prodQuery = prodQuery.order('created_at', { ascending: false }); break;
-        default:             prodQuery = prodQuery.order('display_order').order('name'); // manual
+      // Aplica sort_mode por categoria nos produtos
+      const catSortMap: Record<string, string> = {};
+      for (const c of (categoriesData || [])) {
+        catSortMap[(c as any).id] = (c as any).sort_mode || 'manual';
       }
 
-      const { data: productsData } = await prodQuery;
-      setProducts(productsData || []);
+      const sortedProducts = [...(productsData || [])].sort((a, b) => {
+        // Primeiro: ordem das categorias (display_order da categoria)
+        const catA = (categoriesData || []).find((c: any) => c.id === a.category_id);
+        const catB = (categoriesData || []).find((c: any) => c.id === b.category_id);
+        const orderA = (catA as any)?.display_order ?? 999;
+        const orderB = (catB as any)?.display_order ?? 999;
+        if (orderA !== orderB) return orderA - orderB;
+        // Mesma categoria: aplica sort_mode dela
+        if (a.category_id !== b.category_id) return 0;
+        const mode = catSortMap[a.category_id || ''] || 'manual';
+        switch (mode) {
+          case 'alphabetical': return a.name.localeCompare(b.name, 'pt-BR');
+          case 'price_asc':    return (a.price || 0) - (b.price || 0);
+          case 'price_desc':   return (b.price || 0) - (a.price || 0);
+          case 'newest':       return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+          default:             return (a.display_order ?? 999) - (b.display_order ?? 999); // manual
+        }
+      });
+
+      setProducts(sortedProducts);
 
       const { data: bannersData } = await supabase
         .from('menu_banners')

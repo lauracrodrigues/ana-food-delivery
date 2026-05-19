@@ -19,8 +19,17 @@ interface Category {
   company_id: string;
   name: string;
   on_off?: boolean;
+  sort_mode?: 'manual' | 'alphabetical' | 'price_asc' | 'price_desc' | 'newest';
   created_at?: string;
 }
+
+const SORT_MODE_OPTIONS = [
+  { value: 'manual',       label: 'Manual (ordem definida)' },
+  { value: 'alphabetical', label: 'Alfabética (A-Z)' },
+  { value: 'price_asc',    label: 'Preço crescente' },
+  { value: 'price_desc',   label: 'Preço decrescente' },
+  { value: 'newest',       label: 'Mais recentes' },
+];
 
 export function Categories() {
   const [search, setSearch] = useState("");
@@ -29,6 +38,7 @@ export function Categories() {
   const [formData, setFormData] = useState<Partial<Category>>({
     name: "",
     on_off: true,
+    sort_mode: 'manual',
   });
 
   const { toast } = useToast();
@@ -109,10 +119,11 @@ export function Categories() {
       } else {
         const { error } = await supabase
           .from("categories")
-          .insert([{ 
+          .insert([{
             name: data.name || '',
             on_off: data.on_off,
-            company_id: profile.company_id 
+            sort_mode: data.sort_mode || 'manual',
+            company_id: profile.company_id,
           }]);
         
         if (error) throw error;
@@ -320,6 +331,23 @@ export function Categories() {
                 checked={formData.on_off}
                 onCheckedChange={(checked) => setFormData({ ...formData, on_off: checked })}
               />
+            </div>
+
+            <div>
+              <Label htmlFor="sort_mode">Ordenação dos produtos desta categoria</Label>
+              <select
+                id="sort_mode"
+                className="w-full border rounded-md h-10 px-3 mt-1 bg-background"
+                value={formData.sort_mode || 'manual'}
+                onChange={(e) => setFormData({ ...formData, sort_mode: e.target.value as any })}
+              >
+                {SORT_MODE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Define como os produtos APENAS desta categoria aparecem no cardápio.
+              </p>
             </div>
           </div>
           

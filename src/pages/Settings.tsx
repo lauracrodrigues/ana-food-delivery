@@ -527,7 +527,7 @@ export function Settings() {
 
           {/* Appearance Settings */}
           <TabsContent value="appearance" className="space-y-6">
-            <MenuSortConfig />
+            {/* MenuSortConfig global removido — agora cada categoria tem sort_mode próprio (em /categories) */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
