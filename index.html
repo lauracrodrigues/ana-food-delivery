@@ -12,11 +12,25 @@
     <!-- Preload critical CSS -->
     <link rel="preload" as="style" href="/src/index.css" />
 
+    <!-- Anti-FOUC dark mode: aplica classe ANTES de React montar -->
+    <!-- Lê 'anafood-last-theme' (último tema usado nesta máquina, qualquer usuário) -->
+    <!-- Sem flash quando voltar à página -->
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('anafood-last-theme');
+          if (t === 'dark') document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
+
     <!-- Critical inline styles to prevent FOUC -->
     <style>
       body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
       #root { min-height: 100vh; }
       .loader { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+      /* Background base alinhado com tema — evita branco antes do CSS principal carregar */
+      html.dark, html.dark body { background-color: #0a0a0a; color: #fafafa; }
     </style>
     <meta name="description" content="Crie sua loja de delivery online em minutos. Plataforma completa para gerenciar pedidos, produtos e clientes.">
     <meta name="author" content="AnaFood" />

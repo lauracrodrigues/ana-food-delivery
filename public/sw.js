@@ -1,5 +1,5 @@
-// v1.3.0 — Cache + push notifications (Web Push API)
-const CACHE_NAME = 'anafood-v5';
+// v1.4.0 — Stale-while-revalidate pra JS/CSS (carregamento percebido instantâneo)
+const CACHE_NAME = 'anafood-v6';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -22,16 +22,21 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Network-first para JS/CSS (chunks com hash mudam a cada deploy)
+  // Stale-while-revalidate para JS/CSS hashed
+  // Hash no nome do arquivo torna cache imutável — serve do cache imediato
+  // e atualiza em background pra próximo load (zero flash de carregamento)
   if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
     e.respondWith(
-      fetch(e.request).then((response) => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
-        }
-        return response;
-      }).catch(() => caches.match(e.request))
+      caches.match(e.request).then((cached) => {
+        const networkFetch = fetch(e.request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+          }
+          return response;
+        }).catch(() => cached); // offline fallback
+        return cached || networkFetch;
+      })
     );
     return;
   }

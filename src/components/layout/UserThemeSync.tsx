@@ -10,6 +10,13 @@ function themeKey(userId: string) {
   return `anafood-theme-${userId}`;
 }
 
+// Cache global do último tema aplicado (qualquer usuário, esta máquina)
+// Usado pelo inline script no index.html pra evitar flash no primeiro paint
+const LAST_THEME_KEY = "anafood-last-theme";
+function rememberLastTheme(theme: "light" | "dark") {
+  try { localStorage.setItem(LAST_THEME_KEY, theme); } catch {}
+}
+
 export function UserThemeSync() {
   const { setTheme } = useTheme();
 
@@ -24,6 +31,7 @@ export function UserThemeSync() {
       const cached = localStorage.getItem(themeKey(user.id));
       if (cached === "dark" || cached === "light") {
         setTheme(cached);
+        rememberLastTheme(cached); // alimenta inline script pro próximo load
         return;
       }
 
@@ -39,6 +47,7 @@ export function UserThemeSync() {
       if (saved === "dark" || saved === "light") {
         setTheme(saved);
         localStorage.setItem(themeKey(user.id), saved);
+        rememberLastTheme(saved);
       }
     }
 
@@ -59,8 +68,9 @@ export async function saveUserTheme(theme: "light" | "dark") {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 
-  // Cache local imediato
+  // Cache local imediato (por usuário + global pra anti-FOUC)
   localStorage.setItem(themeKey(user.id), theme);
+  rememberLastTheme(theme);
 
   // Persiste no banco (merge com outras preferências)
   const { data } = await supabase

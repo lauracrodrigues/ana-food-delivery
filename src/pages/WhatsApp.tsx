@@ -199,6 +199,39 @@ export default function WhatsApp() {
     });
   }, [sessions]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Realtime: webhook do Evolution atualiza connection_status no DB —
+  // realtime subscription faz UI refletir sem refresh manual
+  useEffect(() => {
+    if (!companyId) return;
+    const channel = supabase
+      .channel(`whatsapp-config-${companyId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "whatsapp_config",
+          filter: `company_id=eq.${companyId}`,
+        },
+        () => {
+          // Invalida cache → React Query refetch puxa novo status do DB
+          queryClient.invalidateQueries({ queryKey: ["whatsapp-sessions", companyId] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [companyId, queryClient]);
+
+  // Polling fallback: a cada 15s re-check status de cada sessão
+  // (caso Evolution não chame webhook quando status muda — comum em dev)
+  useEffect(() => {
+    if (sessions.length === 0) return;
+    const interval = setInterval(() => {
+      sessions.forEach(s => checkConnectionStatus(s.session_name, true));
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [sessions]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Add/Update mutation
   const saveMutation = useMutation({
     mutationFn: async (data: SessionForm & { id?: string }) => {
