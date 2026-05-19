@@ -18,7 +18,7 @@ interface WhatsAppSession {
   agent_prompt: string | null;
   is_active: boolean;
   created_at: string;
-  connection_status?: 'open' | 'close' | 'connecting' | 'unknown';
+  connection_status?: 'open' | 'close' | 'connecting' | 'unknown' | 'instance_missing';
   is_primary?: boolean;
   display_name?: string | null;
 }
@@ -70,6 +70,10 @@ export function WhatsAppSessionList({
         return <Badge variant="destructive">Desconectado</Badge>;
       case 'connecting':
         return <Badge variant="secondary">Conectando...</Badge>;
+      case 'instance_missing':
+        // Bot detectou que instância sumiu no Evolution (provavelmente deletada
+        // ou WhatsApp foi desconectado). Reconectar = recriar instância via QR.
+        return <Badge variant="destructive" className="bg-amber-600">Instância removida — reconecte</Badge>;
       default:
         return <Badge variant="outline">Verificando...</Badge>;
     }
