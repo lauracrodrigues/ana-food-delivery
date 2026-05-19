@@ -24,7 +24,7 @@ export function useInitialLoad() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("company_id, email")
+        .select("company_id")
         .eq("id", user.id)
         .single();
 
@@ -59,7 +59,7 @@ export function useInitialLoad() {
 
       return {
         userId: user.id,
-        email: user.email ?? profile.email ?? "",
+        email: user.email ?? "",
         companyId: profile.company_id,
         companyName: (company as any)?.fantasy_name || (company as any)?.name || null,
         companyLogo: logoUrl,
