@@ -17,6 +17,7 @@ import { CancelOrderDialog } from "./CancelOrderDialog";
 import { AssignDelivererDialog } from "./AssignDelivererDialog";
 import { AssignOrderToDelivererDialog } from "./AssignOrderToDelivererDialog";
 import { DeliveryMapDialog } from "./DeliveryMapDialog";
+import { OrdersReportDialog } from "./OrdersReportDialog";
 import {
   Order,
   StoreSettings,
@@ -45,6 +46,7 @@ export function OrdersKanban() {
   const [searchTerm, setSearchTerm] = useState("");
   // Filtro por período — sticky no kanban (não persiste entre logins, é da sessão)
   const [periodFilter, setPeriodFilter] = useState<"today" | "yesterday" | "week" | "month" | "all">("today");
+  const [showReport, setShowReport] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   // localStorage: persiste entre recargas e navegação — usuário não precisa reativar toda vez
@@ -1099,7 +1101,7 @@ export function OrdersKanban() {
           delivererTotalCount={delivererCounts.total}
           periodFilter={periodFilter}
           onPeriodChange={setPeriodFilter}
-          onExportCSV={handleExportCSV}
+          onOpenReport={() => setShowReport(true)}
           totalFiltered={filteredOrders.length}
         />
       </div>
@@ -1120,6 +1122,22 @@ export function OrdersKanban() {
         open={!!delivererForAssign}
         onClose={() => setDelivererForAssign(null)}
         onConfirm={handleConfirmDeliverer}
+      />
+
+      {/* Relatórios — modal com histórico + CSV/PDF + envio WhatsApp */}
+      <OrdersReportDialog
+        open={showReport}
+        onOpenChange={setShowReport}
+        orders={filteredOrders}
+        periodLabel={
+          periodFilter === "today" ? "Hoje" :
+          periodFilter === "yesterday" ? "Ontem" :
+          periodFilter === "week" ? "Últimos 7 dias" :
+          periodFilter === "month" ? "Este mês" : "Todos"
+        }
+        companyId={companyId ?? null}
+        companyName={(companyData as any)?.fantasy_name || (companyData as any)?.name}
+        onExportCSV={handleExportCSV}
       />
 
       {/* Colunas: scroll horizontal, cada coluna scroll vertical independente */}

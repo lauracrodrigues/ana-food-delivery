@@ -1,16 +1,18 @@
-// v1.0.0 — Sino de notificações no header admin (novos pedidos em qualquer página)
+// v2.0.0 — Sino com alertas de atenção (insatisfação + atendente humano)
+// Animação shake quando há alertas critical pendentes.
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, ShoppingBag, Trash2, CheckCheck } from "lucide-react";
+import { Bell, ShoppingBag, Trash2, CheckCheck, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useQuery } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useGlobalOrderNotifications } from "@/hooks/useGlobalOrderNotifications";
 import { formatCurrency } from "@/lib/currency-formatter";
 
-// Tempo relativo simples ("há 2 min")
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const min = Math.floor(diff / 60000);
@@ -18,15 +20,23 @@ function timeAgo(iso: string): string {
   if (min < 60) return `há ${min}min`;
   const hr = Math.floor(min / 60);
   if (hr < 24) return `há ${hr}h`;
-  const day = Math.floor(hr / 24);
-  return `há ${day}d`;
+  return `há ${Math.floor(hr / 24)}d`;
+}
+
+interface FallbackAlert {
+  id: string;
+  phone: string;
+  motivo: string;
+  severity: "info" | "warning" | "critical";
+  contexto: string | null;
+  detectado_em: string;
 }
 
 export function NotificationBell() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
-  // Pega company_id do usuário logado
   const { data: companyId } = useQuery({
     queryKey: ["notif-company-id"],
     queryFn: async () => {
@@ -40,13 +50,57 @@ export function NotificationBell() {
 
   const { notifications, unreadCount, markAsRead, markAllAsRead, clear } = useGlobalOrderNotifications(companyId);
 
+  // Alertas pendentes (cliente pediu atendente humano OR insatisfação OR fora-do-escopo)
+  const { data: alerts = [] } = useQuery<FallbackAlert[]>({
+    queryKey: ["fallback-alerts", companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      const { data } = await supabase
+        .from("fallback_atendente")
+        .select("id, phone, motivo, severity, contexto, detectado_em")
+        .eq("company_id", companyId)
+        .eq("resolvido", false)
+        .order("detectado_em", { ascending: false })
+        .limit(20);
+      return (data || []) as any;
+    },
+    enabled: !!companyId,
+    refetchInterval: 30_000,
+  });
+
+  // Realtime: novo alerta → invalida cache + anima
+  useEffect(() => {
+    if (!companyId) return;
+    const ch = supabase
+      .channel(`fallback-${companyId}`)
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "fallback_atendente",
+        filter: `company_id=eq.${companyId}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["fallback-alerts", companyId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [companyId, queryClient]);
+
   if (!companyId) return null;
 
-  const handleClick = (notifId: string, orderId: string) => {
+  const criticalCount = alerts.filter(a => a.severity === "critical").length;
+  const warningCount = alerts.filter(a => a.severity === "warning").length;
+  const totalUnread = unreadCount + alerts.length;
+  const hasCritical = criticalCount > 0;
+
+  const handleClick = (notifId: string) => {
     markAsRead(notifId);
     setOpen(false);
     navigate("/orders");
-    // Highlight do pedido específico ficaria via state — deixar pra depois
+  };
+
+  const resolveAlert = async (id: string) => {
+    await supabase.from("fallback_atendente")
+      .update({ resolvido: true, resolvido_em: new Date().toISOString() })
+      .eq("id", id);
+    queryClient.invalidateQueries({ queryKey: ["fallback-alerts", companyId] });
   };
 
   return (
@@ -55,26 +109,29 @@ export function NotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative h-9 w-9"
-          aria-label={`${unreadCount} notificações não lidas`}
+          className={`relative h-9 w-9 ${hasCritical ? "animate-shake" : ""}`}
+          aria-label={`${totalUnread} notificações não lidas`}
         >
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none animate-pulse">
-              {unreadCount > 9 ? "9+" : unreadCount}
+          <Bell className={`h-5 w-5 ${hasCritical ? "text-red-500" : ""}`} />
+          {totalUnread > 0 && (
+            <span
+              className={`absolute -top-0.5 -right-0.5 text-white text-[10px] font-bold min-w-[1rem] h-4 px-0.5 rounded-full flex items-center justify-center leading-none animate-pulse ${
+                hasCritical ? "bg-red-600" : "bg-red-500"
+              }`}
+            >
+              {totalUnread > 9 ? "9+" : totalUnread}
             </span>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        {/* Header */}
+      <PopoverContent className="w-96 p-0" align="end">
         <div className="flex items-center justify-between px-3 py-2 border-b">
           <div className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
             <span className="font-semibold text-sm">Notificações</span>
-            {unreadCount > 0 && (
+            {totalUnread > 0 && (
               <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full font-medium">
-                {unreadCount}
+                {totalUnread}
               </span>
             )}
           </div>
@@ -85,29 +142,86 @@ export function NotificationBell() {
               </Button>
             )}
             {notifications.length > 0 && (
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={clear} title="Limpar tudo">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={clear} title="Limpar pedidos">
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             )}
           </div>
         </div>
 
-        {/* Lista */}
-        <ScrollArea className="h-80">
-          {notifications.length === 0 ? (
+        <ScrollArea className="max-h-96">
+          {/* Seção: alertas de atenção (cliente precisa atendente / insatisfação) */}
+          {alerts.length > 0 && (
+            <div className="border-b">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-950/30">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                <span className="text-xs font-semibold text-amber-900 dark:text-amber-100">
+                  Atenção necessária ({alerts.length})
+                </span>
+              </div>
+              <div className="divide-y">
+                {alerts.map(a => {
+                  const severityBg = a.severity === "critical"
+                    ? "bg-red-50 dark:bg-red-950/20 border-l-red-500"
+                    : a.severity === "warning"
+                    ? "bg-amber-50/50 dark:bg-amber-950/10 border-l-amber-500"
+                    : "border-l-blue-500";
+                  const motivoLabel = a.motivo === "request_humano" ? "Pediu atendente"
+                    : a.motivo === "insatisfacao_detectada" ? "Possível insatisfação"
+                    : a.motivo === "fora_escopo" ? "Fora do escopo do bot"
+                    : a.motivo === "insistencia_cancelamento" ? "Insistindo em cancelar"
+                    : a.motivo;
+                  return (
+                    <div key={a.id} className={`px-3 py-2 border-l-4 ${severityBg}`}>
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-medium text-sm">{motivoLabel}</span>
+                            <Badge variant="outline" className="text-[10px] py-0">
+                              {a.severity}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">📞 {a.phone}</p>
+                          {a.contexto && (
+                            <p className="text-xs italic text-muted-foreground mt-1 line-clamp-2">
+                              "{a.contexto}"
+                            </p>
+                          )}
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            {timeAgo(a.detectado_em)}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => resolveAlert(a.id)}
+                        >
+                          ✓ OK
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Seção: pedidos novos */}
+          {notifications.length === 0 && alerts.length === 0 ? (
             <div className="text-center py-8 px-4">
               <Bell className="h-10 w-10 mx-auto mb-2 opacity-30" />
-              <p className="text-sm text-muted-foreground">Sem novos pedidos</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Notificações aparecem aqui em tempo real
-              </p>
+              <p className="text-sm text-muted-foreground">Tudo tranquilo por aqui</p>
             </div>
-          ) : (
+          ) : notifications.length > 0 ? (
             <div className="divide-y">
+              <div className="px-3 py-1.5 bg-muted/50">
+                <span className="text-xs font-semibold text-muted-foreground">Pedidos recentes</span>
+              </div>
               {notifications.map(n => (
                 <button
                   key={n.id}
-                  onClick={() => handleClick(n.id, n.order_id)}
+                  onClick={() => handleClick(n.id)}
                   className={`w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors ${!n.read ? "bg-blue-50/50 dark:bg-blue-950/20" : ""}`}
                 >
                   <div className="flex items-start gap-2.5">
@@ -123,9 +237,6 @@ export function NotificationBell() {
                       </div>
                       <p className="text-xs text-muted-foreground truncate">
                         {n.customer_name} · {formatCurrency(n.total)}
-                        {n.type === "table" && " · Mesa"}
-                        {n.type === "delivery" && " · Entrega"}
-                        {n.type === "pickup" && " · Retirada"}
                       </p>
                     </div>
                     {!n.read && (
@@ -135,11 +246,10 @@ export function NotificationBell() {
                 </button>
               ))}
             </div>
-          )}
+          ) : null}
         </ScrollArea>
 
-        {/* Footer */}
-        {notifications.length > 0 && (
+        {(notifications.length > 0 || alerts.length > 0) && (
           <div className="border-t px-3 py-2">
             <Button
               variant="ghost"

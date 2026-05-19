@@ -22,7 +22,7 @@ import {
   Filter,
   Check,
   Calendar,
-  Download,
+  FileText,
 } from "lucide-react";
 import { MotoIcon } from "@/components/ui/moto-icon";
 
@@ -52,10 +52,10 @@ interface KanbanHeaderProps {
   onToggleMap?: () => void;
   delivererGpsCount?: number;   // entregadores com GPS ativo
   delivererTotalCount?: number; // entregadores cadastrados (pra disable)
-  // Filtro período + export CSV
+  // Filtro período + relatórios
   periodFilter?: PeriodId;
   onPeriodChange?: (p: PeriodId) => void;
-  onExportCSV?: () => void;
+  onOpenReport?: () => void; // abre modal Relatórios (CSV/PDF/WhatsApp)
   totalFiltered?: number;
 }
 
@@ -75,7 +75,7 @@ export function KanbanHeader({
   delivererTotalCount = 0,
   periodFilter = "today",
   onPeriodChange,
-  onExportCSV,
+  onOpenReport,
   totalFiltered = 0,
 }: KanbanHeaderProps) {
   // Sem entregadores cadastrados → botão desabilitado
@@ -199,17 +199,17 @@ export function KanbanHeader({
           </div>
         )}
 
-        {/* Export CSV — só habilita se tem pedidos filtrados */}
-        {onExportCSV && (
+        {/* Relatórios — modal com lista + CSV/PDF + envio WhatsApp */}
+        {onOpenReport && (
           <Button
             variant="outline"
             size="sm"
-            onClick={onExportCSV}
+            onClick={onOpenReport}
             disabled={totalFiltered === 0}
-            title={totalFiltered === 0 ? "Sem pedidos no período" : `Exportar ${totalFiltered} pedidos`}
+            title={totalFiltered === 0 ? "Sem pedidos no período" : `Ver relatório com ${totalFiltered} pedidos`}
           >
-            <Download className="w-4 h-4 mr-1" />
-            CSV ({totalFiltered})
+            <FileText className="w-4 h-4 mr-1" />
+            Relatórios ({totalFiltered})
           </Button>
         )}
 
