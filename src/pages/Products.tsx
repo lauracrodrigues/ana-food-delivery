@@ -40,6 +40,7 @@ interface Product {
   description: string | null;
   image_url: string | null;
   on_off: boolean | null;
+  show_in_whatsapp_greeting?: boolean | null;
   internal_code: string | null;
   print_sector: string | null;
   display_order: number | null;
@@ -156,6 +157,7 @@ export function Products() {
         on_off: data.on_off ?? true,
         internal_code: data.internal_code || null,
         print_sector: data.print_sector || null,
+        show_in_whatsapp_greeting: data.show_in_whatsapp_greeting ?? false,
       };
       if (editingProduct) {
         const { error } = await supabase.from("products").update(payload).eq("id", editingProduct.id);
@@ -593,6 +595,19 @@ export function Products() {
               <Switch
                 checked={formData.on_off ?? true}
                 onCheckedChange={v => setFormData(f => ({ ...f, on_off: v }))}
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3 bg-emerald-50/30 dark:bg-emerald-950/10">
+              <div>
+                <Label>📲 Mostrar na saudação do WhatsApp</Label>
+                <p className="text-xs text-muted-foreground">
+                  Marca este produto como destaque na primeira mensagem do bot (recomendado 3-8 produtos no total)
+                </p>
+              </div>
+              <Switch
+                checked={formData.show_in_whatsapp_greeting ?? false}
+                onCheckedChange={v => setFormData(f => ({ ...f, show_in_whatsapp_greeting: v }))}
               />
             </div>
 
