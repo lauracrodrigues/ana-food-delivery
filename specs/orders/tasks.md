@@ -19,8 +19,9 @@
 
 ## Pendente / Backlog
 
-- [ ] Exportar pedidos do dia para CSV/PDF
-- [ ] Filtro por período (hoje, ontem, semana)
+- [x] Exportar pedidos do dia para CSV — v1.0.0 (PDF futuro)
+- [x] Filtro por período (hoje, ontem, 7 dias, mês, todos) — v1.0.0
+- [~] Multi-seleção de pedidos para ação em lote — base já existe (selectedOrders + handleBulkStatusChange), só faltava UI mais visível (a fazer)
 - [ ] Integração rastreamento de entregador
 - [ ] Relatório de tempo médio por status
 - [ ] Multi-seleção de pedidos para ação em lote (cancelar/arquivar múltiplos)
