@@ -436,9 +436,104 @@ export function OrdersKanban() {
                 caixaConfig.layout,
                 caixaConfig.copies || 1
               )
-                .then(() => console.log('✅ Impressão automática realizada'))
-                .catch(error => console.error('❌ Erro na impressão automática:', error));
+                .then(() => console.log('✅ Impressão caixa OK'))
+                .catch(error => console.error('❌ Erro impressão caixa:', error));
             }
+
+            // Impressão por SETOR (cozinha/copa/bar/etc) baseado em products.print_sector
+            // Agrupa items do pedido pelo setor, gera 1 ticket por setor ativo
+            try {
+              const orderItems = Array.isArray((order as any).items) ? (order as any).items : [];
+              const productIds = orderItems
+                .map((it: any) => it.id || it.product_id)
+                .filter(Boolean);
+
+              if (productIds.length > 0) {
+                const { data: products } = await supabase
+                  .from("products")
+                  .select("id, name, print_sector")
+                  .in("id", productIds);
+
+                // Map: setor → array de items
+                const bySector: Record<string, any[]> = {};
+                for (const item of orderItems) {
+                  const prodId = item.id || item.product_id;
+                  const prod = (products || []).find((p: any) => p.id === prodId);
+                  const sector = prod?.print_sector;
+                  if (!sector || sector === 'caixa') continue; // caixa já impresso acima
+                  if (!bySector[sector]) bySector[sector] = [];
+                  bySector[sector].push(item);
+                }
+
+                // Print 1 ticket por setor (com items só daquele setor)
+                for (const [sector, items] of Object.entries(bySector)) {
+                  const sectorCfg = printerSettings?.sectors?.[sector];
+                  if (!sectorCfg?.enabled || !sectorCfg?.printer_name) continue;
+                  const orderForSector = { ...enrichedOrderForAutoPrint, items };
+                  qzPrinter.printOrder(
+                    orderForSector,
+                    sectorCfg.printer_name,
+                    false,
+                    sector,
+                    sectorCfg.layout,
+                    sectorCfg.copies || 1
+                  )
+                    .then(() => console.log(`✅ Impressão ${sector} OK (${items.length} itens)`))
+                    .catch(err => console.error(`❌ Erro impressão ${sector}:`, err));
+                }
+              }
+            } catch (sectorErr) {
+              console.error('❌ Erro setor print:', sectorErr);
+            }
+          }
+        }
+
+        // Cancelamento auto-print + remove do kanban imediato (status=cancelled)
+        if (status === 'cancelled' && order) {
+          stopNotificationSound();
+          try {
+            const { data: currentSettings } = await supabase
+              .from("store_settings")
+              .select("printer_settings")
+              .eq("company_id", companyId)
+              .single();
+            const printerSettings = currentSettings?.printer_settings as any;
+
+            // Buscar dados empresa
+            const { data: companyDataForPrint } = await supabase
+              .from("companies")
+              .select("*")
+              .eq("id", companyId)
+              .single();
+
+            const enrichedCancel = {
+              ...order,
+              status: 'cancelled',
+              cancellation_reason: cancellationReason || (order as any).cancellation_reason || 'Cancelado pelo cliente',
+              company_name: companyDataForPrint?.name || 'EMPRESA',
+              company_fantasy_name: companyDataForPrint?.fantasy_name || companyDataForPrint?.name,
+              company_phone: companyDataForPrint?.phone || '',
+              company_email: companyDataForPrint?.email || '',
+            };
+
+            // Print ticket CANCELADO no caixa + em todos setores ativos
+            // (assim cozinha sabe pra parar de preparar)
+            const sectors = printerSettings?.sectors || {};
+            for (const [sectorName, cfg] of Object.entries<any>(sectors)) {
+              if (!cfg?.enabled || !cfg?.printer_name) continue;
+              qzPrinter.printOrder(
+                enrichedCancel,
+                cfg.printer_name,
+                false,
+                sectorName,
+                cfg.layout,
+                1, // sempre 1 cópia pra cancelamento
+              )
+                .then(() => console.log(`✅ Cancelamento impresso em ${sectorName}`))
+                .catch(err => console.error(`❌ Erro cancelamento ${sectorName}:`, err));
+            }
+          } catch (cancelPrintErr) {
+            console.error('❌ Erro auto-print cancelamento:', cancelPrintErr);
           }
         }
       
