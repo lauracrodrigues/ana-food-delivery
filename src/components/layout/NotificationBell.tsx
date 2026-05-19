@@ -181,6 +181,9 @@ export function NotificationBell() {
                     : a.motivo === "fora_escopo" ? "Fora do escopo do bot"
                     : a.motivo === "insistencia_cancelamento" ? "Insistindo em cancelar"
                     : a.motivo;
+                  const severityLabel = a.severity === "critical" ? "Crítico"
+                    : a.severity === "warning" ? "Atenção"
+                    : "Informação";
                   return (
                     <div key={a.id} className={`px-3 py-2 border-l-4 ${severityBg}`}>
                       <div className="flex items-start gap-2">
@@ -188,7 +191,7 @@ export function NotificationBell() {
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="font-medium text-sm">{motivoLabel}</span>
                             <Badge variant="outline" className="text-[10px] py-0">
-                              {a.severity}
+                              {severityLabel}
                             </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground">📞 {a.phone}</p>
