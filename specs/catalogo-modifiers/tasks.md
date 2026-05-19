@@ -27,8 +27,10 @@
 - [x] Render condicional de preço (extra.price > 0 esconde R$ 0,00) — já existia
 
 ## Fase 5 — Checkout
-- [ ] Snapshot em order_item_modifiers ao criar pedido
-- [ ] Persistir name/price_delta congelados
+- [x] Snapshot em order_item_modifiers ao criar pedido (best-effort)
+- [x] Persistir name/price_delta congelados (name_snapshot, price_delta_snapshot)
+- [x] line_id (UUID por linha do carrinho) como FK lógico
+- [x] Fallback FK NULL se modifier_item_id for de schema legado
 
 ## Fase 6 — Bot WhatsApp
 - [ ] cardapioService retorna grupos

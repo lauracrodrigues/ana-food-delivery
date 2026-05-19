@@ -425,12 +425,23 @@ export function MenuCheckout({
           ? `Extras: ${item.extras.map(e => e.name).join(", ")}`
           : null;
         const obs = [item.observations, extrasDesc].filter(Boolean).join(" | ");
+        // line_id: UUID único por linha do carrinho — usado como FK lógico em order_item_modifiers
+        const line_id = crypto.randomUUID();
         return {
           id: item.product.id,
+          line_id,
           name: item.product.name,
           price: item.product.price + item.extrasTotal,
           quantity: item.quantity,
           observations: obs || undefined,
+          // Extras estruturados pra snapshot (Fase 5 catalogo-modifiers)
+          extras: item.extras.map(e => ({
+            id: e.id,
+            name: e.name,
+            price: e.price,
+            group_id: e.groupId,
+            group_name: e.groupName,
+          })),
         };
       }),
       type: isTableOrder ? "table" : formData.type,

@@ -78,6 +78,43 @@ Deno.serve(async (req: Request) => {
       return json({ error: error.message }, 500);
     }
 
+    // Snapshot dos modifiers escolhidos (Fase 5 catalogo-modifiers)
+    // Congela name + price_delta no momento do pedido. Não quebra histórico
+    // se admin deletar item depois (modifier_item_id pode virar NULL).
+    try {
+      const snapshots: Array<Record<string, any>> = [];
+      for (const item of (items || [])) {
+        const lineId = item.line_id;
+        if (!lineId || !Array.isArray(item.extras)) continue;
+        for (const extra of item.extras) {
+          if (!extra?.id || !extra?.name) continue;
+          snapshots.push({
+            order_id: order.id,
+            order_item_id: lineId,
+            modifier_item_id: extra.id, // pode não existir em modifier_items (legado) — FK SET NULL via ON DELETE
+            name_snapshot: extra.name,
+            price_delta_snapshot: Number(extra.price) || 0,
+            quantity: 1,
+          });
+        }
+      }
+      if (snapshots.length > 0) {
+        // Insere best-effort: se modifier_item_id é de schema legado (não está em modifier_items),
+        // FK constraint vai falhar. Usa upsert + ignore on conflict ou fallback sem FK.
+        const { error: snapErr } = await supabase
+          .from('order_item_modifiers')
+          .insert(snapshots);
+        if (snapErr) {
+          // Provavelmente FK violation pra IDs legados → tenta inserir sem o FK
+          const fallback = snapshots.map(s => ({ ...s, modifier_item_id: null }));
+          await supabase.from('order_item_modifiers').insert(fallback);
+        }
+      }
+    } catch (snapEx) {
+      // Snapshot é best-effort, não bloqueia criação do pedido
+      console.warn('Snapshot modifiers falhou (não-bloqueante):', snapEx);
+    }
+
     // Auto-resposta WhatsApp APENAS se pedido já confirmado (não-PIX-MP)
     // Pix MP em awaiting_payment: WhatsApp disparado pelo mp-webhook após confirmar pagamento
     if (initialStatus === 'pending') {
