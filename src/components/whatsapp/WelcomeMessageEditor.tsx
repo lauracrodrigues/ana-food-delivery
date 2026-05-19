@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, MessageSquare, UserPlus, UserCheck, ExternalLink, Info } from "lucide-react";
+import { Save, UserPlus, UserCheck, ExternalLink, Info } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const DEFAULT_NEW = `Olá! Seja bem-vindo(a) à *{empresa}* 🍱
@@ -159,31 +159,7 @@ export function WelcomeMessageEditor() {
         </CardContent>
       </Card>
 
-      {/* Comando /reset */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-amber-600" />
-            Comando /reset
-          </CardTitle>
-          <CardDescription>
-            Qualquer cliente pode digitar <code className="bg-muted px-1 rounded">/reset</code> pra limpar dados da sessão
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm space-y-2">
-          <p className="text-muted-foreground">Fluxo configurado no agente Ana Food:</p>
-          <ol className="list-decimal pl-5 space-y-1 text-xs">
-            <li>Cliente digita <code className="bg-muted px-1 rounded">/reset</code></li>
-            <li>Bot pergunta: <em>"Confirma reset dos dados? Responda SIM ou NÃO"</em></li>
-            <li>Se <strong>SIM</strong>: limpa <code>msg_history</code>, <code>customers.preferences</code>, <code>pending_order</code>. Confirma com mensagem.</li>
-            <li>Se <strong>NÃO</strong>: ignora + responde "Reset cancelado, vamos continuar"</li>
-          </ol>
-          <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs text-amber-800">
-            ⚙️ Implementação no agente externo (<code>agentHarness.js</code>). Veja
-            <Link to="/whatsapp" className="text-primary underline ml-1">specs/whatsapp/tasks.md</Link>.
-          </div>
-        </CardContent>
-      </Card>
+      {/* Comando /reset removido do painel — feature interna do bot, não precisa ser mostrada */}
 
       <div className="flex justify-end">
         <Button onClick={save} className="gap-2">
