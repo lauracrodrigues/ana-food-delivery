@@ -26,14 +26,27 @@ export interface MenuItem {
 
 export interface MenuItemsConfig {
   isAdmin?: boolean;
-  isDistribuidora?: boolean; // mostra item "Movimentações" quando true
+  isDistribuidora?: boolean;
+  // Módulos habilitados pelo AnaFood Master (modules_enabled jsonb)
+  hasFinanceiro?: boolean;
+  hasPdv?: boolean;
+  hasWhatsapp?: boolean;
+  hasCardapioDigital?: boolean;
 }
 
-export function getMenuItems({ isAdmin = false, isDistribuidora = false }: MenuItemsConfig = {}): MenuItem[] {
+export function getMenuItems({
+  isAdmin = false,
+  isDistribuidora = false,
+  hasFinanceiro = true,
+  hasPdv = true,
+  hasWhatsapp = true,
+  hasCardapioDigital = true,
+}: MenuItemsConfig = {}): MenuItem[] {
   return [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
 
-    {
+    // Vendas (PDV) — só aparece se módulo pdv habilitado
+    ...(hasPdv ? [{
       title: "Vendas", icon: ShoppingCart,
       subItems: [
         { title: "Balcão",          url: "/vendas/balcao",   icon: Coffee },
@@ -41,9 +54,9 @@ export function getMenuItems({ isAdmin = false, isDistribuidora = false }: MenuI
         { title: "Entrega",         url: "/vendas/entrega",  icon: Bike },
         { title: "Histórico Caixa", url: "/caixa/historico", icon: Clock },
       ],
-    },
+    }] : []),
 
-    // Movimentações: distribuidora (pedidos venda + orçamentos + estoque/lotes)
+    // Movimentações: distribuidora (módulo extra)
     ...(isDistribuidora ? [{
       title: "Movimentações", icon: FileText,
       subItems: [
@@ -54,11 +67,10 @@ export function getMenuItems({ isAdmin = false, isDistribuidora = false }: MenuI
       ],
     }] : []),
 
-    // Pedidos (delivery)
     { title: "Pedidos", url: "/orders", icon: ShoppingBag },
 
-    // Financeiro consolidado
-    {
+    // Financeiro — só aparece se módulo financeiro habilitado
+    ...(hasFinanceiro ? [{
       title: "Financeiro", icon: TrendingUp,
       subItems: [
         { title: "Visão Geral", url: "/financeiro",          icon: BarChart3 },
@@ -68,10 +80,10 @@ export function getMenuItems({ isAdmin = false, isDistribuidora = false }: MenuI
         { title: "Títulos",     url: "/titulos",             icon: Receipt },
         { title: "DRE / Fluxo", url: "/dre",                 icon: FileText },
       ],
-    },
+    }] : []),
 
-    // Mapa de Calor movido pra dentro de Pedidos (botão top, no lugar do antigo "Horários")
-    { title: "Cardápio", url: "/menu", icon: Menu },
+    // Cardápio digital — só se módulo habilitado
+    ...(hasCardapioDigital ? [{ title: "Cardápio", url: "/menu", icon: Menu }] : []),
 
     {
       title: "Cadastros", icon: Package,
@@ -92,13 +104,14 @@ export function getMenuItems({ isAdmin = false, isDistribuidora = false }: MenuI
       ],
     },
 
-    {
+    // WhatsApp — só se módulo habilitado
+    ...(hasWhatsapp ? [{
       title: "WhatsApp", icon: MessageSquare,
       subItems: [
         { title: "Conversas",     url: "/whatsapp-chat", icon: MessageSquare },
         { title: "Configurações", url: "/whatsapp",      icon: Settings },
       ],
-    },
+    }] : []),
 
     {
       title: "Configurações", icon: Settings,
@@ -106,7 +119,7 @@ export function getMenuItems({ isAdmin = false, isDistribuidora = false }: MenuI
         { title: "Perfil da Empresa", url: "/company-profile", icon: Building2 },
         { title: "Assinatura",        url: "/billing",         icon: CreditCard },
         { title: "Gerais",            url: "/settings",        icon: Settings },
-        { title: "Retenção (LGPD)",   url: "/retention",       icon: Settings },
+        // Retenção (LGPD) movida pra dentro de Settings/Gerais como aba
       ],
     },
   ];

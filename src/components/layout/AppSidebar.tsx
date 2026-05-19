@@ -60,10 +60,17 @@ export function AppSidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Menu: distribuidoras aparece se plano permite E company tem o módulo ativo
-  // (plano = contratual / módulo = override do admin)
+  // Menu respeita módulos habilitados via AnaFood Master (modules_enabled)
+  // distribuidoras: plano + módulo. Demais: apenas módulo (são padrão liberados).
   const distribuidorasOK = hasExtra("distribuidoras") && isEnabled("distribuidoras");
-  const menuItems = getMenuItems({ isAdmin, isDistribuidora: distribuidorasOK });
+  const menuItems = getMenuItems({
+    isAdmin,
+    isDistribuidora: distribuidorasOK,
+    hasFinanceiro:      isEnabled("financeiro"),
+    hasPdv:             isEnabled("pdv"),
+    hasWhatsapp:        isEnabled("whatsapp"),
+    hasCardapioDigital: isEnabled("cardapio_digital"),
+  });
 
   // Check if mobile
   useEffect(() => {

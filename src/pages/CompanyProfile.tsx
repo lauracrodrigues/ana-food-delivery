@@ -78,6 +78,7 @@ interface FormData {
   subdomain: string;
   address: AddressData;
   google_maps_url: string;
+  menu_image_url: string;
 }
 
 const EMPTY_FORM: FormData = {
@@ -86,6 +87,7 @@ const EMPTY_FORM: FormData = {
   subdomain: '',
   address: { cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '' },
   google_maps_url: '',
+  menu_image_url: '',
 };
 
 export default function CompanyProfile() {
@@ -143,6 +145,7 @@ export default function CompanyProfile() {
       logo_url: company.logo_url || '',
       banner_url: company.banner_url || '',
       subdomain: company.subdomain || '',
+      menu_image_url: (company as any).menu_image_url || '',
       address: {
         cep: addr.cep || addr.zip_code || '',
         logradouro: addr.logradouro || addr.street || '',
@@ -174,6 +177,7 @@ export default function CompanyProfile() {
           segment: data.segment,
           logo_url: data.logo_url,
           banner_url: data.banner_url,
+          menu_image_url: data.menu_image_url || null,
           // Subdomain editável apenas por super admin (defesa em profundidade)
           ...(isSuperAdmin ? { subdomain: data.subdomain || null } : {}),
           address: {
@@ -581,6 +585,45 @@ export default function CompanyProfile() {
               <CardContent>
                 {profile?.company_id && (
                   <MenuBannersAdmin companyId={profile.company_id} />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Imagem do Cardápio enviada pelo bot quando cliente pede "cardápio" */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-primary" />
+                  Imagem do Cardápio (WhatsApp)
+                </CardTitle>
+                <CardDescription>
+                  URL da imagem (JPG/PNG) do cardápio do dia. Quando o cliente pedir "cardápio" no WhatsApp, o bot envia esta imagem primeiro e depois o link do cardápio digital.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label htmlFor="menu_image_url">URL da imagem</Label>
+                  <Input
+                    id="menu_image_url"
+                    type="url"
+                    placeholder="https://seudominio.com/cardapio-semanal.jpg"
+                    value={formData.menu_image_url}
+                    onChange={(e) => set('menu_image_url', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Dica: hospede a imagem em qualquer serviço (Google Drive público, Imgur, ou Supabase Storage) e cole o link direto aqui.
+                  </p>
+                </div>
+                {formData.menu_image_url && (
+                  <div>
+                    <Label className="text-xs">Preview:</Label>
+                    <img
+                      src={formData.menu_image_url}
+                      alt="Preview cardápio"
+                      className="mt-1 max-h-64 rounded border"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  </div>
                 )}
               </CardContent>
             </Card>

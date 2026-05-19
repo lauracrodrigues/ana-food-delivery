@@ -38,6 +38,7 @@ import { TablesSettings } from "@/components/settings/TablesSettings";
 import { BusinessHoursConfig } from "@/components/settings/BusinessHoursConfig";
 import { PaymentSettingsConfig } from "@/components/settings/PaymentSettingsConfig";
 import { MenuSortConfig } from "@/components/settings/MenuSortConfig";
+import Retention from "@/pages/Retention";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { SkeletonTable } from "@/components/loading";
 
@@ -284,7 +285,7 @@ export function Settings() {
     >
       <div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-6 w-full max-w-4xl">
+          <TabsList className="grid grid-cols-7 w-full max-w-4xl">
             <TabsTrigger value="general">Geral</TabsTrigger>
             <TabsTrigger value="payments" className="flex items-center gap-1">
               <CreditCard className="w-3.5 h-3.5" />Pagamentos
@@ -299,6 +300,7 @@ export function Settings() {
             </TabsTrigger>
             <TabsTrigger value="appearance">Aparência</TabsTrigger>
             <TabsTrigger value="print">Impressão</TabsTrigger>
+            <TabsTrigger value="lgpd">LGPD</TabsTrigger>
           </TabsList>
 
           {/* General Settings */}
@@ -722,6 +724,10 @@ export function Settings() {
             )}
           </TabsContent>
 
+          {/* LGPD — retenção de dados (movido do menu lateral) */}
+          <TabsContent value="lgpd" className="space-y-6">
+            <Retention embedded />
+          </TabsContent>
         </Tabs>
       </div>
     </PageLayout>

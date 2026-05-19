@@ -63,7 +63,11 @@ const ACTION_LABELS: Record<string, string> = {
   customer_delete: "Exclusão cliente (LGPD)",
 };
 
-export default function Retention() {
+interface RetentionProps {
+  embedded?: boolean; // true = renderizado dentro de Settings tab (sem padding/header próprio)
+}
+
+export default function Retention({ embedded = false }: RetentionProps = {}) {
   const { companyId } = useUserRole();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -145,14 +149,16 @@ export default function Retention() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <Shield className="h-7 w-7 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">Retenção de Dados (LGPD)</h1>
-          <p className="text-sm text-muted-foreground">Política de limpeza automática + audit log de cumprimento</p>
+    <div className={embedded ? "space-y-6" : "p-6 max-w-5xl mx-auto space-y-6"}>
+      {!embedded && (
+        <div className="flex items-center gap-3">
+          <Shield className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold">Retenção de Dados (LGPD)</h1>
+            <p className="text-sm text-muted-foreground">Política de limpeza automática + audit log de cumprimento</p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Política */}
       <Card>
