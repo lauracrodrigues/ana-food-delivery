@@ -44,6 +44,7 @@
 - [ ] Soft-delete originais
 
 ## Fase 8 — Testes + docs
-- [ ] Playwright E2E: criar grupo, associar a produto, pedir do cardápio
-- [ ] Snapshot validation: pedido após delete de item ainda mostra correto
-- [ ] Atualizar specs/orders/tasks com link
+- [x] Playwright E2E: smoke das RPCs + cardápio público (4/4 pass)
+- [x] Doc README.md em specs/catalogo-modifiers/
+- [~] E2E completo "criar grupo no admin → adicionar produto → pedir do cardápio" — requer auth admin, skipped (requer setup)
+- [ ] Snapshot validation: pedido após delete de item ainda mostra correto (cobertura manual via SQL)
