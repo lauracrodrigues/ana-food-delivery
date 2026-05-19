@@ -1,10 +1,12 @@
-// v1.4.0 — UserThemeSync + sino de notificações globais
-import { ReactNode, useEffect } from "react";
+// v1.5.0 — Splash screen profissional aguarda load completo
+import { ReactNode, useEffect, useState } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { initializeColorPalette, resetPalette } from "@/hooks/use-color-palette";
 import { UserThemeSync } from "@/components/layout/UserThemeSync";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { SplashScreen } from "@/components/ui/SplashScreen";
+import { useInitialLoad } from "@/hooks/useInitialLoad";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -21,15 +23,35 @@ function getSidebarDefaultOpen(): boolean {
 }
 
 export function DashboardLayout({ children, fullScreen }: DashboardLayoutProps) {
+  const { context, isReady } = useInitialLoad();
+  // Atraso mínimo de 400ms pra animação fluida (evita flash quando carrega muito rápido)
+  const [delayPassed, setDelayPassed] = useState(false);
+
   useEffect(() => {
     initializeColorPalette();
-    return () => resetPalette();
+    const t = setTimeout(() => setDelayPassed(true), 400);
+    return () => {
+      clearTimeout(t);
+      resetPalette();
+    };
   }, []);
+
+  const showSplash = !isReady || !delayPassed;
 
   return (
     <SidebarProvider defaultOpen={getSidebarDefaultOpen()}>
       <UserThemeSync />
-      <div className={`relative flex w-full bg-background ${fullScreen ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
+      {/* Splash full-screen até profile + company + logo preload concluídos */}
+      <SplashScreen
+        visible={showSplash}
+        companyLogo={context?.companyLogo}
+        companyName={context?.companyName}
+        message="Preparando o painel..."
+      />
+      <div
+        className={`relative flex w-full bg-background ${fullScreen ? 'h-screen overflow-hidden' : 'min-h-screen'} transition-opacity duration-300`}
+        style={{ opacity: showSplash ? 0 : 1 }}
+      >
         <AppSidebar />
         {/* Sino de notificações — fixo top-right em todas páginas admin */}
         <div className="fixed top-3 right-3 lg:right-4 z-40">
