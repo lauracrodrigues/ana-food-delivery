@@ -108,7 +108,8 @@ Deno.serve(async (req: Request) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        // v1.0.1 — gpt-4o-mini (10x mais barato, suporta vision). Override via OPENAI_MENU_PARSE_MODEL.
+        model: Deno.env.get('OPENAI_MENU_PARSE_MODEL') || 'gpt-4o-mini',
         max_tokens: 4096,
         messages: [
           {

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AIUsageTab } from "@/components/admin/AIUsageTab"; // v1.0.0 — painel uso de IA
+import { BillingAlertsTab } from "@/components/admin/BillingAlertsTab"; // v1.0.0 — alertas saldo API
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -453,6 +454,7 @@ export default function AdminDashboard() {
           <TabsList>
             <TabsTrigger value="tenants">🏢 Lojas</TabsTrigger>
             <TabsTrigger value="ai">🧠 Uso de IA</TabsTrigger>
+            <TabsTrigger value="billing">🔔 Alertas Saldo</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tenants" className="space-y-4">
@@ -745,6 +747,11 @@ export default function AdminDashboard() {
           {/* Aba IA — painel realtime de uso */}
           <TabsContent value="ai" className="space-y-4">
             <AIUsageTab />
+          </TabsContent>
+
+          {/* Aba Alertas — saldo API com WhatsApp */}
+          <TabsContent value="billing" className="space-y-4">
+            <BillingAlertsTab />
           </TabsContent>
         </Tabs>
       </main>
