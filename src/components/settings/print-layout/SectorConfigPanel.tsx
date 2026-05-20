@@ -338,7 +338,6 @@ export function SectorConfigPanel({
                 </div>
               </div>
             </div>
-          </div>
 
             </CollapsibleContent>
           </Collapsible>
