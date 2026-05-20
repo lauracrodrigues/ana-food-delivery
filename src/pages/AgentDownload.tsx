@@ -1,7 +1,7 @@
 // v1.0.0 — Página pública de download do agente Ana Food Print
 import { Download, Apple, Monitor, ChevronRight, Printer, Wifi, Zap, Shield } from "lucide-react";
 
-const VERSION = "1.0.1";
+const VERSION = "1.0.2";
 const RELEASES_BASE = "https://github.com/Tarcisio-maissistem/ana-food-print/releases/latest/download";
 
 export default function AgentDownload() {
