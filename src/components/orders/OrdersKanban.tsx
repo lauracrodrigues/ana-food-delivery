@@ -6,7 +6,8 @@ import { SkeletonKanban } from "@/components/loading";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { qzPrinter } from "@/lib/qz-tray";
+// v1.2.0 — QZ Tray removido. Impressão via Ana Food Print gateway (queuePrintJob).
+import { queuePrintJob } from "@/lib/ana-food-print";
 import { apiClient } from "@/lib/api-client";
 import { useCompanyId } from "@/hooks/useCompanyId";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -429,29 +430,15 @@ export function OrdersKanban() {
             // Buscar config do setor caixa
             const caixaConfig = printerSettings?.sectors?.caixa;
 
-            // v1.1.0 — Tenta Ana Food Print (gateway novo) E QZ Tray (legado) em paralelo
-            // Backend só despacha se houver device online; caso contrário, ignora.
-            try {
-              const { queuePrintJob } = await import("@/lib/ana-food-print");
-              queuePrintJob({
-                sector: "caixa",
-                payload: enrichedOrderForAutoPrint,
-                copies: caixaConfig?.copies || 1,
-              }).then(r => r.ok && console.log("✅ AnaFoodPrint caixa enfileirado"));
-            } catch (_) {}
-
-            if (caixaConfig?.enabled && caixaConfig?.printer_name) {
-              qzPrinter.printOrder(
-                enrichedOrderForAutoPrint,
-                caixaConfig.printer_name,
-                false,
-                'caixa',
-                caixaConfig.layout,
-                caixaConfig.copies || 1
-              )
-                .then(() => console.log('✅ Impressão caixa OK'))
-                .catch(error => console.error('❌ Erro impressão caixa:', error));
-            }
+            // v1.2.0 — Impressão via Ana Food Print gateway
+            queuePrintJob({
+              sector: "caixa",
+              payload: enrichedOrderForAutoPrint,
+              copies: caixaConfig?.copies || 1,
+            }).then(r => {
+              if (r.ok) console.log("✅ AnaFoodPrint caixa enfileirado");
+              else console.warn("⚠️ Impressão caixa não enfileirada:", r.error);
+            });
 
             // Impressão por SETOR (cozinha/copa/bar/etc) baseado em products.print_sector
             // Agrupa items do pedido pelo setor, gera 1 ticket por setor ativo
@@ -480,30 +467,17 @@ export function OrdersKanban() {
                   bySector[sector].push(item);
                 }
 
-                // Print 1 ticket por setor (com items só daquele setor)
-                const { queuePrintJob: queuePrintJobNew } = await import("@/lib/ana-food-print");
+                // v1.2.0 — Ticket por setor via gateway (cozinha/bar/etc)
                 for (const [sector, items] of Object.entries(bySector)) {
                   const sectorCfg = printerSettings?.sectors?.[sector];
                   const orderForSector = { ...enrichedOrderForAutoPrint, items };
-
-                  // v1.1.0 — Ana Food Print gateway (paralelo ao QZ)
-                  queuePrintJobNew({
+                  queuePrintJob({
                     sector: sector as any,
                     payload: orderForSector,
                     copies: sectorCfg?.copies || 1,
-                  }).then(r => r.ok && console.log(`✅ AnaFoodPrint ${sector} enfileirado`));
-
-                  if (!sectorCfg?.enabled || !sectorCfg?.printer_name) continue;
-                  qzPrinter.printOrder(
-                    orderForSector,
-                    sectorCfg.printer_name,
-                    false,
-                    sector,
-                    sectorCfg.layout,
-                    sectorCfg.copies || 1
-                  )
-                    .then(() => console.log(`✅ Impressão ${sector} OK (${items.length} itens)`))
-                    .catch(err => console.error(`❌ Erro impressão ${sector}:`, err));
+                  }).then(r => {
+                    if (r.ok) console.log(`✅ AnaFoodPrint ${sector} enfileirado (${items.length} itens)`);
+                  });
                 }
               }
             } catch (sectorErr) {
@@ -540,21 +514,16 @@ export function OrdersKanban() {
               company_email: companyDataForPrint?.email || '',
             };
 
-            // Print ticket CANCELADO no caixa + em todos setores ativos
-            // (assim cozinha sabe pra parar de preparar)
+            // v1.2.0 — Ticket CANCELADO em todos setores via gateway (avisa cozinha pra parar)
             const sectors = printerSettings?.sectors || {};
-            for (const [sectorName, cfg] of Object.entries<any>(sectors)) {
-              if (!cfg?.enabled || !cfg?.printer_name) continue;
-              qzPrinter.printOrder(
-                enrichedCancel,
-                cfg.printer_name,
-                false,
-                sectorName,
-                cfg.layout,
-                1, // sempre 1 cópia pra cancelamento
-              )
-                .then(() => console.log(`✅ Cancelamento impresso em ${sectorName}`))
-                .catch(err => console.error(`❌ Erro cancelamento ${sectorName}:`, err));
+            for (const sectorName of Object.keys(sectors)) {
+              queuePrintJob({
+                sector: sectorName as any,
+                payload: enrichedCancel,
+                copies: 1,
+              }).then(r => {
+                if (r.ok) console.log(`✅ Cancelamento enfileirado em ${sectorName}`);
+              });
             }
           } catch (cancelPrintErr) {
             console.error('❌ Erro auto-print cancelamento:', cancelPrintErr);
@@ -667,7 +636,6 @@ export function OrdersKanban() {
     console.log('Pedido:', order.order_number);
     console.log('Status atual:', order.status);
     console.log('Reimpressão:', isReprint);
-    console.log('QZ Tray disponível?', typeof window !== 'undefined' && typeof (window as any).qz !== 'undefined');
     console.log('Order completo recebido:', {
       id: order.id,
       order_number: order.order_number,
@@ -678,8 +646,8 @@ export function OrdersKanban() {
     setIsPrinting(true);
     
     try {
-      console.log('Chamando qzPrinter.printOrder...');
-      
+      console.log('Enfileirando print via Ana Food Print gateway...');
+
       // Helper para formatar endereço completo
       const formatAddress = (addr: any): string => {
         if (!addr) return '';
@@ -728,20 +696,13 @@ export function OrdersKanban() {
         hasLayout: !!sectorConfig?.layout
       });
       
-      if (sectorConfig?.enabled && sectorConfig?.printer_name) {
-        await qzPrinter.printOrder(
-          enrichedOrder,
-          sectorConfig.printer_name,
-          isReprint,
-          sector as any,
-          sectorConfig.layout,
-          sectorConfig.copies || 1
-        );
-      } else {
-        // Fallback para estrutura antiga
-        const layoutConfig = layoutConfigs?.[sector];
-        await qzPrinter.printOrder(enrichedOrder, undefined, isReprint, sector as any, layoutConfig, 1);
-      }
+      // v1.2.0 — envia via gateway. Reimpressão usa mesmo fluxo.
+      const r = await queuePrintJob({
+        sector: 'caixa',
+        payload: { ...enrichedOrder, _reprint: isReprint },
+        copies: sectorConfig?.copies || 1,
+      });
+      if (!r.ok) throw new Error(r.error || 'Falha enfileirar');
       
       console.log('✅ Impressão concluída com sucesso!');
       toast({

@@ -30,7 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { qzPrinter } from "@/lib/qz-tray";
+// v1.2.0 — QZ removido. Impressoras gerenciadas pelo Ana Food Print agent.
 import { useTheme } from "@/components/theme-provider";
 import { useColorPalette, type ColorPalette } from "@/hooks/use-color-palette";
 import { PrintLayoutConfig } from "@/components/settings/print-layout/PrintLayoutConfig";
@@ -187,29 +187,11 @@ export function Settings() {
   }, [activeTab, storeSettings]);
 
   // Fetch available printers - only shows toast if manual
-  const fetchPrinters = async (showToast = true) => {
-    setLoadingPrinters(true);
-    try {
-      const printers = await qzPrinter.getPrinters();
-      setAvailablePrinters(printers);
-      if (showToast) {
-        toast({
-          title: "Sucesso",
-          description: `${printers.length} impressora(s) encontrada(s)`,
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao buscar impressoras:", error);
-      if (showToast) {
-        toast({
-          title: "Erro",
-          description: "Certifique-se que o QZ Tray está aberto e rodando",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setLoadingPrinters(false);
-    }
+  const fetchPrinters = async (_showToast = true) => {
+    // v1.2.0 — Impressoras agora vêm do app Ana Food Print (configuração local).
+    // Aqui apenas mantém compat com componentes antigos.
+    setLoadingPrinters(false);
+    setAvailablePrinters([]);
   };
 
   // Update store settings mutation

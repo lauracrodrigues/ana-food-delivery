@@ -7,8 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyId } from "@/hooks/useCompanyId";
-import { QZTrayPrinter } from "@/lib/qz-tray";
-import { printerCache } from "@/lib/printer-cache";
+// v1.2.0 — QZ Tray removido. Impressoras agora no Ana Food Print agent.
 import { SectorConfigPanel } from "./SectorConfigPanel";
 import { PrinterStatusBadge } from "./PrinterStatusBadge";
 import { PrinterPresetWizard } from "./PrinterPresetWizard";
@@ -121,22 +120,7 @@ export function PrintLayoutConfig() {
     enabled: !!companyId,
   });
 
-  // Carregar impressoras do cache ou buscar
-  useEffect(() => {
-    const loadPrinters = async () => {
-      // Tentar carregar do cache primeiro
-      const cached = printerCache.get();
-      if (cached) {
-        setAvailablePrinters(cached);
-        return;
-      }
-
-      // Se não tem cache, buscar
-      await fetchPrinters(false);
-    };
-
-    loadPrinters();
-  }, []);
+  // v1.2.0 — impressoras vêm do app Ana Food Print. Aqui mantém placeholder vazio.
 
   // Load config when settings change
   useEffect(() => {
@@ -175,37 +159,10 @@ export function PrintLayoutConfig() {
     setSectorsConfig(newConfig);
   }, [settings]);
 
-  // Fetch printers
-  const fetchPrinters = async (showToast = true) => {
-    setLoadingPrinters(true);
-    try {
-      const qzTray = QZTrayPrinter.getInstance();
-      const printers = await qzTray.getPrinters();
-      setAvailablePrinters(printers);
-      printerCache.set(printers);
-
-      // Auto-seleciona primeira impressora pro CAIXA quando vazio
-      // (caixa vem enabled=true por default — facilita first-run)
-      if (printers.length > 0) {
-        setSectorsConfig(prev => {
-          if (!prev.caixa.printer_name && prev.caixa.enabled) {
-            return { ...prev, caixa: { ...prev.caixa, printer_name: printers[0] } };
-          }
-          return prev;
-        });
-      }
-
-      if (showToast) {
-        toast.success(`${printers.length} impressora(s) encontrada(s)`);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar impressoras:", error);
-      if (showToast) {
-        toast.error("Certifique-se que o QZ Tray está aberto e rodando");
-      }
-    } finally {
-      setLoadingPrinters(false);
-    }
+  // v1.2.0 — impressoras configuradas no app Ana Food Print local
+  const fetchPrinters = async (_showToast = true) => {
+    setLoadingPrinters(false);
+    setAvailablePrinters([]);
   };
 
   // Save mutation
@@ -261,11 +218,15 @@ export function PrintLayoutConfig() {
         company_address: companyData?.address || MOCK_ORDER.company_address,
       };
       
-      const qzTray = QZTrayPrinter.getInstance();
-      await qzTray.connect();
-      await qzTray.printOrder(testOrder, config.printer_name, false, sector as any, config.layout, config.copies);
-
-      toast.success("Impressão de teste enviada!");
+      // v1.2.0 — Teste via gateway Ana Food Print
+      const { queuePrintJob } = await import("@/lib/ana-food-print");
+      const r = await queuePrintJob({
+        sector: sector as any,
+        payload: testOrder,
+        copies: config.copies || 1,
+      });
+      if (!r.ok) throw new Error(r.error || 'falha enfileirar');
+      toast.success("Impressão de teste enfileirada!");
     } catch (error) {
       console.error("Erro na impressão de teste:", error);
       toast.error("Erro ao imprimir teste");
