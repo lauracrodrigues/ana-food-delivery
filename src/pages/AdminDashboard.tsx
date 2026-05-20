@@ -964,15 +964,14 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-muted-foreground" />
+                        <FileText className="w-5 h-5 text-emerald-500" />
                         <div>
-                          <p className="text-sm font-medium">QZ Tray</p>
-                          <p className="text-xs text-muted-foreground">Impressão</p>
+                          <p className="text-sm font-medium">Ana Food Print</p>
+                          <p className="text-xs text-muted-foreground">Agente desktop de impressão</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <WifiOff className="w-4 h-4 text-destructive" />
-                        <span className="text-xs text-destructive">Desconectado</span>
+                        <span className="text-xs text-muted-foreground">via gateway</span>
                       </div>
                     </div>
                     <div className="flex items-center justify-between p-3 border rounded-lg">

@@ -1,4 +1,4 @@
-// v1.0.0 — Cliente JS pro gateway Ana Food Print (substitui/complementa QZ Tray)
+// v1.0.0 — Cliente JS pro gateway Ana Food Print (agente desktop oficial)
 // Envia jobs ao backend que despacha via WebSocket pros agentes desktop
 import { supabase } from "@/integrations/supabase/client";
 
@@ -40,7 +40,7 @@ export async function queuePrintJob(input: QueueJobInput): Promise<{ ok: boolean
 
 /**
  * Verifica se a loja tem pelo menos um agente Ana Food Print online.
- * Usado para decidir entre QZ Tray (legado) e gateway novo.
+ * Mantém compat com check legado.
  */
 export async function hasOnlineDevice(): Promise<boolean> {
   try {

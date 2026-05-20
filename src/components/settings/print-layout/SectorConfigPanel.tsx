@@ -88,16 +88,27 @@ export function SectorConfigPanel({
     }
   };
 
-  // Auto-save com debounce
+  // v1.2.0 — Auto-save: skip mount + compara snapshot pra evitar saves redundantes
+  const firstRunRef = useRef(true);
+  const lastSavedRef = useRef<string>('');
   useEffect(() => {
+    if (firstRunRef.current) {
+      firstRunRef.current = false;
+      lastSavedRef.current = JSON.stringify(config);
+      return;
+    }
     if (!config.enabled) return;
-    
+
+    const snapshot = JSON.stringify(config);
+    if (snapshot === lastSavedRef.current) return; // sem mudança real
+
     const timer = setTimeout(() => {
+      lastSavedRef.current = snapshot;
       onSaveRef.current();
     }, 1500);
-    
+
     return () => clearTimeout(timer);
-  }, [config, config.enabled]);
+  }, [config]);
 
   return (
     <Card>

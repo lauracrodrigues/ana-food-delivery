@@ -188,7 +188,7 @@ export function PrintLayoutConfig() {
     },
     onSuccess: (_, { sector }) => {
       queryClient.invalidateQueries({ queryKey: ["store-settings", companyId] });
-      toast.success(`Configurações do ${SECTOR_LABELS_MAP[sector].label} salvas!`);
+      // v1.2.0 — sem toast no auto-save (era barulhento). Só toast em erro.
       setSavingSector(null);
     },
     onError: (error, { sector }) => {
