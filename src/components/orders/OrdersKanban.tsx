@@ -428,7 +428,18 @@ export function OrdersKanban() {
             
             // Buscar config do setor caixa
             const caixaConfig = printerSettings?.sectors?.caixa;
-            
+
+            // v1.1.0 — Tenta Ana Food Print (gateway novo) E QZ Tray (legado) em paralelo
+            // Backend só despacha se houver device online; caso contrário, ignora.
+            try {
+              const { queuePrintJob } = await import("@/lib/ana-food-print");
+              queuePrintJob({
+                sector: "caixa",
+                payload: enrichedOrderForAutoPrint,
+                copies: caixaConfig?.copies || 1,
+              }).then(r => r.ok && console.log("✅ AnaFoodPrint caixa enfileirado"));
+            } catch (_) {}
+
             if (caixaConfig?.enabled && caixaConfig?.printer_name) {
               qzPrinter.printOrder(
                 enrichedOrderForAutoPrint,
@@ -470,10 +481,19 @@ export function OrdersKanban() {
                 }
 
                 // Print 1 ticket por setor (com items só daquele setor)
+                const { queuePrintJob: queuePrintJobNew } = await import("@/lib/ana-food-print");
                 for (const [sector, items] of Object.entries(bySector)) {
                   const sectorCfg = printerSettings?.sectors?.[sector];
-                  if (!sectorCfg?.enabled || !sectorCfg?.printer_name) continue;
                   const orderForSector = { ...enrichedOrderForAutoPrint, items };
+
+                  // v1.1.0 — Ana Food Print gateway (paralelo ao QZ)
+                  queuePrintJobNew({
+                    sector: sector as any,
+                    payload: orderForSector,
+                    copies: sectorCfg?.copies || 1,
+                  }).then(r => r.ok && console.log(`✅ AnaFoodPrint ${sector} enfileirado`));
+
+                  if (!sectorCfg?.enabled || !sectorCfg?.printer_name) continue;
                   qzPrinter.printOrder(
                     orderForSector,
                     sectorCfg.printer_name,

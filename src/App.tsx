@@ -22,6 +22,7 @@ const Login = lazy(() => import("./pages/Login"));
 // Lazy load non-critical routes
 const Registration = lazy(() => import("./pages/Registration"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AgentDownload  = lazy(() => import("./pages/AgentDownload"));
 const StoreDashboard = lazy(() => import("./pages/StoreDashboard"));
 const Orders = lazy(() => import("./pages/Orders"));
 const Customers = lazy(() => import("./pages/Customers").then(m => ({ default: m.Customers })));
@@ -283,6 +284,12 @@ const App = () => {
             <Route path="/completar-perfil" element={
               <Suspense fallback={<FullLoadingFallback />}>
                 <CompleteProfile />
+              </Suspense>
+            } />
+            {/* v1.0.0 — Página pública download agente Ana Food Print */}
+            <Route path="/agente/download" element={
+              <Suspense fallback={<FullLoadingFallback />}>
+                <AgentDownload />
               </Suspense>
             } />
             <Route path="/menu/:subdomain" element={
