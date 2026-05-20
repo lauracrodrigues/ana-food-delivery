@@ -218,11 +218,18 @@ export function PrintLayoutConfig() {
         company_address: companyData?.address || MOCK_ORDER.company_address,
       };
       
-      // v1.2.0 — Teste via gateway Ana Food Print
+      // v1.2.1 — Teste via gateway: gera mesmas linhas do preview, manda como texto pronto
+      // Garante IMPRESSÃO === PREVIEW
       const { queuePrintJob } = await import("@/lib/ana-food-print");
+      const { formatReceipt } = await import("@/lib/thermal-formatter");
+      const { linesToEscPosMarkers } = await import("@/lib/lines-to-escpos-markers");
+
+      const lines = formatReceipt(testOrder, config.layout, companyData);
+      const previewText = linesToEscPosMarkers(lines);
+
       const r = await queuePrintJob({
         sector: sector as any,
-        payload: testOrder,
+        payload: { text: previewText }, // text pronto — agente não re-formata
         copies: config.copies || 1,
       });
       if (!r.ok) throw new Error(r.error || 'falha enfileirar');
