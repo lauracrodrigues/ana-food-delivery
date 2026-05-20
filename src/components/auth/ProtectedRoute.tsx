@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useUserRole, UserRole } from "@/hooks/use-user-role";
 import { Loader2 } from "lucide-react";
-import { usePrinterCache } from "@/hooks/usePrinterCache";
+// v1.2.0 — usePrinterCache removido (QZ Tray descontinuado)
 
 // ── Spinner compartilhado ────────────────────────────────────────────────────
 function RoleLoading() {
@@ -27,7 +27,6 @@ export function AdminRoute({ children }: { children: ReactNode }) {
 // Só company_admin e company_staff podem acessar.
 // super_admin → /admin. Não logado → /login.
 export function ClientRoute({ children }: { children: ReactNode }) {
-  usePrinterCache();
   const { role, isLoading } = useUserRole();
   if (isLoading) return <RoleLoading />;
   if (!role) return <Navigate to="/login" replace />;
