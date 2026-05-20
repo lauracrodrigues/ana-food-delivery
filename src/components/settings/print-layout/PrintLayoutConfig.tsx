@@ -12,6 +12,7 @@ import { printerCache } from "@/lib/printer-cache";
 import { SectorConfigPanel } from "./SectorConfigPanel";
 import { PrinterStatusBadge } from "./PrinterStatusBadge";
 import { PrinterPresetWizard } from "./PrinterPresetWizard";
+import { PrinterDevicesPanel } from "./PrinterDevicesPanel";
 import type { PrintSector, SectorConfig, SECTOR_LABELS } from "@/types/printer-settings";
 import { DEFAULT_EXTENDED_CONFIG } from "@/types/printer-layout-extended";
 import { MOCK_ORDER } from "@/lib/thermal-mock";
@@ -302,6 +303,9 @@ export function PrintLayoutConfig() {
           <PrinterStatusBadge />
         </div>
       </div>
+
+      {/* v1.1.0 — Devices Ana Food Print */}
+      <PrinterDevicesPanel />
 
       {/* Sectors Accordion */}
       <Accordion type="single" collapsible defaultValue="caixa" className="space-y-2">
