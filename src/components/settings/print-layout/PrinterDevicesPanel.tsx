@@ -106,9 +106,9 @@ export function PrinterDevicesPanel() {
       <CardHeader>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <CardTitle className="text-base">🖨️ Ana Food Print — Agentes</CardTitle>
+            <CardTitle className="text-base">🖨️ Ana Food Print — Computadores</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              Computadores autorizados a imprimir os pedidos desta loja
+              Cada computador da loja roda o agente e pode ter várias impressoras conectadas (caixa, cozinha, bar)
             </p>
           </div>
           <div className="flex gap-2">
@@ -118,7 +118,7 @@ export function PrinterDevicesPanel() {
               </a>
             </Button>
             <Button size="sm" onClick={() => setShowCodeDialog(true)} className="gap-1">
-              <Plus className="h-3.5 w-3.5" /> Conectar nova impressora
+              <Plus className="h-3.5 w-3.5" /> Conectar computador
             </Button>
           </div>
         </div>
@@ -128,7 +128,7 @@ export function PrinterDevicesPanel() {
           <Loader2 className="h-5 w-5 animate-spin mx-auto" />
         ) : devices.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-8">
-            Nenhum agente conectado. Baixe e instale o Ana Food Print pra começar.
+            Nenhum computador conectado. Baixe e instale o Ana Food Print pra começar.
           </p>
         ) : (
           <Table>
@@ -184,23 +184,27 @@ export function PrinterDevicesPanel() {
       <Dialog open={showCodeDialog} onOpenChange={(v) => { setShowCodeDialog(v); if (!v) { setGeneratedCode(null); setDeviceName(""); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Conectar nova impressora</DialogTitle>
+            <DialogTitle>Conectar computador</DialogTitle>
           </DialogHeader>
 
           {!generatedCode ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                1️⃣ Abra o aplicativo <b>Ana Food Print</b> no computador da loja<br />
+                1️⃣ Abra o aplicativo <b>Ana Food Print</b> no computador<br />
                 2️⃣ Vou gerar um código de 6 dígitos<br />
-                3️⃣ Digite o código no aplicativo
+                3️⃣ Digite o código no aplicativo<br />
+                4️⃣ As impressoras (caixa, cozinha, bar) são configuradas no próprio app
               </p>
               <div>
-                <Label className="text-xs">Apelido pra identificar (opcional)</Label>
+                <Label className="text-xs">Apelido do computador (opcional)</Label>
                 <Input
-                  placeholder="Ex: Caixa frente, Cozinha"
+                  placeholder="Ex: PC do caixa, Notebook da cozinha"
                   value={deviceName}
                   onChange={(e) => setDeviceName(e.target.value)}
                 />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Identifica este computador — útil quando você tem mais de um
+                </p>
               </div>
               <Button onClick={() => generateCode.mutate()} disabled={generateCode.isPending} className="w-full">
                 {generateCode.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
