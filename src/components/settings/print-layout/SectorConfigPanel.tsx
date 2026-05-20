@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { RefreshCw, Edit } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { RefreshCw, Edit, ChevronDown, Settings2 } from 'lucide-react';
 import { UnifiedFieldsList } from './UnifiedFieldsList';
 import { ThermalPreview } from './ThermalPreview';
 import { FooterMessageDialog } from './FooterMessageDialog';
@@ -54,6 +55,9 @@ export function SectorConfigPanel({
   const [selectedTemplate, setSelectedTemplate] = useState<string>('custom');
   const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(null);
   const [footerDialogOpen, setFooterDialogOpen] = useState(false);
+  // v1.1.0 — UX: avançado colapsado por padrão
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showFieldsEditor, setShowFieldsEditor] = useState(false);
   
   // Use ref to avoid onSave dependency causing infinite loop
   const onSaveRef = useRef(onSave);
@@ -113,10 +117,10 @@ export function SectorConfigPanel({
       <CardContent className="grid grid-cols-1 lg:grid-cols-[1fr,350px] gap-6">
         {/* Coluna Esquerda: Configurações com scroll */}
         <div className="space-y-4 max-h-[calc(100vh-14rem)] overflow-y-auto pr-2 scrollbar-thin">
-          {/* NOVA SEÇÃO: Opções de Impressão */}
+          {/* SEÇÃO BÁSICO — sempre visível */}
           <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
-            <h3 className="text-sm font-semibold">Opções de Impressão</h3>
-            
+            <h3 className="text-sm font-semibold flex items-center gap-2">⚡ Configuração Básica</h3>
+
             {/* Linha 1: Campos principais */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Template Base */}
@@ -205,6 +209,20 @@ export function SectorConfigPanel({
               </div>
             </div>
 
+          </div>
+
+          {/* SEÇÃO AVANÇADO — colapsada por padrão */}
+          <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full justify-between" disabled={!config.enabled}>
+                <span className="flex items-center gap-2 text-xs">
+                  <Settings2 className="h-3.5 w-3.5" />
+                  Configuração Avançada (margens, vias, rodapé)
+                </span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3 p-3 border rounded-lg bg-muted/10 mt-2">
             {/* Linha 3: Opções adicionais */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {/* Número de Vias */}
@@ -322,6 +340,9 @@ export function SectorConfigPanel({
             </div>
           </div>
 
+            </CollapsibleContent>
+          </Collapsible>
+
           <FooterMessageDialog
             open={footerDialogOpen}
             onOpenChange={setFooterDialogOpen}
@@ -329,14 +350,25 @@ export function SectorConfigPanel({
             onChange={(value) => updateLayout({ footer_message: value })}
           />
 
-          <Separator />
-          
-          {/* Configuração dos Campos */}
-          <UnifiedFieldsList
-            config={config.layout}
-            onChange={updateLayout}
-            highlightedFieldId={highlightedFieldId}
-          />
+          {/* Editor de campos do recibo — colapsado */}
+          <Collapsible open={showFieldsEditor} onOpenChange={setShowFieldsEditor}>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full justify-between" disabled={!config.enabled}>
+                <span className="flex items-center gap-2 text-xs">
+                  <Edit className="h-3.5 w-3.5" />
+                  Personalizar campos do recibo
+                </span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${showFieldsEditor ? 'rotate-180' : ''}`} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <UnifiedFieldsList
+                config={config.layout}
+                onChange={updateLayout}
+                highlightedFieldId={highlightedFieldId}
+              />
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
         {/* Coluna Direita: Preview sticky */}

@@ -10,17 +10,21 @@ import { useCompanyId } from "@/hooks/useCompanyId";
 import { QZTrayPrinter } from "@/lib/qz-tray";
 import { printerCache } from "@/lib/printer-cache";
 import { SectorConfigPanel } from "./SectorConfigPanel";
+import { PrinterStatusBadge } from "./PrinterStatusBadge";
+import { PrinterPresetWizard } from "./PrinterPresetWizard";
 import type { PrintSector, SectorConfig, SECTOR_LABELS } from "@/types/printer-settings";
 import { DEFAULT_EXTENDED_CONFIG } from "@/types/printer-layout-extended";
 import { MOCK_ORDER } from "@/lib/thermal-mock";
 
-const SECTORS: PrintSector[] = ["caixa", "cozinha_1", "cozinha_2", "copa_bar"];
+// v1.1.0 — Adiciona Cozinha 3
+const SECTORS: PrintSector[] = ["caixa", "cozinha_1", "cozinha_2", "cozinha_3", "copa_bar"];
 
 const SECTOR_LABELS_MAP = {
-  caixa: { label: "Caixa", icon: "💰" },
+  caixa:     { label: "Caixa",     icon: "💰" },
   cozinha_1: { label: "Cozinha 1", icon: "👨‍🍳" },
   cozinha_2: { label: "Cozinha 2", icon: "👩‍🍳" },
-  copa_bar: { label: "Copa/Bar", icon: "🍹" },
+  cozinha_3: { label: "Cozinha 3", icon: "🧑‍🍳" },
+  copa_bar:  { label: "Copa/Bar",  icon: "🍹" },
 };
 
 export function PrintLayoutConfig() {
@@ -50,6 +54,14 @@ export function PrintLayoutConfig() {
       text_mode: "normal",
     },
     cozinha_2: {
+      enabled: false,
+      printer_name: "",
+      copies: 1,
+      layout: DEFAULT_EXTENDED_CONFIG,
+      cut_type: "partial",
+      text_mode: "normal",
+    },
+    cozinha_3: {
       enabled: false,
       printer_name: "",
       copies: 1,
@@ -275,6 +287,22 @@ export function PrintLayoutConfig() {
 
   return (
     <div className="space-y-4">
+      {/* v1.1.0 — Header com status agente + preset wizard */}
+      <div className="flex items-center justify-between gap-2 flex-wrap p-3 border rounded-lg bg-muted/30">
+        <div>
+          <h3 className="text-sm font-semibold">Configuração de Impressoras</h3>
+          <p className="text-xs text-muted-foreground">Configure setores e impressoras térmicas</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <PrinterPresetWizard
+            currentConfig={sectorsConfig}
+            availablePrinters={availablePrinters}
+            onApply={(newConfig) => setSectorsConfig(newConfig)}
+          />
+          <PrinterStatusBadge />
+        </div>
+      </div>
+
       {/* Sectors Accordion */}
       <Accordion type="single" collapsible defaultValue="caixa" className="space-y-2">
         {SECTORS.map((sector) => (

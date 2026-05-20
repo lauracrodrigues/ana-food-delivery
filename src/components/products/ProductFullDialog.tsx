@@ -51,12 +51,14 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+// v1.1.0 — Cozinha 3 adicionada (canonical: cozinha_1/cozinha_2/cozinha_3/copa_bar)
 const PRINT_SECTORS = [
-  { value: "caixa",    label: "Caixa" },
-  { value: "cozinha1", label: "Cozinha 1" },
-  { value: "cozinha2", label: "Cozinha 2" },
-  { value: "bar",      label: "Copa/Bar" },
-  { value: "none",     label: "Nenhum (não imprime)" },
+  { value: "caixa",     label: "Caixa" },
+  { value: "cozinha_1", label: "Cozinha 1" },
+  { value: "cozinha_2", label: "Cozinha 2" },
+  { value: "cozinha_3", label: "Cozinha 3" },
+  { value: "copa_bar",  label: "Copa/Bar" },
+  { value: "none",      label: "Nenhum (não imprime)" },
 ];
 
 const emptyForm = (defaultCat?: string | null): Partial<Product> => ({
