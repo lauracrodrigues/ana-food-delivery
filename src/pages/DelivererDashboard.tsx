@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MotoIcon } from "@/components/ui/moto-icon";
 import { QrScanDialog } from "@/components/deliverer/QrScanDialog";
-import { ScanLine } from "lucide-react";
+import { AvailableOrdersTab } from "@/components/deliverer/AvailableOrdersTab";
+import { ScanLine, Inbox } from "lucide-react";
 import {
   MapPin, Navigation, CheckCircle2, LogOut, Phone, Package,
   ChevronDown, ChevronUp, Route, KeyRound, Eye, EyeOff,
@@ -661,7 +662,8 @@ export default function DelivererDashboard() {
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [authState, setAuthState] = useState<'loading' | 'unauthenticated' | 'authenticated'>('loading');
   const [mustChangePassword, setMustChangePassword] = useState<boolean | null>(null);
-  const [activeTab, setActiveTab] = useState<'deliveries' | 'reports'>('deliveries');
+  const [activeTab, setActiveTab] = useState<'deliveries' | 'available' | 'reports'>('deliveries');
+  const [routeStatus, setRouteStatus] = useState<'idle' | 'collecting' | 'on_route'>('idle');
   const [manualOrder, setManualOrder] = useState<string[]>([]);
   const [transferOrder, setTransferOrder] = useState<Order | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
@@ -713,10 +715,12 @@ export default function DelivererDashboard() {
       // @ts-expect-error -- Supabase generated types don't include this table yet
       const { data } = await supabase
         .from("deliverers")
-        .select("id, name, phone, company_id, email, daily_rate")
+        .select("id, name, phone, company_id, email, daily_rate, route_status")
         .eq("email", user.email)
         .single();
-      return data as Deliverer | null;
+      // v1.0.0 — sincroniza route_status local
+      if (data?.route_status) setRouteStatus(data.route_status);
+      return data as (Deliverer & { route_status?: string }) | null;
     },
     enabled: dashboardActive,
   });
@@ -1031,6 +1035,14 @@ export default function DelivererDashboard() {
             </p>
           )}
         </div>
+      ) : activeTab === 'available' ? (
+        <div className="px-4 py-4 max-w-2xl mx-auto">
+          <AvailableOrdersTab
+            delivererId={deliverer.id}
+            routeStatus={routeStatus}
+            onRouteStarted={() => { setRouteStatus('on_route'); setActiveTab('deliveries'); }}
+          />
+        </div>
       ) : (
         <ReportsTab deliverer={deliverer} />
       )}
@@ -1074,6 +1086,18 @@ export default function DelivererDashboard() {
             )}
           </div>
           Entregas
+        </button>
+        {/* v1.0.0 — Aba Disponíveis */}
+        <button
+          onClick={() => setActiveTab('available')}
+          className={`flex-1 py-3 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors ${
+            activeTab === 'available'
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Inbox className="w-5 h-5" />
+          Disponíveis
         </button>
         <button
           onClick={() => setActiveTab('reports')}
