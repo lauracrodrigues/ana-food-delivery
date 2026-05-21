@@ -387,6 +387,11 @@ function getElementContent(
     case '{mensagem_rodape}':
       content = config.footer_message || 'Obrigado pela preferência!';
       break;
+    case '{qr_pickup}':
+      // v1.0.1 — Marcador especial que o agente desktop converte em QR Code real
+      // Preview mostra placeholder visual
+      content = order.pickup_qr_token ? `{{QR:${order.pickup_qr_token}:6}}` : '';
+      break;
     default:
       content = '';
   }

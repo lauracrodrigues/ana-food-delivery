@@ -26,7 +26,8 @@ export type PrintTag =
   | '{subtotal}'
   | '{taxa_entrega}'
   | '{total}'
-  | '{forma_pagamento}';
+  | '{forma_pagamento}'
+  | '{qr_pickup}';   // v1.0.1 — QR code do token de captura por entregador
 
 export type TextAlign = 'left' | 'center' | 'right';
 

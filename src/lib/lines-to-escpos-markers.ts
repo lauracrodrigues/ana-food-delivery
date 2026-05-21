@@ -1,5 +1,5 @@
-// v1.0.0 — Converte FormattedLine[] (do preview) → string com marcadores ESC/POS
-// Agente desktop interpreta {{C}}, {{L}}, {{2X}}, {{B}} e gera bytes corretos.
+// v1.0.1 — Converte FormattedLine[] (do preview) → string com marcadores ESC/POS
+// Agente desktop interpreta {{C}}, {{L}}, {{2X}}, {{B}}, {{QR:data}}.
 // Garante que IMPRESSÃO === PREVIEW.
 import type { FormattedLine } from "@/types/printer-layout-extended";
 
