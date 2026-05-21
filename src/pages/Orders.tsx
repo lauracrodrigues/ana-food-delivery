@@ -3,7 +3,8 @@ import { OrdersKanban } from "@/components/orders/OrdersKanban";
 import { WaiterCallsAlert } from "@/components/orders/WaiterCallsAlert";
 import { ManualOrderSidebar } from "@/components/orders/ManualOrderSidebar";
 import { Button } from "@/components/ui/button";
-import { Store, Bot, Flame, PlusCircle } from "lucide-react";
+import { Store, Bot, Flame, PlusCircle, Bike } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { HeatmapDialog } from "@/components/heatmap/HeatmapDialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,7 @@ import { useStoreSettings } from "@/hooks/useStoreSettings";
 export default function Orders() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [showHeatmap, setShowHeatmap] = useState(false); // controla modal Mapa de Calor
   const [storeOpen, setStoreOpen] = useState(true);
   const [robotEnabled, setRobotEnabled] = useState(true);
@@ -175,6 +177,15 @@ export default function Orders() {
           >
             <PlusCircle className="w-4 h-4 mr-2" />
             Pedido Manual
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/entregadores")}
+          >
+            <Bike className="w-4 h-4 mr-2" />
+            Entregadores
           </Button>
         </div>
       </div>
