@@ -26,6 +26,37 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+
+    // v1.2.0 — ChunkLoadError = deploy novo invalidou JS antigo. Reload automático SEM mostrar erro.
+    // Detecta: ChunkLoadError, "Failed to fetch dynamically imported module", "Importing a module script failed"
+    const msg = String(error?.message || "");
+    const name = String(error?.name || "");
+    const isChunkErr = name === "ChunkLoadError"
+      || /Loading chunk \d+ failed/i.test(msg)
+      || /Failed to fetch dynamically imported module/i.test(msg)
+      || /Importing a module script failed/i.test(msg);
+
+    if (isChunkErr) {
+      // Marca reload pra não loop infinito
+      const KEY = "_chunk_reload_at";
+      const last = parseInt(sessionStorage.getItem(KEY) || "0", 10);
+      if (Date.now() - last > 10_000) {
+        sessionStorage.setItem(KEY, String(Date.now()));
+        console.warn("[ErrorBoundary] ChunkLoadError — reload automático");
+        // Limpa cache do SW antes de reload
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.getRegistrations().then((regs) => {
+            regs.forEach((r) => r.unregister());
+          });
+        }
+        if ("caches" in window) {
+          caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
+        }
+        setTimeout(() => window.location.reload(), 100);
+        return;
+      }
+    }
+
     Sentry.captureException(error, { extra: { componentStack: info.componentStack } });
   }
 

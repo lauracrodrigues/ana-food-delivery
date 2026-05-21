@@ -1,5 +1,5 @@
-// v1.6.0 — Cache bump v8
-const CACHE_NAME = 'anafood-v8';
+// v1.8.0 — Cache bump v10 + sem duplicação de handlers
+const CACHE_NAME = 'anafood-v10';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -8,96 +8,116 @@ self.addEventListener('install', () => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
+  const req = e.request;
 
-  // Não cachear API calls
-  if (url.pathname.startsWith('/billing') || url.pathname.startsWith('/admin') ||
-      url.pathname.startsWith('/webhook') || url.pathname.startsWith('/auth')) {
-    return;
+  // Ignora cross-origin (Supabase, APIs externas)
+  if (url.origin !== self.location.origin) return;
+
+  // NÃO cachear: APIs, webhooks, auth, próprio SW
+  if (url.pathname.startsWith('/api/') ||
+      url.pathname.startsWith('/v1/') ||
+      url.pathname.startsWith('/billing') ||
+      url.pathname.startsWith('/admin') ||
+      url.pathname.startsWith('/webhook') ||
+      url.pathname.startsWith('/auth') ||
+      url.pathname === '/sw.js' ||
+      url.pathname === '/manifest.json' ||
+      url.pathname === '/manifest-entregador.json') {
+    return; // browser handle normal
   }
 
-  // Stale-while-revalidate para JS/CSS hashed
-  // Hash no nome do arquivo torna cache imutável — serve do cache imediato
-  // e atualiza em background pra próximo load (zero flash de carregamento)
-  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+  // JS/CSS hashed (Vite gera hash no nome) — cache-first IMUTÁVEL
+  // Hash novo = arquivo novo = sem conflito. Hash velho = serve cache.
+  if (url.pathname.match(/\/assets\/.+\.(js|css|woff2|woff)$/)) {
     e.respondWith(
-      caches.match(e.request).then((cached) => {
-        const networkFetch = fetch(e.request).then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
-          }
-          return response;
-        }).catch(() => cached); // offline fallback
-        return cached || networkFetch;
-      })
-    );
-    return;
-  }
-
-  // Cache-first apenas para imagens/fonts
-  if (e.request.destination === 'image' || e.request.destination === 'font') {
-    e.respondWith(
-      caches.match(e.request).then((cached) => {
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(req);
         if (cached) return cached;
-        return fetch(e.request).then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
-          }
-          return response;
-        });
+        try {
+          const fresh = await fetch(req);
+          if (fresh.ok) cache.put(req, fresh.clone());
+          return fresh;
+        } catch (err) {
+          // Sem rede e sem cache → falha (browser mostra erro padrão)
+          throw err;
+        }
       })
     );
     return;
   }
 
-  // Network-first para HTML
-  if (e.request.mode === 'navigate') {
+  // Imagens/fontes: cache-first
+  if (req.destination === 'image' || req.destination === 'font') {
     e.respondWith(
-      fetch(e.request).catch(() => caches.match('/'))
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(req);
+        if (cached) return cached;
+        try {
+          const fresh = await fetch(req);
+          if (fresh.ok) cache.put(req, fresh.clone());
+          return fresh;
+        } catch (err) {
+          if (cached) return cached;
+          throw err;
+        }
+      })
     );
+    return;
   }
+
+  // HTML / SPA navigate — SEMPRE network-first (deploy novo aparece no próximo F5)
+  if (req.mode === 'navigate' || url.pathname.endsWith('.html')) {
+    e.respondWith(
+      fetch(req).then((res) => {
+        // Cache cópia pra offline
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put('/', clone));
+        }
+        return res;
+      }).catch(async () => {
+        const cached = await caches.match('/');
+        return cached || new Response('Offline', { status: 503 });
+      })
+    );
+    return;
+  }
+
+  // Resto: comportamento normal (rede direta)
 });
 
-// === PUSH NOTIFICATIONS ===
-
-// Recebe push do servidor (Edge Function send-push)
+// ─── PUSH NOTIFICATIONS (1 handler único — v1.8.0 fix duplicação) ───────────
 self.addEventListener('push', (event) => {
   let data = {};
   try {
-    data = event.data ? event.data.json() : {};
+    data = event.data?.json() || {};
   } catch {
-    data = { title: 'AnaFood', body: event.data ? event.data.text() : 'Atualização do pedido' };
+    data = { title: 'Ana Food', body: event.data?.text() || 'Atualização' };
   }
 
-  const title = data.title || 'AnaFood';
+  const title = data.title || 'Ana Food';
   const options = {
-    body: data.body || 'Você tem uma atualização do pedido',
+    body: data.body || '',
     icon: data.icon || '/icons/icon-192.png',
     badge: data.badge || '/icons/icon-192.png',
-    tag: data.tag || 'order-update',
+    tag: data.tag || 'anafood',
     renotify: true,
-    data: {
-      url: data.url || '/',
-      orderId: data.orderId,
-      subdomain: data.subdomain,
-    },
-    actions: data.actions || [
-      { action: 'view', title: 'Ver pedido' },
-    ],
+    vibrate: [200, 100, 200],
+    requireInteraction: false,
+    data: data.data || { url: data.url || '/' },
+    actions: data.actions || undefined,
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Click na notificação: abre/foca cardápio + tracking do pedido
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
@@ -105,64 +125,40 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      // Se já tem aba aberta, foca e navega
-      for (const client of clients) {
-        if ('focus' in client) {
-          client.focus();
-          if ('navigate' in client && data.orderId) {
-            try { client.navigate(targetUrl); } catch { /* navigate falhou */ }
+      // Foca aba já aberta na mesma URL
+      for (const c of clients) {
+        if (c.url.includes(targetUrl) && 'focus' in c) return c.focus();
+      }
+      // Senão foca primeira + navega
+      for (const c of clients) {
+        if ('focus' in c) {
+          c.focus();
+          if ('navigate' in c) {
+            try { c.navigate(targetUrl); } catch { /* */ }
           }
           return;
         }
       }
-      // Sem aba aberta: abre nova
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
-      }
+      // Sem aba: abre nova
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
     })
   );
 });
 
-// Subscription expirada/cancelada — tenta renovar (best-effort)
+// Subscription expirou — renova best-effort + avisa app
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(
-    self.registration.pushManager.subscribe(event.oldSubscription.options)
-      .then((newSub) => {
-        // Envia nova subscription ao app via postMessage
-        return self.clients.matchAll().then((clients) => {
-          clients.forEach((c) => c.postMessage({ type: 'pushSubscriptionRenewed', subscription: newSub }));
-        });
-      })
-      .catch((err) => console.warn('Renovação de push falhou', err))
+    self.registration.pushManager.subscribe(event.oldSubscription?.options)
+      .then((newSub) =>
+        self.clients.matchAll().then((cs) =>
+          cs.forEach((c) => c.postMessage({ type: 'pushSubscriptionRenewed', subscription: newSub }))
+        )
+      )
+      .catch(() => {})
   );
 });
 
-// ─── v1.7.0 — Web Push (Fase 7) ─────────────────────────────────────────
-self.addEventListener('push', (event) => {
-  let payload = {};
-  try { payload = event.data?.json() || {}; } catch (_) { payload = { title: 'Ana Food', body: event.data?.text() || '' }; }
-  const title = payload.title || 'Ana Food';
-  const opts = {
-    body: payload.body || '',
-    icon: payload.icon || '/icons/icon-192.png',
-    badge: payload.badge || '/icons/icon-192.png',
-    tag: payload.tag || 'anafood',
-    data: payload.data || {},
-    vibrate: [200, 100, 200],
-    requireInteraction: false,
-  };
-  event.waitUntil(self.registration.showNotification(title, opts));
-});
-
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const url = event.notification.data?.url || '/entregador';
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
-      for (const w of wins) {
-        if (w.url.includes(url) && 'focus' in w) return w.focus();
-      }
-      if (self.clients.openWindow) return self.clients.openWindow(url);
-    })
-  );
+// Mensagens do app (skipWaiting on-demand)
+self.addEventListener('message', (e) => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
