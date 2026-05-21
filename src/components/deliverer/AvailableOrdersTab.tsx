@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, X, Package, MapPin, Play, Lock } from "lucide-react";
+import { RouteOffersCard } from "./RouteOffersCard";
 
 const API_BASE = "https://api.anafood.vip";
 
@@ -142,6 +143,9 @@ export function AvailableOrdersTab({ delivererId, routeStatus, onRouteStarted }:
 
   return (
     <div className="space-y-4 pb-24">
+      {/* v1.0.0 — Ofertas de rota agrupada (cluster automático) */}
+      {!onRoute && <RouteOffersCard onAccepted={() => { queryClient.invalidateQueries(); }} />}
+
       {/* Meus coletados — destacado se tem pelo menos 1 */}
       {mine.length > 0 && (
         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
