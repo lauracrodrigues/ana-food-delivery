@@ -15,7 +15,25 @@ initGA4();
 
 createRoot(document.getElementById("root")!).render(<App />);
 
-// PWA — registrar service worker
+// v1.2.0 — registra SW + força reload UMA vez quando SW novo assume controle
+// (previne ChunkLoadError após deploy fresh)
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
-  navigator.serviceWorker.register("/sw.js").catch(() => {});
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+  navigator.serviceWorker.register("/sw.js").then((reg) => {
+    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    reg.addEventListener('updatefound', () => {
+      const nw = reg.installing;
+      if (!nw) return;
+      nw.addEventListener('statechange', () => {
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+          nw.postMessage({ type: 'SKIP_WAITING' });
+        }
+      });
+    });
+  }).catch(() => {});
 }
