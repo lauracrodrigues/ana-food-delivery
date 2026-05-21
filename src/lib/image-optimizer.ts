@@ -1,5 +1,6 @@
-// v1.0.0 — Otimiza imagens client-side antes do upload (resize + compressão + WebP)
-// Reduz uploads de 5MB → 100-300KB tipicamente. Sem deps externas.
+// v1.1.0 — Otimiza imagens client-side antes do upload (resize + compressão + WebP)
+// Reduz uploads de 5MB → 50-150KB tipicamente. Sem deps externas.
+// Defaults agressivos: 800px max, WebP, qualidade 80% — bom o suficiente pra produtos.
 
 export interface OptimizeOptions {
   maxWidth?: number;     // largura máxima em px (default 1200)
@@ -9,10 +10,11 @@ export interface OptimizeOptions {
   format?: "image/webp" | "image/jpeg" | "image/png"; // força formato (override preferWebP)
 }
 
+// v1.1.0 — defaults mais agressivos (imagem de produto não precisa 1200px)
 const DEFAULTS: Required<Omit<OptimizeOptions, "format">> = {
-  maxWidth: 1200,
-  maxHeight: 1200,
-  quality: 0.85,
+  maxWidth: 800,
+  maxHeight: 800,
+  quality: 0.80,
   preferWebP: true,
 };
 
@@ -45,8 +47,8 @@ function loadImage(file: File): Promise<HTMLImageElement> {
 export async function optimizeImage(file: File, opts: OptimizeOptions = {}): Promise<File> {
   // Não otimiza GIF/SVG (perderia animação/vetor)
   if (file.type === "image/gif" || file.type === "image/svg+xml") return file;
-  // Se já é pequeno (<150KB), não vale otimizar
-  if (file.size < 150 * 1024) return file;
+  // v1.1.0 — threshold reduzido pra 60KB (otimiza ~80% das fotos de produto)
+  if (file.size < 60 * 1024) return file;
 
   const o = { ...DEFAULTS, ...opts };
 

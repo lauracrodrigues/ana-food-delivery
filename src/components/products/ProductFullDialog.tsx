@@ -148,7 +148,8 @@ export function ProductFullDialog({ product, companyId, defaultCategoryId, open,
     }
     setUploading(true);
     try {
-      const optimized = await optimizeImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.85 });
+      // v1.1.0 — defaults agressivos: 800px WebP 80% (50-150KB típico)
+      const optimized = await optimizeImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.80 });
       const ext = optimized.type === "image/webp" ? "webp" : optimized.type === "image/png" ? "png" : "jpg";
       const fileName = `${companyId}/products/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage
