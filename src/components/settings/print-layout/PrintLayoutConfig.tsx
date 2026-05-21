@@ -12,6 +12,7 @@ import { SectorConfigPanel } from "./SectorConfigPanel";
 import { PrinterStatusBadge } from "./PrinterStatusBadge";
 import { PrinterPresetWizard } from "./PrinterPresetWizard";
 import { PrinterDevicesPanel } from "./PrinterDevicesPanel";
+import { AutoPrintSettings } from "./AutoPrintSettings";
 import type { PrintSector, SectorConfig, SECTOR_LABELS } from "@/types/printer-settings";
 import { DEFAULT_EXTENDED_CONFIG } from "@/types/printer-layout-extended";
 import { MOCK_ORDER } from "@/lib/thermal-mock";
@@ -271,6 +272,9 @@ export function PrintLayoutConfig() {
           <PrinterStatusBadge />
         </div>
       </div>
+
+      {/* v1.3.0 — Configuração de auto-print */}
+      <AutoPrintSettings companyId={companyId} />
 
       {/* v1.1.0 — Devices Ana Food Print */}
       <PrinterDevicesPanel />

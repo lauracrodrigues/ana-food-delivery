@@ -393,21 +393,33 @@ export function OrdersKanban() {
           .eq("id", orderId);
       }
       
-          // Auto-print when accepting order (non-blocking) if enabled
-        if (previousStatus === 'pending' && status === 'preparing' && order) {
-          stopNotificationSound();
-          
-          // Get current settings
+          // v1.2.0 — Auto-print configurável: store_settings.auto_print_on
+          //   'off'                = nunca imprime auto
+          //   'confirmed'          = imprime ao aceitar (pending → preparing) — DEFAULT
+          //   'out_for_delivery'   = imprime só quando sair pra entrega
+          // Detecta transição relevante:
+          const isConfirmTransition = previousStatus === 'pending' && status === 'preparing';
+          const isOutForDeliveryTransition = (previousStatus === 'preparing' || previousStatus === 'ready')
+                                          && status === 'out_for_delivery';
+
+        if ((isConfirmTransition || isOutForDeliveryTransition) && order) {
+          if (isConfirmTransition) stopNotificationSound();
+
           const { data: currentSettings } = await supabase
             .from("store_settings")
-            .select("printer_settings")
+            .select("printer_settings, auto_print_on")
             .eq("company_id", companyId)
             .single();
-          
+
           const printerSettings = currentSettings?.printer_settings as any;
-          const autoPrintEnabled = printerSettings?.auto_print ?? true;
-          
-          if (autoPrintEnabled) {
+          const autoPrintOn = (currentSettings as any)?.auto_print_on
+            ?? (printerSettings?.auto_print === false ? 'off' : 'confirmed'); // back-compat
+
+          const shouldPrintNow =
+            (autoPrintOn === 'confirmed' && isConfirmTransition) ||
+            (autoPrintOn === 'out_for_delivery' && isOutForDeliveryTransition);
+
+          if (shouldPrintNow) {
             // Buscar dados da empresa para enriquecer o pedido
             const { data: companyDataForPrint } = await supabase
               .from("companies")
@@ -442,15 +454,27 @@ export function OrdersKanban() {
             // Buscar config do setor caixa
             const caixaConfig = printerSettings?.sectors?.caixa;
 
-            // v1.2.0 — Impressão via Ana Food Print gateway
-            queuePrintJob({
-              sector: "caixa",
-              payload: enrichedOrderForAutoPrint,
-              copies: caixaConfig?.copies || 1,
-            }).then(r => {
-              if (r.ok) console.log("✅ AnaFoodPrint caixa enfileirado");
-              else console.warn("⚠️ Impressão caixa não enfileirada:", r.error);
-            });
+            // v1.3.0 — Auto-print usa MESMO formatador do preview (formatReceipt + marcadores)
+            // Antes: payload cru → agente caía no formatOrderPayload básico → "undefined x ..."
+            // Agora: lines do preview → texto com {{C}} {{B}} → impressão IDÊNTICA ao preview
+            const { formatReceipt } = await import("@/lib/thermal-formatter");
+            const { linesToEscPosMarkers } = await import("@/lib/lines-to-escpos-markers");
+            try {
+              const linesCaixa = formatReceipt(enrichedOrderForAutoPrint, caixaConfig?.layout || {}, companyDataForPrint);
+              const textCaixa = linesToEscPosMarkers(linesCaixa);
+              queuePrintJob({
+                sector: "caixa",
+                payload: { text: textCaixa },
+                copies: caixaConfig?.copies || 1,
+              }).then(r => {
+                if (r.ok) console.log("✅ AnaFoodPrint caixa enfileirado");
+                else console.warn("⚠️ Impressão caixa falhou:", r.error);
+              });
+            } catch (e: any) {
+              console.error("❌ formatReceipt fail:", e.message);
+              // Fallback: manda payload bruto pro agente tentar
+              queuePrintJob({ sector: "caixa", payload: enrichedOrderForAutoPrint, copies: caixaConfig?.copies || 1 });
+            }
 
             // Impressão por SETOR (cozinha/copa/bar/etc) baseado em products.print_sector
             // Agrupa items do pedido pelo setor, gera 1 ticket por setor ativo
@@ -479,17 +503,24 @@ export function OrdersKanban() {
                   bySector[sector].push(item);
                 }
 
-                // v1.2.0 — Ticket por setor via gateway (cozinha/bar/etc)
+                // v1.3.0 — Ticket por setor: usa formatReceipt + layout do sector
                 for (const [sector, items] of Object.entries(bySector)) {
                   const sectorCfg = printerSettings?.sectors?.[sector];
                   const orderForSector = { ...enrichedOrderForAutoPrint, items };
-                  queuePrintJob({
-                    sector: sector as any,
-                    payload: orderForSector,
-                    copies: sectorCfg?.copies || 1,
-                  }).then(r => {
-                    if (r.ok) console.log(`✅ AnaFoodPrint ${sector} enfileirado (${items.length} itens)`);
-                  });
+                  try {
+                    const linesSec = formatReceipt(orderForSector, sectorCfg?.layout || {}, companyDataForPrint);
+                    const textSec = linesToEscPosMarkers(linesSec);
+                    queuePrintJob({
+                      sector: sector as any,
+                      payload: { text: textSec },
+                      copies: sectorCfg?.copies || 1,
+                    }).then(r => {
+                      if (r.ok) console.log(`✅ AnaFoodPrint ${sector} enfileirado (${items.length} itens)`);
+                    });
+                  } catch (e: any) {
+                    console.error(`❌ formatReceipt ${sector}:`, e.message);
+                    queuePrintJob({ sector: sector as any, payload: orderForSector, copies: sectorCfg?.copies || 1 });
+                  }
                 }
               }
             } catch (sectorErr) {
