@@ -11,6 +11,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MotoIcon } from "@/components/ui/moto-icon";
+import { QrScanDialog } from "@/components/deliverer/QrScanDialog";
+import { ScanLine } from "lucide-react";
 import {
   MapPin, Navigation, CheckCircle2, LogOut, Phone, Package,
   ChevronDown, ChevronUp, Route, KeyRound, Eye, EyeOff,
@@ -662,6 +664,7 @@ export default function DelivererDashboard() {
   const [activeTab, setActiveTab] = useState<'deliveries' | 'reports'>('deliveries');
   const [manualOrder, setManualOrder] = useState<string[]>([]);
   const [transferOrder, setTransferOrder] = useState<Order | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
 
   const prevOrderCountRef = useRef<number>(-1);
   // "Bater ponto": entregador escolhe ficar disponível ou offline. Persiste por device.
@@ -1031,6 +1034,26 @@ export default function DelivererDashboard() {
       ) : (
         <ReportsTab deliverer={deliverer} />
       )}
+
+      {/* v1.0.0 — Botão flutuante "Escanear QR" — captura pedido */}
+      {punchedIn && (
+        <button
+          onClick={() => setScanOpen(true)}
+          className="fixed bottom-20 right-4 z-20 h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg flex items-center justify-center transition-transform active:scale-95"
+          title="Escanear QR do pedido"
+        >
+          <ScanLine className="w-7 h-7" />
+        </button>
+      )}
+
+      <QrScanDialog
+        open={scanOpen}
+        onOpenChange={setScanOpen}
+        onClaimed={(order) => {
+          toast({ title: `Pedido #${order.order_number} capturado!`, description: order.customer_name });
+          queryClient.invalidateQueries({ queryKey: ["orders"] });
+        }}
+      />
 
       {/* Bottom Tab Bar */}
       <div className="fixed bottom-0 left-0 right-0 max-w-2xl mx-auto bg-background border-t border-border flex z-10">

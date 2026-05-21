@@ -34,6 +34,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useTheme } from "@/components/theme-provider";
 import { useColorPalette, type ColorPalette } from "@/hooks/use-color-palette";
 import { PrintLayoutConfig } from "@/components/settings/print-layout/PrintLayoutConfig";
+import { AutomationRulesTab } from "@/components/settings/AutomationRulesTab";
 import { TablesSettings } from "@/components/settings/TablesSettings";
 import { BusinessHoursConfig } from "@/components/settings/BusinessHoursConfig";
 import { PaymentSettingsConfig } from "@/components/settings/PaymentSettingsConfig";
@@ -282,6 +283,7 @@ export function Settings() {
             </TabsTrigger>
             <TabsTrigger value="appearance">Aparência</TabsTrigger>
             <TabsTrigger value="print">Impressão</TabsTrigger>
+            <TabsTrigger value="automations">⚡ Automações</TabsTrigger>
             <TabsTrigger value="lgpd">LGPD</TabsTrigger>
           </TabsList>
 
@@ -704,6 +706,11 @@ export function Settings() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          {/* v1.0.0 — Automações de fluxo (auto-avanço status) */}
+          <TabsContent value="automations" className="space-y-6">
+            <AutomationRulesTab />
           </TabsContent>
 
           {/* LGPD — retenção de dados (movido do menu lateral) */}
