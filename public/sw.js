@@ -136,3 +136,33 @@ self.addEventListener('pushsubscriptionchange', (event) => {
       .catch((err) => console.warn('Renovação de push falhou', err))
   );
 });
+
+// ─── v1.7.0 — Web Push (Fase 7) ─────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try { payload = event.data?.json() || {}; } catch (_) { payload = { title: 'Ana Food', body: event.data?.text() || '' }; }
+  const title = payload.title || 'Ana Food';
+  const opts = {
+    body: payload.body || '',
+    icon: payload.icon || '/icons/icon-192.png',
+    badge: payload.badge || '/icons/icon-192.png',
+    tag: payload.tag || 'anafood',
+    data: payload.data || {},
+    vibrate: [200, 100, 200],
+    requireInteraction: false,
+  };
+  event.waitUntil(self.registration.showNotification(title, opts));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/entregador';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+      for (const w of wins) {
+        if (w.url.includes(url) && 'focus' in w) return w.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
+  );
+});

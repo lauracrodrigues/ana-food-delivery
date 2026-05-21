@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { MotoIcon } from "@/components/ui/moto-icon";
 import { QrScanDialog } from "@/components/deliverer/QrScanDialog";
 import { AvailableOrdersTab } from "@/components/deliverer/AvailableOrdersTab";
+import { PushNotificationBanner } from "@/components/deliverer/PushNotificationBanner";
 import { ScanLine, Inbox } from "lucide-react";
 import {
   MapPin, Navigation, CheckCircle2, LogOut, Phone, Package,
@@ -924,6 +925,8 @@ export default function DelivererDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 w-full max-w-2xl mx-auto">
+      {/* v1.0.0 — Banner ativar push notifications */}
+      <PushNotificationBanner />
       {/* Header */}
       <div className="bg-primary text-primary-foreground px-4 py-4 sticky top-0 z-10 shadow-md">
         <div className="flex items-center justify-between">
