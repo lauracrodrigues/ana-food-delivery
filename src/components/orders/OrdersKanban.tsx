@@ -88,15 +88,14 @@ export function OrdersKanban() {
     }
   }, [currentAudio]);
 
-  // Load orders using API client
+  // v1.1.0 — perf: staleTime + placeholderData (sem re-render 2x em invalidate)
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["orders", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      
+
       const response: any = await apiClient.getOrders(companyId);
 
-      // Filtra pedidos arquivados (>24h concluídos/cancelados)
       return (response.data as Order[])
         .filter(order => order.status !== 'archived')
         .map(order => ({
@@ -107,14 +106,17 @@ export function OrdersKanban() {
     enabled: !!companyId,
     refetchInterval: false,
     refetchOnWindowFocus: false,
+    staleTime: 3_000,                              // 3s — evita refetch em invalidate rajada
+    placeholderData: (prev) => prev,               // mantém UI durante refetch (sem flash)
+    gcTime: 5 * 60 * 1000,                          // 5min cache
   });
 
-  // Load store settings to get layout configs
+  // v1.1.0 — staleTime alto pra settings (mudam raro)
   const { data: storeSettings } = useQuery({
     queryKey: ["store-settings", companyId],
     queryFn: async () => {
       if (!companyId) return null;
-      
+
       const { data, error } = await supabase
         .from("store_settings")
         .select("*")
@@ -125,6 +127,8 @@ export function OrdersKanban() {
       return data;
     },
     enabled: !!companyId,
+    staleTime: 5 * 60 * 1000,        // 5min — settings muda raro
+    refetchOnWindowFocus: false,
   });
 
   // Sessão WhatsApp ativa — usada para envio via API ao entregador
@@ -169,12 +173,12 @@ export function OrdersKanban() {
     staleTime: 30_000,
   });
 
-  // Load company data for printing
+  // v1.1.0 — companyData não muda em runtime; cache longo
   const { data: companyData } = useQuery({
     queryKey: ["company-data", companyId],
     queryFn: async () => {
       if (!companyId) return null;
-      
+
       const { data, error } = await supabase
         .from("companies")
         .select("*")
@@ -185,6 +189,8 @@ export function OrdersKanban() {
       return data;
     },
     enabled: !!companyId,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   // Extract layout configs from store settings
@@ -226,9 +232,19 @@ export function OrdersKanban() {
   const stopSoundRef = useRef(stopNotificationSound);
   useEffect(() => { stopSoundRef.current = stopNotificationSound; }, [stopNotificationSound]);
 
-  // Realtime subscription — deps APENAS em companyId para nunca recriar desnecessariamente
+  // v1.1.0 — Realtime + debounce invalidate (300ms) — múltiplos eventos em rajada = 1 fetch
   useEffect(() => {
     if (!companyId) return;
+
+    // Debounce: agrupa eventos próximos em janela 300ms
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleInvalidate = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["orders", companyId] });
+        debounceTimer = null;
+      }, 300);
+    };
 
     const channel = supabase
       .channel(`orders-realtime-${companyId}`)
@@ -236,8 +252,7 @@ export function OrdersKanban() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders', filter: `company_id=eq.${companyId}` },
         (payload) => {
-          // Invalida cache → React Query busca lista atualizada
-          queryClient.invalidateQueries({ queryKey: ["orders", companyId] });
+          scheduleInvalidate();
 
           if (payload.eventType !== 'INSERT') return;
 
@@ -283,20 +298,17 @@ export function OrdersKanban() {
           });
           // Aumenta frequência do polling como fallback quando realtime cai
           clearInterval(poll);
-          poll = setInterval(() => {
-            queryClient.invalidateQueries({ queryKey: ["orders", companyId] });
-          }, 15000);
+          poll = setInterval(scheduleInvalidate, 15000);
         }
       });
 
-    // Polling fallback a cada 30s — garante atualização mesmo se Realtime cair
-    let poll = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ["orders", companyId] });
-    }, 30000);
+    // v1.1.0 — polling fallback 60s (era 30s; realtime cobre). Usa debounce também.
+    let poll = setInterval(scheduleInvalidate, 60_000);
 
     return () => {
       supabase.removeChannel(channel);
       clearInterval(poll);
+      if (debounceTimer) clearTimeout(debounceTimer);
     };
   }, [companyId, queryClient, toast]);
 
