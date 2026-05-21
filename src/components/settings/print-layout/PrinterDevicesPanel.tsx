@@ -113,7 +113,7 @@ export function PrinterDevicesPanel() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild>
-              <a href={`${API_BASE}/agente/download`} target="_blank" rel="noopener" className="gap-1">
+              <a href="/agente/download" target="_blank" rel="noopener" className="gap-1">
                 <Download className="h-3.5 w-3.5" /> Baixar agente
               </a>
             </Button>
