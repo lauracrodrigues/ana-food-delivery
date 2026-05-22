@@ -49,7 +49,9 @@ export const UnifiedFieldCard = forwardRef<UnifiedFieldCardRef, UnifiedFieldCard
       opacity: isDragging ? 0.5 : 1,
     };
 
+    // v1.1.0 — 5 tamanhos com diferença proporcional (era só 2 visualmente distintos)
     const fontSizeLabels: Record<FontSize, string> = {
+      xsmall: 'PP',
       small: 'P',
       medium: 'M',
       large: 'G',

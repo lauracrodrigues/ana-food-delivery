@@ -213,25 +213,8 @@ export function KanbanHeader({
           </Button>
         )}
 
-        {onToggleMap && (
-          <Button
-            variant={showMap ? "default" : "outline"}
-            size="sm"
-            onClick={onToggleMap}
-            title={mapTooltip}
-            disabled={mapDisabled}
-            className="relative"
-          >
-            <MotoIcon className="w-4 h-4 mr-1" />
-            Entregadores
-            {/* Badge contador GPS ativos — só aparece quando >0 */}
-            {delivererGpsCount > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold leading-none">
-                {delivererGpsCount}
-              </span>
-            )}
-          </Button>
-        )}
+        {/* v2.0.1 — Botão "Entregadores" removido daqui (estava ao lado de Relatórios).
+            Cliente quer só o botão em Orders.tsx (ao lado de "Pedido Manual"). */}
 
         {/* Indicador visual de salvo — aparece por 2s após qualquer mudança */}
         <span

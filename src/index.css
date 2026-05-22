@@ -34,6 +34,32 @@
   }
 }
 
+/* v1.0.0 — Animação "chamariz" pro logo do cardápio digital
+   Wobble + ring pulse a cada 4s pra chamar atenção do cliente */
+@keyframes menu-logo-attention {
+  0%, 70%, 100% { transform: rotate(0deg) scale(1); }
+  73% { transform: rotate(-6deg) scale(1.05); }
+  76% { transform: rotate(6deg) scale(1.05); }
+  79% { transform: rotate(-4deg) scale(1.03); }
+  82% { transform: rotate(4deg) scale(1.03); }
+  85% { transform: rotate(0deg) scale(1); }
+}
+
+@keyframes menu-logo-ring {
+  0%, 70%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+  75% { box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.4); }
+  85% { box-shadow: 0 0 0 14px rgba(249, 115, 22, 0); }
+}
+
+.animate-menu-logo {
+  animation: menu-logo-attention 4s ease-in-out infinite,
+             menu-logo-ring 4s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-menu-logo { animation: none; }
+}
+
 /* AnaFood Premium Design System - Modern SaaS Platform */
 
 @layer base {

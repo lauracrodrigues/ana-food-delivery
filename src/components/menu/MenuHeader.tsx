@@ -71,12 +71,13 @@ export function MenuHeader({ company, customerSlot, themeSlot, onProfileClick }:
               <img
                 src={company.logo_url}
                 alt={displayName}
-                className="w-10 h-10 md:w-11 md:h-11 object-cover rounded-full border border-border bg-background shadow-sm"
+                /* v3.0.1 — animate-menu-logo: wobble + ring pulse a cada 4s pra chamar atenção */
+                className="w-10 h-10 md:w-11 md:h-11 object-cover rounded-full border border-border bg-background shadow-sm animate-menu-logo"
                 loading="eager"
                 decoding="async"
               />
             ) : (
-              <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-primary/10 border border-border flex items-center justify-center">
+              <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-primary/10 border border-border flex items-center justify-center animate-menu-logo">
                 <span className="text-sm font-bold">{displayName.charAt(0)}</span>
               </div>
             )}

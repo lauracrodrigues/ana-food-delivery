@@ -87,10 +87,12 @@ export function DraggableField({ element, onUpdate, onRemove, tagMetadata }: Dra
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="small">Pequeno</SelectItem>
-                        <SelectItem value="medium">Médio</SelectItem>
-                        <SelectItem value="large">Grande</SelectItem>
-                        <SelectItem value="xlarge">Extra Grande</SelectItem>
+                        {/* v1.1.0 — 5 níveis proporcionais (era só 4) */}
+                        <SelectItem value="xsmall">PP (Mini)</SelectItem>
+                        <SelectItem value="small">P (Pequeno)</SelectItem>
+                        <SelectItem value="medium">M (Médio)</SelectItem>
+                        <SelectItem value="large">G (Grande)</SelectItem>
+                        <SelectItem value="xlarge">GG (Extra Grande)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

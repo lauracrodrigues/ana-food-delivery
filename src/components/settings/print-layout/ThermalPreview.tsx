@@ -42,19 +42,24 @@ export function ThermalPreview({
       // Underline
       if (line.formatting.underline) classes.push('underline');
       
-      // Font size
+      // v1.1.0 — 5 tamanhos proporcionais (espaçamento ~1.5x entre níveis)
+      // PP=condensed, P=normal, M=baseline, G=tall(2H), GG=2X
+      // Preview usa CSS — escala visual aproximada do que sai na térmica
       switch (line.formatting.fontSize) {
+        case 'xsmall':
+          classes.push('text-[7px]', 'tracking-tighter'); // condensed
+          break;
         case 'small':
-          classes.push('text-[8px]');
+          classes.push('text-[9px]');
           break;
         case 'medium':
-          classes.push('text-[10px]');
+          classes.push('text-[10px]'); // baseline
           break;
         case 'large':
-          classes.push('text-[12px]');
+          classes.push('text-[14px]', 'leading-tight'); // 2H — taller
           break;
         case 'xlarge':
-          classes.push('text-[14px]');
+          classes.push('text-[18px]', 'tracking-wider'); // 2X — biggest
           break;
         default:
           classes.push('text-[10px]');

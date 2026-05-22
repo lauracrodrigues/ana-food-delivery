@@ -1,7 +1,23 @@
-// v1.0.1 — Converte FormattedLine[] (do preview) → string com marcadores ESC/POS
-// Agente desktop interpreta {{C}}, {{L}}, {{2X}}, {{B}}, {{QR:data}}.
+// v1.1.0 — Converte FormattedLine[] (do preview) → string com marcadores ESC/POS
+// Agente desktop interpreta {{C}}, {{L}}, {{COND}}, {{N}}, {{2H}}, {{2X}}, {{B}}, {{QR:data}}.
+// 5 níveis proporcionais (PP/P/M/G/GG) com diferenças graduais — não só normal vs big.
 // Garante que IMPRESSÃO === PREVIEW.
 import type { FormattedLine } from "@/types/printer-layout-extended";
+
+// Mapeia fontSize → marker ESC/POS
+// PP (xsmall)  → COND  (condensed mode, ~12% menor)
+// P  (small)   → N     (normal 1x1)
+// M  (medium)  → N     (normal 1x1 — baseline)
+// G  (large)   → 2H    (double height — alta sem ficar gigante)
+// GG (xlarge)  → 2X    (double width + height — grande full)
+function sizeMarker(fontSize?: string): string {
+  switch (fontSize) {
+    case 'xsmall': return '{{COND}}';
+    case 'large':  return '{{2H}}';
+    case 'xlarge': return '{{2X}}';
+    default:       return '{{N}}'; // small + medium ambos normais
+  }
+}
 
 export function linesToEscPosMarkers(lines: FormattedLine[]): string {
   const out: string[] = [];
@@ -21,11 +37,11 @@ export function linesToEscPosMarkers(lines: FormattedLine[]): string {
       lastAlign = align;
     }
 
-    // Size: xlarge/large → 2X. small/medium → normal.
-    const size = f.fontSize === 'xlarge' || f.fontSize === 'large' ? 'big' : 'normal';
-    if (size !== lastSize) {
-      prefix.push(size === 'big' ? '{{2X}}' : '{{N}}');
-      lastSize = size;
+    // Size — emite marker só quando muda (otimiza bytes)
+    const marker = sizeMarker(f.fontSize);
+    if (marker !== lastSize) {
+      prefix.push(marker);
+      lastSize = marker;
     }
 
     // Bold inline (não permanente — wrap só essa linha)
@@ -37,7 +53,7 @@ export function linesToEscPosMarkers(lines: FormattedLine[]): string {
     }
   }
 
-  // Reset no final
+  // Reset no final — N cancela TODOS modos size (condensed/2H/2X)
   out.push('{{L}}{{N}}');
   return out.join('\n');
 }

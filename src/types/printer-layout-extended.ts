@@ -94,7 +94,8 @@ export interface TextFormatting {
   align: TextAlign;
 }
 
-export type FontSize = 'small' | 'medium' | 'large' | 'xlarge';
+// v1.1.0 — 5 níveis proporcionais: PP (condensed) → P → M (default) → G (tall) → GG (2x)
+export type FontSize = 'xsmall' | 'small' | 'medium' | 'large' | 'xlarge';
 export type SeparatorType = 'line' | 'dots' | 'equals';
 
 // Linha formatada com metadados para preview e impressão
