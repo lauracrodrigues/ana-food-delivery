@@ -104,13 +104,16 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Sessão expirada — faça login.");
 
+      // v1.1.1 — Envia companyId selecionado (suporte multi-loja: entregador
+      // pode atender 2+ empresas e o backend precisa saber qual usar)
+      const selectedCompany = localStorage.getItem("anafood-deliverer-company-id");
       const res = await fetch(`${API_BASE}/api/deliveries/claim`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, companyId: selectedCompany || undefined }),
       });
       const data = await res.json();
 
