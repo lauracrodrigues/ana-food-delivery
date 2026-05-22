@@ -793,11 +793,15 @@ export default function DelivererDashboard() {
     queryKey: ["deliverer-orders", deliverer?.id],
     queryFn: async () => {
       if (!deliverer?.id) return [];
+      // v1.0.3 — Filtro era só "delivering" → entregador não via pedidos já vinculados
+      // em status anteriores (preparing/ready/out_for_delivery). Agora pega TODOS
+      // status onde entregador deve acompanhar (até sair pra entrega).
+      const ACTIVE_STATUSES = ['preparing', 'ready', 'out_for_delivery', 'delivering'];
       const { data } = await supabase
         .from("orders")
         .select("*")
         .eq("deliverer_id", deliverer.id)
-        .eq("status", "delivering")
+        .in("status", ACTIVE_STATUSES)
         .order("created_at");
       return (data || []) as Order[];
     },
