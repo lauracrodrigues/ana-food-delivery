@@ -480,11 +480,12 @@ function getElementContent(
     case '{mensagem_rodape}':
       content = config.footer_message || 'Obrigado pela preferência!';
       break;
-    case '{qr_pickup}':
-      // v1.0.1 — Marcador especial que o agente desktop converte em QR Code real
-      // Preview mostra placeholder visual
-      content = order.pickup_qr_token ? `{{QR:${order.pickup_qr_token}:6}}` : '';
+    case '{qr_pickup}': {
+      // v1.2.3 — qr_size do element (3-10, default 6)
+      const size = element.qr_size ?? 6;
+      content = order.pickup_qr_token ? `{{QR:${order.pickup_qr_token}:${size}}}` : '';
       break;
+    }
     case '{eta_pronto}': {
       // v1.2.0 — Previsão de pronto: created_at + delivery_time (min)
       const dt = order.delivery_time_minutes ?? order.estimated_minutes ?? 30;
@@ -497,11 +498,11 @@ function getElementContent(
       break;
     }
     case '{qr_rastreio}': {
-      // v1.2.0 — QR pra cliente acompanhar pedido (anafood.vip/p/{idCurto})
-      // Agente desktop converte em QR Code real, preview mostra placeholder
+      // v1.2.3 — QR pra cliente acompanhar pedido (anafood.vip/p/{idCurto}) + qr_size configurável
       const shortId = String(order.id || '').replace(/-/g, '').substring(0, 8).toUpperCase();
       const url = shortId ? `anafood.vip/p/${shortId}` : '';
-      content = url ? `{{QR:${url}:6}}` : '';
+      const size = element.qr_size ?? 6;
+      content = url ? `{{QR:${url}:${size}}}` : '';
       break;
     }
     default:

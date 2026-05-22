@@ -68,6 +68,7 @@ const DailyMenu = lazy(() => import("./pages/DailyMenu"));
 const Deliverers = lazy(() => import("./pages/Deliverers").then(m => ({ default: m.Deliverers })));
 const DelivererDashboard = lazy(() => import("./pages/DelivererDashboard"));
 const DelivererCompanySelect = lazy(() => import("./pages/DelivererCompanySelect"));
+const OrderTracking = lazy(() => import("./pages/OrderTracking"));
 const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
@@ -208,6 +209,12 @@ const App = () => {
             <Route path="/entregador/escolher-loja" element={
               <Suspense fallback={<FullLoadingFallback />}>
                 <DelivererCompanySelect />
+              </Suspense>
+            } />
+            {/* v1.2.3 — Rastreio público de pedido via QR Code do recibo */}
+            <Route path="/p/:shortId" element={
+              <Suspense fallback={<FullLoadingFallback />}>
+                <OrderTracking />
               </Suspense>
             } />
 

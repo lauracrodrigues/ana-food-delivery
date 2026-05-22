@@ -164,11 +164,11 @@ export const UnifiedFieldCard = forwardRef<UnifiedFieldCardRef, UnifiedFieldCard
                     </Button>
                   </div>
 
-                  {/* Prefix/Suffix */}
+                  {/* Prefix/Suffix + QR size (v1.2.3 — qr_size só relevante pra tags QR) */}
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
-                        variant={element.prefix || element.suffix ? "default" : "outline"}
+                        variant={element.prefix || element.suffix || element.qr_size ? "default" : "outline"}
                         size="sm"
                         className="h-5 text-[9px] p-0"
                       >
@@ -177,6 +177,20 @@ export const UnifiedFieldCard = forwardRef<UnifiedFieldCardRef, UnifiedFieldCard
                     </PopoverTrigger>
                     <PopoverContent className="w-64 p-3" side="right">
                       <div className="space-y-2">
+                        {(element.tag === '{qr_pickup}' || element.tag === '{qr_rastreio}') && (
+                          <>
+                            <Label className="text-xs">Tamanho do QR (3-10)</Label>
+                            <Input
+                              type="number" min={3} max={10}
+                              value={element.qr_size ?? 6}
+                              onChange={(e) => onUpdate({ qr_size: Math.max(3, Math.min(10, parseInt(e.target.value) || 6)) })}
+                              className="h-7 text-xs"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                              Maior = QR maior na impressão (mais fácil scan, ocupa mais espaço)
+                            </p>
+                          </>
+                        )}
                         <Label className="text-xs">Texto Antes</Label>
                         <Input
                           value={element.prefix || ''}

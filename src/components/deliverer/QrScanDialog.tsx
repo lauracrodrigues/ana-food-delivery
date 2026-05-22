@@ -1,13 +1,19 @@
-// v1.0.0 — Scanner QR para entregador capturar pedido
+// v1.1.0 — Scanner QR para entregador capturar pedido
+// Fixes:
+//  - div qr-reader sempre renderizada (pra ref existir antes do start())
+//  - Pede permissão de câmera ao clicar (Html5Qrcode.start dispara permission prompt)
+//  - Mensagem clara quando user nega permissão
+//  - Botão "Tentar novamente" no erro
 // Segurança: claim só via /api/deliveries/claim (Bearer token JWT do Supabase)
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ScanLine, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, ScanLine, CheckCircle2, XCircle, Camera } from "lucide-react";
 
 const API_BASE = "https://api.anafood.vip";
+const QR_READER_ID = "qr-reader-deliverer";
 
 interface Props {
   open: boolean;
@@ -21,40 +27,75 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
   const [error, setError] = useState("");
   const [order, setOrder] = useState<any>(null);
 
-  useEffect(() => {
-    if (!open) return;
+  // v1.1.0 — Start câmera só após dialog renderizar o div (useEffect roda APÓS DOM)
+  const startScanner = async () => {
     setStatus("scanning");
     setError("");
     setOrder(null);
 
-    const id = "qr-reader";
-    const el = document.getElementById(id);
-    if (!el) return;
+    // Aguarda 1 frame pra garantir div renderizou (status mudou pra "scanning")
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
 
-    scannerRef.current = new Html5Qrcode(id);
-    scannerRef.current.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      async (decodedText) => {
-        // Para scan imediato (anti dupe)
-        try { await scannerRef.current?.stop(); } catch (_) {}
-        await handleToken(decodedText);
-      },
-      () => {} // ignora falhas frame-a-frame
-    ).catch((err) => {
+    const el = document.getElementById(QR_READER_ID);
+    if (!el) {
       setStatus("error");
-      setError(`Câmera indisponível: ${err.message || err}`);
-    });
+      setError("Container de scan não encontrado. Tente novamente.");
+      return;
+    }
 
-    return () => {
-      try { scannerRef.current?.stop().catch(() => {}); } catch (_) {}
-      scannerRef.current = null;
-    };
+    try {
+      // Cleanup instância anterior se houver
+      if (scannerRef.current) {
+        try { await scannerRef.current.stop(); } catch (_) {}
+        scannerRef.current = null;
+      }
+
+      scannerRef.current = new Html5Qrcode(QR_READER_ID);
+      await scannerRef.current.start(
+        { facingMode: "environment" },                           // câmera traseira
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        async (decodedText) => {
+          try { await scannerRef.current?.stop(); } catch (_) {}
+          await handleToken(decodedText);
+        },
+        () => {} // ignora falhas frame-a-frame
+      );
+    } catch (err: any) {
+      setStatus("error");
+      // Mensagens específicas pra permission denial
+      const msg = String(err?.message || err || "");
+      if (msg.includes("Permission") || msg.includes("NotAllowed") || msg.includes("denied")) {
+        setError("Permissão de câmera negada. Vá nas configurações do navegador e libere o acesso à câmera pra este site.");
+      } else if (msg.includes("NotFound") || msg.includes("device")) {
+        setError("Nenhuma câmera encontrada neste dispositivo.");
+      } else if (msg.includes("NotReadable") || msg.includes("in use")) {
+        setError("Câmera em uso por outro app. Feche-o e tente novamente.");
+      } else if (msg.includes("Secure context") || msg.includes("https")) {
+        setError("Acesso à câmera só funciona via HTTPS.");
+      } else {
+        setError(`Não foi possível abrir a câmera: ${msg}`);
+      }
+    }
+  };
+
+  // Auto-start ao abrir dialog
+  useEffect(() => {
+    if (open) {
+      startScanner();
+    } else {
+      // Cleanup ao fechar
+      if (scannerRef.current) {
+        try { scannerRef.current.stop().catch(() => {}); } catch (_) {}
+        scannerRef.current = null;
+      }
+      setStatus("idle");
+      setError("");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   async function handleToken(raw: string) {
     setStatus("claiming");
-    // Extrai token do conteúdo (suporta URL ou token raw)
     let token = raw.trim();
     const urlMatch = token.match(/[a-f0-9]{24}/i);
     if (urlMatch) token = urlMatch[0];
@@ -92,7 +133,12 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { try { scannerRef.current?.stop().catch(() => {}); } catch (_) {} } onOpenChange(v); }}>
+    <Dialog open={open} onOpenChange={(v) => {
+      if (!v && scannerRef.current) {
+        try { scannerRef.current.stop().catch(() => {}); } catch (_) {}
+      }
+      onOpenChange(v);
+    }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -101,13 +147,18 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
           </DialogTitle>
         </DialogHeader>
 
+        {/* v1.1.0 — Div sempre montada (oculta com display:none quando não scaneando) */}
+        {/* Garante que document.getElementById funcione no start() */}
+        <div
+          id={QR_READER_ID}
+          className="w-full rounded-lg overflow-hidden bg-black"
+          style={{ display: status === "scanning" ? "block" : "none", minHeight: status === "scanning" ? 250 : 0 }}
+        />
+
         {status === "scanning" && (
-          <>
-            <div id="qr-reader" className="w-full rounded-lg overflow-hidden bg-black" />
-            <p className="text-xs text-center text-muted-foreground">
-              Aponte a câmera para o QR Code no recibo do pedido
-            </p>
-          </>
+          <p className="text-xs text-center text-muted-foreground">
+            Aponte a câmera para o QR Code no recibo do pedido
+          </p>
         )}
 
         {status === "claiming" && (
@@ -131,13 +182,19 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
         )}
 
         {status === "error" && (
-          <div className="flex flex-col items-center py-6 text-center">
+          <div className="flex flex-col items-center py-6 text-center gap-3">
             <XCircle className="h-16 w-16 text-red-500" />
-            <p className="font-medium mt-2">Não foi possível capturar</p>
-            <p className="text-sm text-muted-foreground mt-1">{error}</p>
-            <Button onClick={() => { setStatus("idle"); onOpenChange(false); }} variant="outline" size="sm" className="mt-4">
-              Fechar
-            </Button>
+            <p className="font-medium">Não foi possível capturar</p>
+            <p className="text-sm text-muted-foreground">{error}</p>
+            <div className="flex gap-2 w-full">
+              <Button onClick={() => onOpenChange(false)} variant="outline" size="sm" className="flex-1">
+                Fechar
+              </Button>
+              <Button onClick={startScanner} variant="default" size="sm" className="flex-1 gap-1">
+                <Camera className="h-4 w-4" />
+                Tentar novamente
+              </Button>
+            </div>
           </div>
         )}
       </DialogContent>

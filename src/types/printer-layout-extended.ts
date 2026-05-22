@@ -126,6 +126,7 @@ export interface PrintElement {
 export interface UnifiedPrintElement extends PrintElement {
   prefix?: string;  // NOVO: Texto antes da variável
   suffix?: string;  // NOVO: Texto depois da variável
+  qr_size?: number; // v1.2.3 — tamanho do QR (3-10, default 6) — só pra qr_pickup/qr_rastreio
   separator_below: {
     show: boolean;
     type: SeparatorType;

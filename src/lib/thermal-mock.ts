@@ -13,6 +13,9 @@ export interface MockOrderItem {
 }
 
 export interface MockOrder {
+  id?: string;                       // v1.0.1 — pra QR rastreio
+  pickup_qr_token?: string;          // v1.0.1 — pra QR captura entregador
+  delivery_time_minutes?: number;    // v1.0.1 — pra ETA "Pronto até HH:MM"
   order_number: string;
   created_at: Date;
   type: 'delivery' | 'pickup';
@@ -34,7 +37,12 @@ export interface MockOrder {
   company_cnpj?: string;
 }
 
+// v1.0.1 — Mock RICO pra preview + teste de impressão
+// Inclui id (QR rastreio), pickup_qr_token (QR entregador), delivery_time (ETA)
 export const MOCK_ORDER: MockOrder = {
+  id: 'TESTE0001-DEMO-MOCK-FAKE-PEDIDO12345',
+  pickup_qr_token: 'CAPTURA-DEMO-TOKEN-XYZ',
+  delivery_time_minutes: 40,
   order_number: '001',
   created_at: new Date(),
   type: 'delivery',
@@ -49,7 +57,7 @@ export const MOCK_ORDER: MockOrder = {
       name: 'Pizza Margherita G',
       price: 45.0,
       extras: [{ name: 'Borda recheada' }, { name: 'Catupiry extra' }],
-      observations: 'Sem cebola',
+      observations: 'Sem cebola, massa fina',
     },
     {
       quantity: 1,
@@ -63,15 +71,16 @@ export const MOCK_ORDER: MockOrder = {
       name: 'Pastel de Carne',
       price: 5.0,
       extras: [{ name: 'Com queijo' }],
-      observations: '',
+      observations: 'Bem passado',
     },
   ],
   delivery_fee: 5.0,
   total: 113.0,
-  payment_method: 'Dinheiro',
-  observations: 'Entregar na portaria',
+  payment_method: 'Dinheiro - Troco para R$ 150,00',
+  observations: 'Entregar na portaria, apartamento 305 bloco B',
   company_name: 'EMPRESA EXEMPLO',
-  company_phone: '(11) 1234-5678',
+  company_phone: '(11) 91234-5678',
   company_address: 'Rua Exemplo, 123 - Centro - Cidade - SP - CEP: 12345-678',
   company_email: 'contato@empresa.com.br',
+  company_cnpj: '12.345.678/0001-90',
 };
