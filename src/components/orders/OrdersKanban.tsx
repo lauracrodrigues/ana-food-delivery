@@ -987,10 +987,15 @@ export function OrdersKanban() {
       ? `R$ ${order.total.toFixed(2).replace('.', ',')}`
       : '';
 
+    // v1.0.1 — Fallback pra order_number null (orders antigos antes do trigger)
+    const numero = order.order_number || (order.id ? String(order.id).slice(0, 8).toUpperCase() : 'S/N');
+    // v1.0.1 — Deep link pro app do entregador (já assinado, só abre)
+    const linkApp = `https://anafood.vip/entregador`;
+
     return [
       `🛵 *Novo pedido para entrega!*`,
       ``,
-      `📋 *Pedido #${order.order_number}*`,
+      `📋 *Pedido #${numero}*`,
       `👤 Cliente: ${order.customer_name}`,
       order.customer_phone ? `📱 ${order.customer_phone}` : null,
       address ? `📍 *Endereço:*\n${address}` : null,
@@ -1001,6 +1006,10 @@ export function OrdersKanban() {
       total ? `💰 *Total: ${total}*` : null,
       order.payment_method ? `💳 Pagamento: ${order.payment_method}` : null,
       order.observations ? `⚠️ Obs: ${order.observations}` : null,
+      ``,
+      `━━━━━━━━━━━━━━━━━━━━`,
+      `👆 *Abra no app:*`,
+      linkApp,
     ].filter(line => line !== null).join('\n');
   };
 

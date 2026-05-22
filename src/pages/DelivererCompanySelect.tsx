@@ -12,6 +12,7 @@ interface DelivererRow {
   company_id: string;
   name: string;
   active: boolean;
+  pending_count?: number;  // v1.0.1 — contagem de entregas ativas nessa loja
   companies?: {
     id: string;
     name: string;
@@ -42,6 +43,19 @@ export default function DelivererCompanySelect() {
         .eq("active", true);
 
       const rows = (data || []) as DelivererRow[];
+
+      // v1.0.1 — Buscar pendentes por loja em paralelo (deixa user escolher loja certa)
+      const ACTIVE_STATUSES = ['preparing', 'ready', 'out_for_delivery', 'delivering'];
+      await Promise.all(rows.map(async (r) => {
+        // @ts-expect-error -- types
+        const { count } = await supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("deliverer_id", r.id)
+          .in("status", ACTIVE_STATUSES);
+        r.pending_count = count || 0;
+      }));
+
       setDeliverers(rows);
 
       // Auto-resolve: 0 → login, 1 → salva e vai pro dashboard
@@ -55,6 +69,9 @@ export default function DelivererCompanySelect() {
         navigate("/entregador");
         return;
       }
+      // 2+ lojas: ordena por pending_count DESC pra loja com pedidos aparecer primeiro
+      rows.sort((a, b) => (b.pending_count || 0) - (a.pending_count || 0));
+      setDeliverers([...rows]);
       setLoading(false);
     })();
   }, [navigate]);
@@ -116,6 +133,13 @@ export default function DelivererCompanySelect() {
                     <p className="font-medium">{display}</p>
                     <p className="text-xs text-muted-foreground">Entrar como {d.name}</p>
                   </div>
+                  {/* v1.0.1 — Badge com qtd de entregas ativas nessa loja */}
+                  {(d.pending_count || 0) > 0 && (
+                    <div className="flex flex-col items-center bg-emerald-500 text-white rounded-lg px-2 py-1 min-w-[44px]">
+                      <span className="text-lg font-bold leading-none">{d.pending_count}</span>
+                      <span className="text-[9px] uppercase">pendente{(d.pending_count || 0) > 1 ? "s" : ""}</span>
+                    </div>
+                  )}
                 </button>
               );
             })}
