@@ -21,7 +21,11 @@ interface Offer {
 
 async function authHeader() {
   const { data: { session } } = await supabase.auth.getSession();
-  return { Authorization: `Bearer ${session?.access_token}` };
+  const base: Record<string, string> = { Authorization: `Bearer ${session?.access_token}` };
+  // v1.0.1 — companyId selecionado pelo entregador multi-loja
+  const c = localStorage.getItem("anafood-deliverer-company-id");
+  if (c) base["x-company-id"] = c;
+  return base;
 }
 
 function fmtAddr(a: any): string {

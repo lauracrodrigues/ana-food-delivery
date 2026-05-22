@@ -46,6 +46,12 @@ async function authHeader() {
   return { Authorization: `Bearer ${session?.access_token}` };
 }
 
+// v1.0.1 — Inclui companyId selecionado pelo entregador multi-loja (header)
+function selectedCompanyHeader(): Record<string, string> {
+  const c = localStorage.getItem("anafood-deliverer-company-id");
+  return c ? { "x-company-id": c } : {};
+}
+
 export function AvailableOrdersTab({ delivererId, routeStatus, onRouteStarted }: Props) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -54,7 +60,7 @@ export function AvailableOrdersTab({ delivererId, routeStatus, onRouteStarted }:
   const { data: available = [], isLoading } = useQuery<Available[]>({
     queryKey: ["available-orders"],
     queryFn: async () => {
-      const r = await fetch(`${API_BASE}/api/deliveries/available`, { headers: await authHeader() });
+      const r = await fetch(`${API_BASE}/api/deliveries/available`, { headers: { ...(await authHeader()), ...selectedCompanyHeader() } });
       const j = await r.json();
       return j.orders || [];
     },
@@ -90,7 +96,7 @@ export function AvailableOrdersTab({ delivererId, routeStatus, onRouteStarted }:
     mutationFn: async (orderId: string) => {
       const r = await fetch(`${API_BASE}/api/deliveries/claim-soft`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeader()) },
+        headers: { "Content-Type": "application/json", ...(await authHeader()), ...selectedCompanyHeader() },
         body: JSON.stringify({ order_id: orderId }),
       });
       const j = await r.json();
@@ -108,7 +114,7 @@ export function AvailableOrdersTab({ delivererId, routeStatus, onRouteStarted }:
     mutationFn: async (orderId: string) => {
       const r = await fetch(`${API_BASE}/api/deliveries/release`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeader()) },
+        headers: { "Content-Type": "application/json", ...(await authHeader()), ...selectedCompanyHeader() },
         body: JSON.stringify({ order_id: orderId }),
       });
       const j = await r.json();
@@ -125,7 +131,7 @@ export function AvailableOrdersTab({ delivererId, routeStatus, onRouteStarted }:
     mutationFn: async () => {
       const r = await fetch(`${API_BASE}/api/deliveries/start-route`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeader()) },
+        headers: { "Content-Type": "application/json", ...(await authHeader()), ...selectedCompanyHeader() },
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.detail || j.error);
