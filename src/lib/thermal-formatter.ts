@@ -3,7 +3,7 @@
  * v1.2.0 — Melhorias inspiradas em players food service (iFood, Goomer, etc):
  *   - Número pedido GIGANTE centralizado com label
  *   - Tipo entrega em reverse video (INV marker) 2X
- *   - Observações com separadores pontilhados e prefixo "▸ OBS:"
+ *   - Observações com separadores pontilhados e prefixo ">> OBS:"
  *   - TOTAL forçado 2X bold direita
  *   - Separador pontilhado entre itens (não linha cheia)
  *   - Tags novas: {eta_pronto}, {qr_rastreio}
@@ -35,7 +35,8 @@ const SEMANTIC_OVERRIDES: Partial<Record<PrintTag, SemanticOverride>> = {
 };
 
 // Separador pontilhado entre itens (vez de linha cheia)
-const ITEM_SEPARATOR = '· · · · · · · · · · · · · · · · · · · · · · · · ';
+// v1.2.1 — usa "." em vez de "·" (CP850 não tem U+00B7 — vira "?")
+const ITEM_SEPARATOR = '. . . . . . . . . . . . . . . . . . . . . . . . ';
 
 // =====================================================
 // PRIMITIVAS DE PADDING
@@ -177,29 +178,28 @@ export function formatReceipt(
     const wrapInverse   = sem?.inverse   ?? false;
 
     // SPECIAL CASE: {numero_pedido} — renderização "concorrente": label pequeno + número GIGANTE
+    // v1.2.1 — Em 2X cada char ocupa 2x a largura → pad pra effectiveWidth/2 (senão quebra linha)
     if (element.tag === '{numero_pedido}') {
-      const num = String(order.order_number || '000');
-      // Linha 1: "PEDIDO" pequeno centralizado
+      const rawNum = order.order_number ?? order.number ?? order.id?.toString().substring(0, 6);
+      const num = rawNum ? String(rawNum) : 'S/N';
       lines.push({
         text: margin + padCenter('PEDIDO', effectiveWidth),
         formatting: { fontSize: 'small', align: 'center' },
       });
-      // Linha 2: "#123" gigante centralizado (forçado 2X bold)
       lines.push({
-        text: margin + padCenter(`#${num}`, effectiveWidth),
+        text: margin + padCenter(`#${num}`, Math.floor(effectiveWidth / 2)),
         formatting: { fontSize: 'xlarge', bold: true, align: 'center' },
       });
-      // Espaçamento
       for (let i = 0; i < spacingLines; i++) lines.push({ text: margin });
       continue;
     }
 
     // SPECIAL CASE: {tipo_entrega} — bloco invertido (reverse video) centralizado 2X
+    // v1.2.1 — Sem emojis (CP850 não tem 🛵🥡 — vira ?? na impressora). Pad pra /2 em 2X.
     if (element.tag === '{tipo_entrega}') {
       const isDelivery = order.type === 'delivery';
-      const label = isDelivery ? '🛵 DELIVERY' : '🥡 RETIRADA';
-      // Padding extra pra criar "espaço pintado" ao redor do texto
-      const padded = padCenter(`  ${label}  `, effectiveWidth);
+      const label = isDelivery ? '** DELIVERY **' : '** RETIRADA **';
+      const padded = padCenter(label, Math.floor(effectiveWidth / 2));
       lines.push({
         text: margin + `{{INV}}${padded}{{/INV}}`,
         formatting: { fontSize: 'xlarge', bold: true, align: 'center' },
@@ -249,9 +249,9 @@ export function formatReceipt(
           });
         }
 
-        // Observações com indentação + prefixo "▸ OBS:" bold (v1.2.0)
+        // Observações com indentação + prefixo ">> OBS:" bold (v1.2.0)
         if (item.observations) {
-          const obsLines = wrapText(`▸ OBS: ${item.observations}`, effectiveWidth - 2);
+          const obsLines = wrapText(`>> OBS: ${item.observations}`, effectiveWidth - 2);
           obsLines.forEach((line, i) => lines.push({
             text: margin + '  ' + line,
             formatting: {
@@ -289,7 +289,7 @@ export function formatReceipt(
     if (element.tag === '{observacoes_pedido}' && order.observations) {
       const obsDots = ITEM_SEPARATOR.substring(0, effectiveWidth);
       lines.push({ text: margin + obsDots, formatting: { fontSize: 'small', align: 'left' } });
-      const obsLines = wrapText(`▸ OBS DO PEDIDO: ${order.observations}`, effectiveWidth);
+      const obsLines = wrapText(`>> OBS DO PEDIDO: ${order.observations}`, effectiveWidth);
       obsLines.forEach((line, i) => lines.push({
         text: margin + line,
         formatting: {
