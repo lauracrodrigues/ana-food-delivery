@@ -94,7 +94,11 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  async function handleToken(raw: string) {
+  // v1.2.0 — Salva último token tentado pra usar no force-confirm (override)
+  const [pendingForceToken, setPendingForceToken] = useState<string | null>(null);
+  const [confirmOverride, setConfirmOverride] = useState<{ delivererName: string } | null>(null);
+
+  async function handleToken(raw: string, force: boolean = false) {
     setStatus("claiming");
     let token = raw.trim();
     const urlMatch = token.match(/[a-f0-9]{24}/i);
@@ -104,8 +108,6 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Sessão expirada — faça login.");
 
-      // v1.1.1 — Envia companyId selecionado (suporte multi-loja: entregador
-      // pode atender 2+ empresas e o backend precisa saber qual usar)
       const selectedCompany = localStorage.getItem("anafood-deliverer-company-id");
       const res = await fetch(`${API_BASE}/api/deliveries/claim`, {
         method: "POST",
@@ -113,9 +115,24 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ token, companyId: selectedCompany || undefined }),
+        body: JSON.stringify({ token, companyId: selectedCompany || undefined, force }),
       });
       const data = await res.json();
+
+      // v1.2.0 — already_taken com requires_confirmation: pergunta antes de forçar
+      if (res.status === 409 && data.error === 'already_taken' && data.requires_confirmation) {
+        setPendingForceToken(token);
+        setConfirmOverride({ delivererName: data.current_deliverer_name || 'outro entregador' });
+        setStatus("idle");
+        return;
+      }
+
+      // v1.2.0 — in_route: pedido em rota, bloqueio total
+      if (res.status === 409 && data.error === 'in_route') {
+        setStatus("error");
+        setError(data.detail || "Pedido em rota — não pode mais ser capturado.");
+        return;
+      }
 
       if (!res.ok || !data.ok) {
         setStatus("error");
@@ -134,6 +151,19 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
       setError(err.message || "Falha ao capturar");
     }
   }
+
+  // v1.2.0 — Confirma override: chama handleToken com force=true
+  const confirmTakeover = () => {
+    if (!pendingForceToken) return;
+    setConfirmOverride(null);
+    handleToken(pendingForceToken, true);
+    setPendingForceToken(null);
+  };
+  const cancelTakeover = () => {
+    setConfirmOverride(null);
+    setPendingForceToken(null);
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => {
@@ -158,10 +188,32 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
           style={{ display: status === "scanning" ? "block" : "none", minHeight: status === "scanning" ? 250 : 0 }}
         />
 
-        {status === "scanning" && (
+        {status === "scanning" && !confirmOverride && (
           <p className="text-xs text-center text-muted-foreground">
             Aponte a câmera para o QR Code no recibo do pedido
           </p>
+        )}
+
+        {/* v1.2.0 — Confirmação de override quando pedido já está com outro entregador */}
+        {confirmOverride && (
+          <div className="flex flex-col items-center py-4 text-center gap-3">
+            <div className="h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center">
+              <ScanLine className="h-8 w-8 text-amber-600" />
+            </div>
+            <p className="font-semibold">Pedido já está com outro entregador</p>
+            <p className="text-sm text-muted-foreground">
+              Pedido atrelado a <span className="font-semibold">{confirmOverride.delivererName}</span>.
+              <br />Quer realmente pegar?
+            </p>
+            <div className="flex gap-2 w-full pt-2">
+              <Button onClick={cancelTakeover} variant="outline" size="sm" className="flex-1">
+                Não, cancelar
+              </Button>
+              <Button onClick={confirmTakeover} variant="default" size="sm" className="flex-1">
+                Sim, pegar pra mim
+              </Button>
+            </div>
+          </div>
         )}
 
         {status === "claiming" && (

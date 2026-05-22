@@ -41,12 +41,21 @@ export async function enablePush(): Promise<{ ok: boolean; error?: string }> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return { ok: false, error: "Sessão expirada" };
 
+    // v1.0.1 — envia companyId selecionado (suporte multi-loja pra entregadores)
+    const selectedCompany = localStorage.getItem("anafood-deliverer-company-id");
     const r = await fetch(`${API_BASE}/api/deliveries/push/subscribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ subscription: sub, user_agent: navigator.userAgent }),
+      body: JSON.stringify({
+        subscription: sub,
+        user_agent: navigator.userAgent,
+        companyId: selectedCompany || undefined,
+      }),
     });
-    if (!r.ok) return { ok: false, error: `Falha registrar: HTTP ${r.status}` };
+    if (!r.ok) {
+      const errBody = await r.json().catch(() => ({}));
+      return { ok: false, error: errBody.detail || errBody.error || `Falha registrar: HTTP ${r.status}` };
+    }
     return { ok: true };
   } catch (err: any) {
     return { ok: false, error: err.message };

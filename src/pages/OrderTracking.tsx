@@ -65,15 +65,12 @@ export default function OrderTracking() {
       setLoading(false);
       return;
     }
+    // v1.1.1 — Usa RPC pública (SECURITY DEFINER) pra contornar RLS da tabela orders
+    // Página é pública (sem auth) — anon role não consegue SELECT direto na tabela.
     // @ts-expect-error -- generated types
-    const { data, error } = await supabase
-      .from("orders")
-      .select("id, order_number, status, customer_name, total, created_at, delivery_time_minutes, type, company:companies(name, fantasy_name, logo_url)")
-      .ilike("id", `${shortId.toLowerCase()}%`)
-      .limit(1)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('get_order_tracking', { p_short_id: shortId.toLowerCase() });
 
-    if (error || !data) {
+    if (error || !data || data.error === 'not_found') {
       setNotFound(true);
     } else {
       setOrder(data as any);
