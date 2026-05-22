@@ -3,6 +3,7 @@ import React from "react";
 import { MessageCircle, Instagram } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { pickWhatsAppNumber } from "@/lib/phone-validation";
 
 interface Company {
   name: string;
@@ -42,10 +43,15 @@ export function MenuHeader({ company, customerSlot, themeSlot, onProfileClick }:
   const open = calcIsOpen(company);
   const displayName = company.fantasy_name || company.name;
 
+  // v3.0.2 — Só mostra botão se número tem WhatsApp válido (celular BR)
+  // Evita "Conversar com +55 62 3594-1399" quando empresa cadastrou só fixo
   const handleWhatsApp = (e: React.MouseEvent) => {
     e.stopPropagation(); // não dispara onProfileClick
-    const num = company.whatsapp?.replace(/\D/g, "");
-    if (num) window.open(`https://wa.me/${num}`, "_blank");
+    const valid = pickWhatsAppNumber(company);
+    if (valid) {
+      const num = valid.replace(/\D/g, "");
+      window.open(`https://wa.me/${num}`, "_blank");
+    }
   };
 
   const handleInstagram = (e: React.MouseEvent) => {
@@ -106,7 +112,7 @@ export function MenuHeader({ company, customerSlot, themeSlot, onProfileClick }:
           <div className="flex gap-1.5 shrink-0 items-center">
             {themeSlot}
             {customerSlot}
-            {company.whatsapp && (
+            {pickWhatsAppNumber(company) && (
               <Button
                 size="icon"
                 variant="outline"

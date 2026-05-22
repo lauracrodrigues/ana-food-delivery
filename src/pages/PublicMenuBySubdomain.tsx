@@ -120,22 +120,24 @@ export default function PublicMenuBySubdomain() {
 
       setCompany(companyData);
 
-      // Buscar categorias
+      // v1.0.1 — Categorias na ordem definida pelo admin (display_order), não alfabética
       const { data: categoriesData } = await supabase
         .from('categories')
         .select('*')
         .eq('company_id', companyData.id)
         .eq('on_off', true)
-        .order('name');
+        .order('display_order', { ascending: true, nullsFirst: false })
+        .order('name'); // fallback se display_order for igual/null
 
       setCategories(categoriesData || []);
 
-      // Buscar produtos
+      // v1.0.1 — Produtos na ordem definida pelo admin (display_order), não alfabética
       const { data: productsData } = await supabase
         .from('products')
         .select('*')
         .eq('company_id', companyData.id)
         .eq('on_off', true)
+        .order('display_order', { ascending: true, nullsFirst: false })
         .order('name');
 
       setProducts(productsData || []);

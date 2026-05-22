@@ -234,14 +234,26 @@ export function ProductFullDialog({ product, companyId, defaultCategoryId, open,
                   placeholder="Ex: X-Burguer"
                 />
               </div>
-              <div>
-                <Label>SKU / Código de barras</Label>
-                <Input
-                  value={formData.internal_code ?? ""}
-                  onChange={e => setFormData(f => ({ ...f, internal_code: e.target.value || null }))}
-                  placeholder="Ex: 7891234567890"
-                  className="font-mono"
-                />
+              {/* v1.0.1 — SKU + toggle Ativo/Inativo lado a lado (cliente pediu no topo) */}
+              <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
+                <div>
+                  <Label>SKU / Código de barras</Label>
+                  <Input
+                    value={formData.internal_code ?? ""}
+                    onChange={e => setFormData(f => ({ ...f, internal_code: e.target.value || null }))}
+                    placeholder="Ex: 7891234567890"
+                    className="font-mono"
+                  />
+                </div>
+                <div className="flex flex-col items-center gap-1 pb-1">
+                  <Label className="text-xs">
+                    {(formData.on_off ?? true) ? "Ativo" : "Inativo"}
+                  </Label>
+                  <Switch
+                    checked={formData.on_off ?? true}
+                    onCheckedChange={v => setFormData(f => ({ ...f, on_off: v }))}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -302,17 +314,7 @@ export function ProductFullDialog({ product, companyId, defaultCategoryId, open,
             </Select>
           </div>
 
-          {/* Switches */}
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div>
-              <Label>Produto Ativo</Label>
-              <p className="text-xs text-muted-foreground">Exibir no cardápio e PDV</p>
-            </div>
-            <Switch
-              checked={formData.on_off ?? true}
-              onCheckedChange={v => setFormData(f => ({ ...f, on_off: v }))}
-            />
-          </div>
+          {/* v1.0.1 — Toggle "Produto Ativo" movido pro topo (lado do SKU). Switch antigo removido daqui. */}
 
           <div className="flex items-center justify-between rounded-lg border p-3 bg-emerald-50/30 dark:bg-emerald-950/10">
             <div>

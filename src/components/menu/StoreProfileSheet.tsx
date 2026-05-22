@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle, Instagram, MapPin, Clock, CreditCard, Share2, Phone, Truck, LocateFixed, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency-formatter";
+import { pickWhatsAppNumber } from "@/lib/phone-validation";
 
 interface Company {
   id?: string;
@@ -113,9 +114,13 @@ export function StoreProfileSheet({ open, onOpenChange, company }: StoreProfileS
     }
   };
 
+  // v1.0.1 — Valida que número é celular (WhatsApp). Fixo não tem WhatsApp.
   const openWhatsApp = () => {
-    const num = company.whatsapp?.replace(/\D/g, "");
-    if (num) window.open(`https://wa.me/${num}`, "_blank");
+    const valid = pickWhatsAppNumber(company);
+    if (valid) {
+      const num = valid.replace(/\D/g, "");
+      window.open(`https://wa.me/${num}`, "_blank");
+    }
   };
 
   return (
@@ -162,7 +167,7 @@ export function StoreProfileSheet({ open, onOpenChange, company }: StoreProfileS
 
             {/* Ações rápidas */}
             <div className="grid grid-cols-3 gap-2 mb-6">
-              {company.whatsapp && (
+              {pickWhatsAppNumber(company) && (
                 <button onClick={openWhatsApp}
                   className="flex flex-col items-center gap-1 p-3 rounded-xl border border-green-200 bg-green-50 dark:bg-green-950/20 hover:bg-green-100">
                   <MessageCircle className="h-5 w-5 text-green-600" />

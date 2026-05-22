@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -78,7 +79,8 @@ function SortableProductItem({
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [editingPrice, setEditingPrice] = useState(false);
-  const [priceValue, setPriceValue] = useState(product.price.toString());
+  // v1.0.1 — Edição com CurrencyInput (máscara R$). Estado em número decimal.
+  const [priceValue, setPriceValue] = useState<number>(product.price);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id });
 
@@ -88,9 +90,8 @@ function SortableProductItem({
   };
 
   const handlePriceBlur = () => {
-    const newPrice = parseFloat(priceValue);
-    if (!isNaN(newPrice) && newPrice !== product.price) {
-      onPriceChange(product.id, newPrice);
+    if (!isNaN(priceValue) && priceValue !== product.price) {
+      onPriceChange(product.id, priceValue);
     }
     setEditingPrice(false);
   };
@@ -113,20 +114,18 @@ function SortableProductItem({
 
           <div className="flex items-center gap-2">
             {editingPrice ? (
-              <Input
-                type="number"
-                step="0.01"
+              <CurrencyInput
                 value={priceValue}
-                onChange={(e) => setPriceValue(e.target.value)}
+                onChange={(v) => setPriceValue(v)}
                 onBlur={handlePriceBlur}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handlePriceBlur();
                   if (e.key === "Escape") {
-                    setPriceValue(product.price.toString());
+                    setPriceValue(product.price);
                     setEditingPrice(false);
                   }
                 }}
-                className="w-24 h-8"
+                className="w-28 h-8"
                 autoFocus
                 onClick={(e) => e.stopPropagation()}
               />

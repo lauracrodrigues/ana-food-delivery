@@ -7,8 +7,10 @@ import { useToast } from "@/hooks/use-toast";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { masks } from "@/lib/masks";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -67,7 +69,10 @@ export function Deliverers() {
 
   const saveMutation = useMutation({
     mutationFn: async (payload: typeof form) => {
-      const phone = payload.phone.replace(/\D/g, ""); // salva só dígitos
+      // v1.0.2 — Salva como 55+DDD+9XXXXXXXX (Evolution API espera DDI).
+      // User digita só BR (sem 55) — prefixamos aqui.
+      const digits = payload.phone.replace(/\D/g, "");
+      const phone = digits.startsWith("55") ? digits : `55${digits}`;
       const email = payload.email?.trim() || null;
 
       // Salva dados do entregador
@@ -149,7 +154,9 @@ export function Deliverers() {
 
   const openEdit = (d: Deliverer) => {
     setEditTarget(d);
-    setForm({ name: d.name, phone: d.phone, email: d.email || "", password: "", active: d.active, daily_rate: d.daily_rate ? String(d.daily_rate) : "" });
+    // v1.0.2 — Remove 55 ao carregar pra edição (UI mostra só DDD+número)
+    const phoneDisplay = (d.phone || "").replace(/^55/, "");
+    setForm({ name: d.name, phone: masks.phone(phoneDisplay), email: d.email || "", password: "", active: d.active, daily_rate: d.daily_rate ? String(d.daily_rate) : "" });
     setDialogOpen(true);
   };
 
@@ -326,25 +333,24 @@ export function Deliverers() {
               </div>
             )}
             <div className="space-y-1.5">
-              <Label>WhatsApp (com DDI e DDD)</Label>
+              <Label>WhatsApp</Label>
               <Input
-                placeholder="Ex: 5562999999999"
+                placeholder="(62) 99999-9999"
                 value={form.phone}
-                onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                /* v1.0.2 — máscara BR (sem 55, todos os entregadores são do Brasil) */
+                onChange={e => setForm(f => ({ ...f, phone: masks.phone(e.target.value) }))}
+                inputMode="numeric"
+                maxLength={15}
               />
               <p className="text-xs text-muted-foreground">
-                Formato: 55 + DDD + número (ex: 5562912345678)
+                Formato BR: (DDD) 9XXXX-XXXX
               </p>
             </div>
             <div className="space-y-1.5">
               <Label>Valor da Diária (R$)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="Ex: 80.00"
-                value={form.daily_rate}
-                onChange={e => setForm(f => ({ ...f, daily_rate: e.target.value }))}
+              <CurrencyInput
+                value={form.daily_rate ? parseFloat(form.daily_rate) : 0}
+                onChange={(v) => setForm(f => ({ ...f, daily_rate: v.toString() }))}
               />
               <p className="text-xs text-muted-foreground">
                 Usado para calcular ganhos no relatório de entregas do entregador

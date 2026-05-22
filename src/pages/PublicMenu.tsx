@@ -265,11 +265,13 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
         if (tableData) setTableInfo(tableData);
       }
 
+// v1.0.1 — Ordem pelo admin (display_order) — não alfabética
       const { data: categoriesData } = await supabase
         .from('categories')
         .select('*')
         .eq('company_id', companyData.id)
         .eq('on_off', true)
+        .order('display_order', { ascending: true, nullsFirst: false })
         .order('name');
 
       setCategories(categoriesData || []);
