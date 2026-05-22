@@ -1,11 +1,15 @@
-// v1.0.0 — Página pública de rastreio de pedido pelo QR Code do recibo
+// v1.1.0 — Página pública de rastreio com timeline animada
 // URL: anafood.vip/p/{shortId} (8 chars do UUID sem hífen)
-// Cliente escaneia QR no recibo, vê status atualizado em tempo real
+// - Timeline vertical com 4 etapas (Confirmado → Preparo → Pronto/Saiu → Entregue)
+// - Ícone da etapa ATUAL pulsa pra destacar
+// - Etapas passadas mostram check verde
+// - Etapas futuras ficam cinza
+// - Polling 15s pra atualizar live
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Package, ChefHat, Bike, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Package, ChefHat, Bike, CheckCircle2, XCircle, Check } from "lucide-react";
 import { formatCurrency } from "@/lib/currency-formatter";
 
 interface OrderTracking {
@@ -20,17 +24,34 @@ interface OrderTracking {
   company: { name: string; fantasy_name: string | null; logo_url: string | null } | null;
 }
 
-const STATUS_META: Record<string, { label: string; icon: any; color: string }> = {
-  pending:        { label: "Aguardando confirmação",   icon: Package,      color: "text-amber-500" },
-  confirmed:      { label: "Confirmado, indo p/ cozinha", icon: Package,   color: "text-blue-500" },
-  preparing:      { label: "Em preparo na cozinha",    icon: ChefHat,      color: "text-orange-500" },
-  ready:          { label: "Pronto pra retirar/entrega", icon: CheckCircle2, color: "text-emerald-500" },
-  out_for_delivery: { label: "Saiu pra entrega",       icon: Bike,         color: "text-purple-500" },
-  delivering:     { label: "Saiu pra entrega",         icon: Bike,         color: "text-purple-500" },
-  delivered:      { label: "Entregue! ✓",              icon: CheckCircle2, color: "text-emerald-600" },
-  completed:      { label: "Concluído",                icon: CheckCircle2, color: "text-emerald-600" },
-  cancelled:      { label: "Pedido cancelado",         icon: XCircle,      color: "text-red-500" },
-};
+// v1.1.0 — Steps da timeline (ordem cronológica). status do pedido mapeia pra um índice
+type StepKey = "confirmed" | "preparing" | "ready_or_out" | "delivered";
+interface Step {
+  key: StepKey;
+  label: string;
+  icon: any;
+  // Cores aplicadas quando ativo (pulsa)
+  bgActive: string;
+  textActive: string;
+}
+
+const STEPS: Step[] = [
+  { key: "confirmed",   label: "Pedido confirmado",     icon: Package,     bgActive: "bg-blue-500",    textActive: "text-blue-500" },
+  { key: "preparing",   label: "Preparando na cozinha", icon: ChefHat,     bgActive: "bg-orange-500",  textActive: "text-orange-500" },
+  { key: "ready_or_out",label: "",                      icon: Bike,        bgActive: "bg-purple-500",  textActive: "text-purple-500" },
+  { key: "delivered",   label: "Entregue",              icon: CheckCircle2,bgActive: "bg-emerald-500", textActive: "text-emerald-500" },
+];
+
+// Map status real do pedido → índice da etapa atual + label dinâmica do step 3
+function resolveCurrentStep(status: string, type: string): { idx: number; cancelled: boolean; step3Label: string } {
+  const step3Label = type === "delivery" ? "Saiu pra entrega" : "Pronto pra retirar";
+  if (status === "cancelled") return { idx: -1, cancelled: true, step3Label };
+  if (["pending", "confirmed"].includes(status))                      return { idx: 0, cancelled: false, step3Label };
+  if (status === "preparing")                                          return { idx: 1, cancelled: false, step3Label };
+  if (["ready", "out_for_delivery", "delivering"].includes(status))   return { idx: 2, cancelled: false, step3Label };
+  if (["delivered", "completed"].includes(status))                     return { idx: 3, cancelled: false, step3Label };
+  return { idx: 0, cancelled: false, step3Label };
+}
 
 export default function OrderTracking() {
   const { shortId } = useParams<{ shortId: string }>();
@@ -38,14 +59,12 @@ export default function OrderTracking() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Carrega pedido pelo prefixo do UUID
   const load = async () => {
     if (!shortId) {
       setNotFound(true);
       setLoading(false);
       return;
     }
-    // shortId = 8 chars hex do UUID sem hífens — busca usando LIKE no id::text
     // @ts-expect-error -- generated types
     const { data, error } = await supabase
       .from("orders")
@@ -64,7 +83,6 @@ export default function OrderTracking() {
 
   useEffect(() => {
     load();
-    // Polling a cada 15s (cliente acompanha live)
     const interval = setInterval(load, 15_000);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -94,13 +112,12 @@ export default function OrderTracking() {
     );
   }
 
-  const meta = STATUS_META[order.status] || STATUS_META.pending;
-  const Icon = meta.icon;
   const companyName = order.company?.fantasy_name || order.company?.name || "Loja";
+  const { idx: currentStep, cancelled, step3Label } = resolveCurrentStep(order.status, order.type);
 
-  // ETA: created_at + delivery_time_minutes
+  // ETA: created_at + delivery_time_minutes (só quando ainda não finalizou)
   let etaText = "";
-  if (order.delivery_time_minutes && ["pending", "confirmed", "preparing"].includes(order.status)) {
+  if (order.delivery_time_minutes && !cancelled && currentStep < 3) {
     const eta = new Date(new Date(order.created_at).getTime() + order.delivery_time_minutes * 60_000);
     etaText = eta.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   }
@@ -116,27 +133,77 @@ export default function OrderTracking() {
             <div className="w-12 h-12 rounded-lg bg-primary/10" />
           )}
           <div>
-            <p className="text-sm text-muted-foreground">Acompanhamento</p>
+            <p className="text-sm text-muted-foreground">Acompanhamento do pedido</p>
             <h1 className="text-lg font-bold">{companyName}</h1>
           </div>
         </div>
 
-        {/* Status atual */}
+        {/* Card principal */}
         <Card>
           <CardHeader className="pb-3">
             <p className="text-xs text-muted-foreground">PEDIDO</p>
             <CardTitle className="text-3xl font-bold">#{order.order_number}</CardTitle>
+            {etaText && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Previsão de pronto: <span className="font-semibold">{etaText}</span>
+              </p>
+            )}
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className={`flex items-center gap-3 p-4 rounded-lg bg-muted/50 ${meta.color}`}>
-              <Icon className="h-8 w-8" />
-              <div className="flex-1">
-                <p className="font-semibold">{meta.label}</p>
-                {etaText && <p className="text-xs text-muted-foreground">Previsão: {etaText}</p>}
+          <CardContent className="space-y-5">
+            {cancelled ? (
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-red-50 text-red-600">
+                <XCircle className="h-8 w-8" />
+                <p className="font-semibold">Pedido cancelado</p>
               </div>
-            </div>
+            ) : (
+              // v1.1.0 — Timeline vertical: cada step renderizado com ícone animado se ativo
+              <div className="space-y-0">
+                {STEPS.map((step, i) => {
+                  const isActive   = i === currentStep;
+                  const isDone     = i < currentStep;
+                  const isPending  = i > currentStep;
+                  const Icon       = step.icon;
+                  const label      = step.key === "ready_or_out" ? step3Label : step.label;
 
-            <div className="text-sm space-y-1 pt-2 border-t">
+                  return (
+                    <div key={step.key} className="flex items-start gap-3 relative">
+                      {/* Ícone circular */}
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={`
+                            relative h-12 w-12 rounded-full flex items-center justify-center transition-all
+                            ${isActive  ? `${step.bgActive} text-white shadow-lg` : ""}
+                            ${isDone    ? "bg-emerald-500 text-white" : ""}
+                            ${isPending ? "bg-muted text-muted-foreground" : ""}
+                          `}
+                        >
+                          {/* Halo pulsante quando ativo (ping infinito) */}
+                          {isActive && (
+                            <span className={`absolute inline-flex h-full w-full rounded-full ${step.bgActive} opacity-50 animate-ping`} />
+                          )}
+                          {isDone ? <Check className="h-6 w-6" /> : <Icon className={`h-6 w-6 ${isActive ? "animate-pulse" : ""}`} />}
+                        </div>
+                        {/* Linha conectora (vertical) entre steps */}
+                        {i < STEPS.length - 1 && (
+                          <div className={`w-0.5 h-8 my-1 ${i < currentStep ? "bg-emerald-500" : "bg-muted"}`} />
+                        )}
+                      </div>
+                      {/* Label do step */}
+                      <div className="pt-3 pb-2 flex-1">
+                        <p className={`text-sm font-medium ${isActive ? step.textActive + " font-semibold" : isPending ? "text-muted-foreground" : ""}`}>
+                          {label}
+                        </p>
+                        {isActive && (
+                          <p className="text-xs text-muted-foreground animate-pulse">Em andamento...</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="text-sm space-y-1 pt-3 border-t">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Cliente</span>
                 <span className="font-medium">{order.customer_name}</span>
@@ -154,7 +221,7 @@ export default function OrderTracking() {
         </Card>
 
         <p className="text-xs text-center text-muted-foreground">
-          Esta página atualiza automaticamente a cada 15 segundos
+          🔄 Atualizando automaticamente
         </p>
       </div>
     </div>
