@@ -58,12 +58,20 @@ export default function Login() {
         return;
       }
 
+      // v1.0.2 — Entregador pode atuar em 2+ lojas: lista TODAS e decide
       if (email) {
-        const deliverer = await supabaseQueryNullable(
-          supabase.from('deliverers').select('id').eq('email', email).maybeSingle()
+        const list = await supabaseQueryNullable(
+          supabase.from('deliverers').select('id, company_id').eq('email', email).eq('active', true)
         );
-        if (deliverer) {
+        const rows = Array.isArray(list) ? list : [];
+        if (rows.length === 1) {
+          localStorage.setItem('anafood-deliverer-company-id', rows[0].company_id);
           navigate('/entregador');
+          return;
+        }
+        if (rows.length > 1) {
+          // 2+ lojas → seletor escolhe qual usar nesse login
+          navigate('/entregador/escolher-loja');
           return;
         }
       }

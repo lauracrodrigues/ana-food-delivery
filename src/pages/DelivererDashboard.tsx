@@ -20,7 +20,7 @@ import {
   ChevronDown, ChevronUp, Route, KeyRound, Eye, EyeOff,
   ArrowRightLeft, X, LocateFixed, GripVertical,
   BarChart3, Calendar, TrendingUp, XCircle, PhoneCall,
-  Power, BatteryLow,
+  Power, BatteryLow, Store,
 } from "lucide-react";
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
@@ -708,20 +708,63 @@ export default function DelivererDashboard() {
 
   const dashboardActive = authState === 'authenticated' && mustChangePassword === false;
 
+  // v1.0.2 — Entregador pode estar em 2+ lojas. localStorage guarda qual escolheu.
+  // Sem seleção + múltiplas lojas → redireciona pro seletor. Sem cadastro → login.
   const { data: deliverer, isLoading: loadingDeliverer } = useQuery({
     queryKey: ["deliverer-me"],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) return null;
+      const selectedCompany = localStorage.getItem("anafood-deliverer-company-id");
+
       // @ts-expect-error -- Supabase generated types don't include this table yet
-      const { data } = await supabase
+      let q = supabase
         .from("deliverers")
         .select("id, name, phone, company_id, email, daily_rate, route_status")
         .eq("email", user.email)
-        .single();
-      // v1.0.0 — sincroniza route_status local
+        .eq("active", true);
+      if (selectedCompany) q = q.eq("company_id", selectedCompany);
+
+      const { data: rows } = await q;
+      const list = (rows || []) as any[];
+
+      if (list.length === 0) {
+        // Selecionou loja que não existe mais → limpa e tenta achar outra
+        if (selectedCompany) {
+          localStorage.removeItem("anafood-deliverer-company-id");
+          // @ts-expect-error -- types
+          const { data: fallback } = await supabase
+            .from("deliverers")
+            .select("id, name, phone, company_id, email, daily_rate, route_status")
+            .eq("email", user.email)
+            .eq("active", true);
+          const fbList = (fallback || []) as any[];
+          if (fbList.length > 1) {
+            window.location.href = "/entregador/escolher-loja";
+            return null;
+          }
+          if (fbList.length === 1) {
+            localStorage.setItem("anafood-deliverer-company-id", fbList[0].company_id);
+            if (fbList[0].route_status) setRouteStatus(fbList[0].route_status);
+            return fbList[0] as Deliverer & { route_status?: string };
+          }
+        }
+        return null;
+      }
+
+      if (list.length > 1) {
+        // Sem seleção + múltiplas lojas → manda escolher
+        window.location.href = "/entregador/escolher-loja";
+        return null;
+      }
+
+      const data = list[0];
+      // Auto-grava seleção pra próximas sessões (1 loja só)
+      if (!selectedCompany && data?.company_id) {
+        localStorage.setItem("anafood-deliverer-company-id", data.company_id);
+      }
       if (data?.route_status) setRouteStatus(data.route_status);
-      return data as (Deliverer & { route_status?: string }) | null;
+      return data as Deliverer & { route_status?: string };
     },
     enabled: dashboardActive,
   });
@@ -869,9 +912,36 @@ export default function DelivererDashboard() {
   };
 
   const handleLogout = async () => {
+    // v1.0.2 — limpa loja selecionada no logout
+    localStorage.removeItem("anafood-deliverer-company-id");
     await supabase.auth.signOut();
     navigate("/login");
   };
+
+  // v1.0.2 — Trocar loja (só relevante quando entregador atua em 2+ lojas)
+  const handleSwitchCompany = () => {
+    localStorage.removeItem("anafood-deliverer-company-id");
+    navigate("/entregador/escolher-loja");
+  };
+
+  // v1.0.2 — Detecta se entregador atua em 2+ lojas pra mostrar botão "Trocar Loja"
+  const { data: companyCount = 0 } = useQuery({
+    queryKey: ["deliverer-company-count"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) return 0;
+      // @ts-expect-error -- types
+      const { count } = await supabase
+        .from("deliverers")
+        .select("id", { count: "exact", head: true })
+        .eq("email", user.email)
+        .eq("active", true);
+      return count || 0;
+    },
+    enabled: !!deliverer?.id,
+    staleTime: 5 * 60_000,
+  });
+  const hasMultipleCompanies = companyCount > 1;
 
   // Aplica ordem manual para pendentes; concluídos vão para o fim
   const pendingOrders = orders.filter(o => !completedSet.has(o.id));
@@ -939,14 +1009,27 @@ export default function DelivererDashboard() {
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost" size="icon"
-            onClick={handleLogout}
-            className="text-primary-foreground hover:bg-primary-foreground/10"
-            title="Sair"
-          >
-            <LogOut className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {/* v1.0.2 — Trocar Loja: aparece só quando entregador atua em 2+ lojas */}
+            {hasMultipleCompanies && (
+              <Button
+                variant="ghost" size="icon"
+                onClick={handleSwitchCompany}
+                className="text-primary-foreground hover:bg-primary-foreground/10"
+                title="Trocar loja"
+              >
+                <Store className="w-5 h-5" />
+              </Button>
+            )}
+            <Button
+              variant="ghost" size="icon"
+              onClick={handleLogout}
+              className="text-primary-foreground hover:bg-primary-foreground/10"
+              title="Sair"
+            >
+              <LogOut className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
 
         {/* Bater Ponto + status GPS — controla consumo de bateria */}

@@ -23,17 +23,23 @@ export default function AuthCallback() {
         return;
       }
 
-      // Entregadores → /entregador
+      // Entregadores → /entregador (v1.0.1 — suporta múltiplas lojas)
       if (session.user.email) {
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore — deliverers não está no tipo gerado mas existe no banco
-        const { data: deliverer } = await supabase
+        const { data: rows } = await supabase
           .from('deliverers')
-          .select('id')
+          .select('id, company_id')
           .eq('email', session.user.email)
-          .maybeSingle();
-        if (deliverer) {
+          .eq('active', true);
+        const list = (rows || []) as any[];
+        if (list.length === 1) {
+          localStorage.setItem('anafood-deliverer-company-id', list[0].company_id);
           navigate('/entregador');
+          return;
+        }
+        if (list.length > 1) {
+          navigate('/entregador/escolher-loja');
           return;
         }
       }

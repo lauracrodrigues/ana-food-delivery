@@ -67,6 +67,7 @@ const Combos = lazy(() => import("./pages/Combos"));
 const DailyMenu = lazy(() => import("./pages/DailyMenu"));
 const Deliverers = lazy(() => import("./pages/Deliverers").then(m => ({ default: m.Deliverers })));
 const DelivererDashboard = lazy(() => import("./pages/DelivererDashboard"));
+const DelivererCompanySelect = lazy(() => import("./pages/DelivererCompanySelect"));
 const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
@@ -201,6 +202,12 @@ const App = () => {
             <Route path="/entregador" element={
               <Suspense fallback={<FullLoadingFallback />}>
                 <DelivererDashboard />
+              </Suspense>
+            } />
+            {/* v1.0.0 — Seletor de loja: aparece quando entregador atende 2+ lojas */}
+            <Route path="/entregador/escolher-loja" element={
+              <Suspense fallback={<FullLoadingFallback />}>
+                <DelivererCompanySelect />
               </Suspense>
             } />
 
