@@ -168,8 +168,17 @@ export function formatReceipt(
   
   const margin = ' '.repeat(marginLeft);
   const spacingLines = getLineSpacingCount(config.line_spacing || 'normal');
+
+  // v1.2.4 — Tags do "bloco financeiro" agrupadas sem espaçamento entre si
+  // (cliente reclamou que subtotal/taxa/total/pagamento ficavam muito espalhados)
+  const FINANCE_TAGS = new Set(['{subtotal}', '{taxa_entrega}', '{total}', '{forma_pagamento}']);
   
-  for (const element of visibleElements) {
+  for (let idx = 0; idx < visibleElements.length; idx++) {
+    const element = visibleElements[idx];
+    // v1.2.4 — Próximo elemento (pra detectar bloco financeiro contíguo)
+    const nextEl = visibleElements[idx + 1];
+    const isFinanceBlock = FINANCE_TAGS.has(element.tag) && nextEl && FINANCE_TAGS.has(nextEl.tag);
+
     // v1.2.0 — Override semântico por tag (sobrepõe formatação do user pra tags críticas)
     const sem = SEMANTIC_OVERRIDES[element.tag as PrintTag];
     const finalFontSize = (sem?.fontSize ?? element.fontSize) as FontSize;
@@ -374,10 +383,13 @@ export function formatReceipt(
       const char = element.separator_below.char || '-';
       lines.push({ text: margin + divider(char, effectiveWidth) });
     }
-    
-    // Espaçamento após elemento
-    for (let i = 0; i < spacingLines; i++) {
-      lines.push({ text: margin });
+
+    // v1.2.4 — Skip espaçamento se estiver dentro do bloco financeiro contíguo
+    // (subtotal → taxa → total → pagamento ficam grudados, sem linha em branco entre)
+    if (!isFinanceBlock) {
+      for (let i = 0; i < spacingLines; i++) {
+        lines.push({ text: margin });
+      }
     }
   }
   
