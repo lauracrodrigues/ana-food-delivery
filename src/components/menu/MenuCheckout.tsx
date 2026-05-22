@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { masks } from "@/lib/masks";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { usePIXPolling } from "@/hooks/menu/usePIXPolling";
@@ -558,9 +559,29 @@ export function MenuCheckout({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Dados do cliente */}
+          {/* v1.3.2 — Dados do cliente: TELEFONE primeiro (lookup auto popula nome) + máscara */}
           <div className="space-y-4">
             <h3 className="font-semibold">Seus Dados</h3>
+            <p className="text-xs text-muted-foreground">
+              Digite seu telefone — se já comprou aqui, preencho seus dados automaticamente
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Telefone *</Label>
+              <Input
+                id="phone"
+                type="tel"
+                inputMode="numeric"
+                value={formData.customer_phone}
+                onChange={(e) => setFormData({ ...formData, customer_phone: masks.phone(e.target.value) })}
+                placeholder="(00) 00000-0000"
+                maxLength={15}
+                required
+                autoFocus
+              />
+              {lookupDone && formData.customer_name && (
+                <p className="text-xs text-green-700">✓ Cliente reconhecido — dados preenchidos</p>
+              )}
+            </div>
             <div className="space-y-2">
               <Label htmlFor="name">Nome *</Label>
               <Input
@@ -568,17 +589,6 @@ export function MenuCheckout({
                 value={formData.customer_name}
                 onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
                 placeholder="Seu nome completo"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Telefone *</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={formData.customer_phone}
-                onChange={(e) => setFormData({ ...formData, customer_phone: e.target.value })}
-                placeholder="(00) 00000-0000"
                 required
               />
             </div>
