@@ -739,10 +739,27 @@ export function OrdersKanban() {
         hasLayout: !!sectorConfig?.layout
       });
       
-      // v1.2.0 — envia via gateway. Reimpressão usa mesmo fluxo.
+      // v1.3.1 — Impressão MANUAL usa MESMO pipeline do auto-print (formatReceipt + markers)
+      // Antes: payload cru → agente fallback formatOrderPayload básico → "undefinedx Produto Total"
+      // Agora: lines do preview → texto com {{C}} {{B}} → impressão IDÊNTICA ao preview
+      const { formatReceipt } = await import("@/lib/thermal-formatter");
+      const { linesToEscPosMarkers } = await import("@/lib/lines-to-escpos-markers");
+
+      let printPayload: any;
+      try {
+        const lines = formatReceipt(enrichedOrder, sectorConfig?.layout || {}, companyData);
+        const text = linesToEscPosMarkers(lines);
+        printPayload = { text, _reprint: isReprint };
+        console.log('✅ Recibo formatado com formatReceipt — lines:', lines.length);
+      } catch (e: any) {
+        console.error("❌ formatReceipt fail no manual print:", e.message);
+        // Fallback raw (agente vai tentar formatOrderPayload)
+        printPayload = { ...enrichedOrder, _reprint: isReprint };
+      }
+
       const r = await queuePrintJob({
         sector: 'caixa',
-        payload: { ...enrichedOrder, _reprint: isReprint },
+        payload: printPayload,
         copies: sectorConfig?.copies || 1,
       });
       if (!r.ok) throw new Error(r.error || 'Falha enfileirar');
