@@ -769,6 +769,26 @@ export default function DelivererDashboard() {
     enabled: dashboardActive,
   });
 
+  // v1.0.2 — Detecta se entregador atua em 2+ lojas (controla botão "Trocar Loja")
+  // Posicionado AQUI (antes dos early returns) pra manter ordem dos hooks consistente
+  const { data: companyCount = 0 } = useQuery({
+    queryKey: ["deliverer-company-count"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) return 0;
+      // @ts-expect-error -- types
+      const { count } = await supabase
+        .from("deliverers")
+        .select("id", { count: "exact", head: true })
+        .eq("email", user.email)
+        .eq("active", true);
+      return count || 0;
+    },
+    enabled: dashboardActive,
+    staleTime: 5 * 60_000,
+  });
+  const hasMultipleCompanies = companyCount > 1;
+
   const { data: orders = [], isLoading: loadingOrders } = useQuery({
     queryKey: ["deliverer-orders", deliverer?.id],
     queryFn: async () => {
@@ -923,25 +943,6 @@ export default function DelivererDashboard() {
     localStorage.removeItem("anafood-deliverer-company-id");
     navigate("/entregador/escolher-loja");
   };
-
-  // v1.0.2 — Detecta se entregador atua em 2+ lojas pra mostrar botão "Trocar Loja"
-  const { data: companyCount = 0 } = useQuery({
-    queryKey: ["deliverer-company-count"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) return 0;
-      // @ts-expect-error -- types
-      const { count } = await supabase
-        .from("deliverers")
-        .select("id", { count: "exact", head: true })
-        .eq("email", user.email)
-        .eq("active", true);
-      return count || 0;
-    },
-    enabled: !!deliverer?.id,
-    staleTime: 5 * 60_000,
-  });
-  const hasMultipleCompanies = companyCount > 1;
 
   // Aplica ordem manual para pendentes; concluídos vão para o fim
   const pendingOrders = orders.filter(o => !completedSet.has(o.id));
