@@ -182,13 +182,50 @@ export interface ExtendedLayoutConfig extends LayoutConfig {
   item_spacing?: number; // Espaço extra entre itens (0-5 linhas)
 }
 
+// v1.2.2 — Default elements food-service style (15 zonas inspiradas em iFood/Goomer)
+// Aplicado pra TODA nova empresa/setor. User pode customizar depois via UI.
+// NÃO importa SECTOR_TEMPLATES aqui pra evitar dependência circular — replica inline.
+const DEFAULT_FOODSERVICE_ELEMENTS: UnifiedPrintElement[] = [
+  // Header empresa
+  { id: '{nome_empresa}-0',       tag: '{nome_empresa}',       label: 'Nome da Empresa',     visible: true, fontSize: 'large',  formatting: { bold: true,  underline: false, align: 'center' }, order: 0,  separator_below: { show: false, type: 'line', char: '-' } },
+  { id: '{telefone_empresa}-1',   tag: '{telefone_empresa}',   label: 'Telefone Empresa',    visible: true, fontSize: 'xsmall', formatting: { bold: false, underline: false, align: 'center' }, order: 1,  separator_below: { show: false, type: 'line', char: '-' } },
+  { id: '{endereco_empresa}-2',   tag: '{endereco_empresa}',   label: 'Endereço Empresa',    visible: true, fontSize: 'xsmall', formatting: { bold: false, underline: false, align: 'center' }, order: 2,  separator_below: { show: false, type: 'line', char: '-' } },
+  { id: '{cnpj}-3',               tag: '{cnpj}',               label: 'CNPJ',                visible: true, fontSize: 'xsmall', formatting: { bold: false, underline: false, align: 'center' }, order: 3,  separator_below: { show: true,  type: 'equals', char: '=' } },
+  // Tipo entrega (override semântico aplica INV 2X)
+  { id: '{tipo_entrega}-4',       tag: '{tipo_entrega}',       label: 'Tipo de Entrega',     visible: true, fontSize: 'medium', formatting: { bold: true,  underline: false, align: 'center' }, order: 4,  separator_below: { show: false, type: 'line', char: '-' } },
+  // Nº pedido GIGANTE (override semântico aplica 2X bold)
+  { id: '{numero_pedido}-5',      tag: '{numero_pedido}',      label: 'Número do Pedido',    visible: true, fontSize: 'xlarge', formatting: { bold: true,  underline: false, align: 'center' }, order: 5,  separator_below: { show: false, type: 'line', char: '-' } },
+  // Data + ETA
+  { id: '{data_hora}-6',          tag: '{data_hora}',          label: 'Pedido às',           visible: true, fontSize: 'small',  formatting: { bold: false, underline: false, align: 'center' }, order: 6,  separator_below: { show: false, type: 'line', char: '-' } },
+  { id: '{eta_pronto}-7',         tag: '{eta_pronto}',         label: 'Previsão Pronto',     visible: true, fontSize: 'medium', formatting: { bold: true,  underline: false, align: 'center' }, order: 7,  separator_below: { show: true,  type: 'line', char: '-' } },
+  // Cliente
+  { id: '{nome_cliente}-8',       tag: '{nome_cliente}',       label: 'Nome do Cliente',     visible: true, fontSize: 'large',  formatting: { bold: true,  underline: false, align: 'left'   }, order: 8,  separator_below: { show: false, type: 'line', char: '-' } },
+  { id: '{telefone_cliente}-9',   tag: '{telefone_cliente}',   label: 'Telefone Cliente',    visible: true, fontSize: 'xsmall', formatting: { bold: false, underline: false, align: 'left'   }, order: 9,  separator_below: { show: false, type: 'line', char: '-' } },
+  { id: '{endereco_cliente}-10',  tag: '{endereco_cliente}',   label: 'Endereço Cliente',    visible: true, fontSize: 'medium', formatting: { bold: false, underline: false, align: 'left'   }, order: 10, separator_below: { show: false, type: 'line', char: '-' } },
+  { id: '{referencia}-11',        tag: '{referencia}',         label: 'Ponto de Referência', visible: true, fontSize: 'small',  formatting: { bold: false, underline: false, align: 'left'   }, order: 11, separator_below: { show: true,  type: 'line', char: '-' } },
+  // Itens
+  { id: '{itens}-12',             tag: '{itens}',              label: 'Itens do Pedido',     visible: true, fontSize: 'medium', formatting: { bold: false, underline: false, align: 'left'   }, order: 12, separator_below: { show: true,  type: 'line', char: '-' } },
+  // OBS pedido
+  { id: '{observacoes_pedido}-13',tag: '{observacoes_pedido}', label: 'Observações',         visible: true, fontSize: 'medium', formatting: { bold: false, underline: false, align: 'left'   }, order: 13, separator_below: { show: false, type: 'line', char: '-' } },
+  // Totais (override semântico aplica 2X bold no total)
+  { id: '{subtotal}-14',          tag: '{subtotal}',           label: 'Subtotal',            visible: true, fontSize: 'medium', formatting: { bold: false, underline: false, align: 'right'  }, order: 14, separator_below: { show: false, type: 'line', char: '-' } },
+  { id: '{taxa_entrega}-15',      tag: '{taxa_entrega}',       label: 'Taxa de Entrega',     visible: true, fontSize: 'medium', formatting: { bold: false, underline: false, align: 'right'  }, order: 15, separator_below: { show: false, type: 'line', char: '-' } },
+  { id: '{total}-16',             tag: '{total}',              label: 'Total',               visible: true, fontSize: 'xlarge', formatting: { bold: true,  underline: false, align: 'right'  }, order: 16, separator_below: { show: false, type: 'line', char: '-' } },
+  // Pagamento
+  { id: '{forma_pagamento}-17',   tag: '{forma_pagamento}',    label: 'Forma de Pagamento',  visible: true, fontSize: 'medium', formatting: { bold: true,  underline: false, align: 'left'   }, order: 17, separator_below: { show: true,  type: 'equals', char: '=' } },
+  // QR rastreio + rodapé
+  { id: '{qr_rastreio}-18',       tag: '{qr_rastreio}',        label: 'QR Rastreio',         visible: true, fontSize: 'medium', formatting: { bold: false, underline: false, align: 'center' }, order: 18, separator_below: { show: false, type: 'line', char: '-' } },
+  { id: '{mensagem_rodape}-19',   tag: '{mensagem_rodape}',    label: 'Mensagem de Rodapé',  visible: true, fontSize: 'small',  formatting: { bold: false, underline: false, align: 'center' }, order: 19, separator_below: { show: true,  type: 'line', char: '-' } },
+];
+
 // Configuração padrão expandida
 export const DEFAULT_EXTENDED_CONFIG: ExtendedLayoutConfig = {
   // Printer model
   printer_model: 'G250',
-  
-  // Estrutura unificada (nova)
-  elements: [],
+
+  // v1.2.2 — Estrutura unificada agora vem populada com layout food-service por padrão
+  // (era [] — empresa nova não imprimia nada até user mexer)
+  elements: DEFAULT_FOODSERVICE_ELEMENTS,
   
   // Estrutura antiga (mantida para compatibilidade)
   header: {

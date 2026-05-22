@@ -12,7 +12,8 @@ function createUnifiedElement(
   order: number,
   options: {
     visible?: boolean;
-    fontSize?: 'small' | 'medium' | 'large' | 'xlarge';
+    // v1.2.2 — xsmall (PP/condensed) habilitado
+    fontSize?: 'xsmall' | 'small' | 'medium' | 'large' | 'xlarge';
     bold?: boolean;
     underline?: boolean;
     align?: 'left' | 'center' | 'right';
@@ -41,134 +42,137 @@ function createUnifiedElement(
 }
 
 export const SECTOR_TEMPLATES: Record<string, PrintTemplate> = {
+  // v1.2.2 — Template "Completo" reformulado pra bater visual com iFood/Goomer/Delivery Direto
+  // 15 zonas: header bold + condensed → tipo invertido → nº gigante → data/ETA →
+  //           cliente destacado → itens em colunas → totais alinhados → QR rastreio
+  // Tags com override semântico (numero_pedido, tipo_entrega, total) usam config interna
+  // que sobrescreve fontSize/align/bold — define só como fallback aqui.
   complete: {
-    name: 'Completo (Caixa)',
-    description: 'Layout completo com todas as informações do pedido',
+    name: 'Completo (Caixa) — Food Service',
+    description: 'Layout padrão estilo iFood/Goomer: nº GIGANTE, tipo invertido, totais 2X, QR rastreio',
     elements: [
+      // ── ZONA 1: HEADER EMPRESA ────────────────────────────────────
       createUnifiedElement('{nome_empresa}', 'Nome da Empresa', 0, {
-        align: 'center'
+        fontSize: 'large', bold: true, align: 'center',
       }),
       createUnifiedElement('{telefone_empresa}', 'Telefone Empresa', 1, {
-        align: 'center'
+        fontSize: 'xsmall', align: 'center',          // condensed (PP)
       }),
       createUnifiedElement('{endereco_empresa}', 'Endereço Empresa', 2, {
-        align: 'center'
+        fontSize: 'xsmall', align: 'center',
       }),
       createUnifiedElement('{cnpj}', 'CNPJ', 3, {
-        visible: true,
-        align: 'center',
-        separatorEnabled: true,
-        separatorChar: '='
+        fontSize: 'xsmall', align: 'center',
+        separatorEnabled: true, separatorChar: '=',
       }),
-      createUnifiedElement('{email_empresa}', 'Email', 4, {
-        visible: true,
-        align: 'center'
+
+      // ── ZONA 2: TIPO DE PEDIDO (override semântico: 2X bold center INV) ─
+      createUnifiedElement('{tipo_entrega}', 'Tipo de Entrega', 4, {
+        visible: true, align: 'center',
+        separatorEnabled: false,
       }),
+
+      // ── ZONA 3: Nº PEDIDO GIGANTE (override semântico: 2X bold center 2 linhas) ─
       createUnifiedElement('{numero_pedido}', 'Número do Pedido', 5, {
-        visible: true,
-        align: 'center'
+        visible: true, align: 'center',
+        separatorEnabled: false,
       }),
-      createUnifiedElement('{data_hora}', 'Data e Hora', 6, {
-        visible: true,
-        align: 'center'
+
+      // ── ZONA 4: DATA + ETA ────────────────────────────────────────
+      createUnifiedElement('{data_hora}', 'Pedido às', 6, {
+        fontSize: 'small', align: 'center',
       }),
-      createUnifiedElement('{origem_pedido}', 'Origem do Pedido', 7, {
-        visible: true,
-        align: 'center'
+      createUnifiedElement('{eta_pronto}', 'Previsão Pronto', 7, {
+        fontSize: 'medium', bold: true, align: 'center',
+        separatorEnabled: true,
       }),
-      createUnifiedElement('{tipo_entrega}', 'Tipo de Entrega', 8, {
-        visible: true,
+
+      // ── ZONA 5: CLIENTE DESTACADO ─────────────────────────────────
+      createUnifiedElement('{nome_cliente}', 'Nome do Cliente', 8, {
+        fontSize: 'large', bold: true, align: 'left',
+      }),
+      createUnifiedElement('{telefone_cliente}', 'Telefone do Cliente', 9, {
+        fontSize: 'xsmall', align: 'left',            // condensed embaixo
+      }),
+
+      // ── ZONA 6: ENDEREÇO (quebra inteligente já no formatter) ─────
+      createUnifiedElement('{endereco_cliente}', 'Endereço do Cliente', 10, {
+        fontSize: 'medium', align: 'left',
+      }),
+      createUnifiedElement('{referencia}', 'Ponto de Referência', 11, {
+        fontSize: 'small', align: 'left',
+        separatorEnabled: true,
+      }),
+
+      // ── ZONA 7-10: ITENS (separador pontilhado entre items + extras indentados + OBS) ─
+      createUnifiedElement('{itens}', 'Itens do Pedido', 12, {
+        fontSize: 'medium', align: 'left',
+        separatorEnabled: true,
+      }),
+
+      // ── ZONA 8: OBS GERAL DO PEDIDO (bracket pontilhado + ">> OBS:" bold) ─
+      createUnifiedElement('{observacoes_pedido}', 'Observações', 13, {
+        fontSize: 'medium', align: 'left',
+      }),
+
+      // ── ZONA 11: TOTAIS ALINHADOS DIREITA ─────────────────────────
+      createUnifiedElement('{subtotal}', 'Subtotal', 14, {
+        fontSize: 'medium', align: 'right',
+      }),
+      createUnifiedElement('{taxa_entrega}', 'Taxa de Entrega', 15, {
+        fontSize: 'medium', align: 'right',
+      }),
+      createUnifiedElement('{total}', 'Total', 16, {
+        visible: true, align: 'right',                // override semântico força 2X bold
+        separatorEnabled: false,
+      }),
+
+      // ── ZONA 12: PAGAMENTO ────────────────────────────────────────
+      createUnifiedElement('{forma_pagamento}', 'Forma de Pagamento', 17, {
+        fontSize: 'medium', bold: true, align: 'left',
+        separatorEnabled: true, separatorChar: '=',
+      }),
+
+      // ── ZONA 13: QR RASTREIO CLIENTE (anafood.vip/p/XXX) ──────────
+      createUnifiedElement('{qr_rastreio}', 'QR Rastreio', 18, {
         align: 'center',
-        separatorEnabled: true
-      }),
-      createUnifiedElement('{nome_cliente}', 'Nome do Cliente', 9, {
-        visible: true,
-        align: 'left'
-      }),
-      createUnifiedElement('{telefone_cliente}', 'Telefone do Cliente', 10, {
-        visible: true,
-        align: 'left'
-      }),
-      createUnifiedElement('{endereco_cliente}', 'Endereço do Cliente', 11, {
-        visible: true,
-        align: 'left'
-      }),
-      createUnifiedElement('{referencia}', 'Ponto de Referência', 12, {
-        visible: true,
-        align: 'left',
-        separatorEnabled: true,
-        separatorChar: '='
-      }),
-      createUnifiedElement('{itens}', 'Itens do Pedido', 13, {
-        visible: true,
-        align: 'left',
-        separatorEnabled: true
-      }),
-      createUnifiedElement('{observacoes_pedido}', 'Observações', 14, {
-        visible: true,
-        align: 'left',
-        separatorEnabled: true
-      }),
-      createUnifiedElement('{subtotal}', 'Subtotal', 15, {
-        visible: true,
-        align: 'left'
-      }),
-      createUnifiedElement('{taxa_entrega}', 'Taxa de Entrega', 16, {
-        visible: true,
-        align: 'left'
-      }),
-      createUnifiedElement('{total}', 'Total', 17, {
-        visible: true,
-        align: 'left'
-      }),
-      createUnifiedElement('{forma_pagamento}', 'Forma de Pagamento', 18, {
-        visible: true,
-        align: 'left',
-        separatorEnabled: true,
-        separatorChar: '='
       }),
       createUnifiedElement('{mensagem_rodape}', 'Mensagem de Rodapé', 19, {
-        visible: true,
-        align: 'center',
-        separatorEnabled: true
-      })
-    ]
+        fontSize: 'small', align: 'center',
+        separatorEnabled: true,
+      }),
+    ],
   },
   
+  // v1.2.2 — Cozinha/Bar: foco no que cozinha precisa ver — sem dados de pagamento/endereço
   simplified: {
-    name: 'Simplificado (Cozinha/Bar)',
-    description: 'Layout simplificado apenas com informações essenciais',
+    name: 'Simplificado (Cozinha/Bar) — Food Service',
+    description: 'Tipo invertido + Nº GIGANTE + ETA + itens com OBS destacado',
     elements: [
-      createUnifiedElement('{numero_pedido}', 'Número do Pedido', 0, {
-        visible: true,
-        align: 'center',
+      createUnifiedElement('{tipo_entrega}', 'Tipo de Entrega', 0, {
+        visible: true, align: 'center',
+      }),
+      createUnifiedElement('{numero_pedido}', 'Número do Pedido', 1, {
+        visible: true, align: 'center',
+      }),
+      createUnifiedElement('{data_hora}', 'Pedido às', 2, {
+        fontSize: 'small', align: 'center',
+      }),
+      createUnifiedElement('{eta_pronto}', 'Previsão Pronto', 3, {
+        fontSize: 'medium', bold: true, align: 'center',
         separatorEnabled: true,
-        separatorChar: '='
       }),
-      createUnifiedElement('{data_hora}', 'Data e Hora', 1, {
-        visible: true,
-        align: 'center'
-      }),
-      createUnifiedElement('{tipo_entrega}', 'Tipo de Entrega', 2, {
-        visible: true,
-        align: 'center',
-        separatorEnabled: true
-      }),
-      createUnifiedElement('{nome_cliente}', 'Cliente', 3, {
-        visible: true,
-        align: 'left',
-        separatorEnabled: true
-      }),
-      createUnifiedElement('{itens}', 'Itens do Pedido', 4, {
-        visible: true,
-        align: 'left',
+      createUnifiedElement('{nome_cliente}', 'Cliente', 4, {
+        fontSize: 'large', bold: true, align: 'left',
         separatorEnabled: true,
-        separatorChar: '='
       }),
-      createUnifiedElement('{observacoes_pedido}', 'Observações', 5, {
-        visible: true,
-        align: 'left'
-      })
-    ]
-  }
+      createUnifiedElement('{itens}', 'Itens do Pedido', 5, {
+        fontSize: 'medium', align: 'left',
+        separatorEnabled: true, separatorChar: '=',
+      }),
+      createUnifiedElement('{observacoes_pedido}', 'Observações', 6, {
+        fontSize: 'medium', align: 'left',
+      }),
+    ],
+  },
 };
