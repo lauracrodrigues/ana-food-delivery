@@ -3,6 +3,7 @@ import { useState, useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -72,6 +73,8 @@ export function ManualOrderSidebar({ open, onClose, companyId }: ManualOrderSide
   const [addressComplement, setAddressComplement] = useState("");
   const [deliveryFee, setDeliveryFee] = useState("0");
   const [paymentMethod, setPaymentMethod] = useState("pix");
+  // v1.0.1 — troco quando pagamento é dinheiro
+  const [trocoPara, setTrocoPara] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState("");
@@ -182,7 +185,10 @@ export function ManualOrderSidebar({ open, onClose, companyId }: ManualOrderSide
           address_complement:  orderType === "delivery" ? addressComplement.trim() : null,
           items,
           delivery_fee:        fee,
-          payment_method:      paymentMethod,
+          // v1.0.1 — anexa troco quando dinheiro (concorrentes food service fazem)
+          payment_method:      paymentMethod === "dinheiro" && trocoPara > 0
+            ? `dinheiro - Troco para R$ ${trocoPara.toFixed(2).replace('.', ',')}`
+            : paymentMethod,
           notes:               notes.trim() || null,
         }),
       });
@@ -214,6 +220,7 @@ export function ManualOrderSidebar({ open, onClose, companyId }: ManualOrderSide
     setAddressComplement("");
     setDeliveryFee("0");
     setPaymentMethod("pix");
+    setTrocoPara(0);
     setNotes("");
     setCart([]);
     setSearch("");
@@ -444,6 +451,20 @@ export function ManualOrderSidebar({ open, onClose, companyId }: ManualOrderSide
                     ))}
                   </SelectContent>
                 </Select>
+                {/* v1.0.1 — Campo Troco aparece só quando Dinheiro */}
+                {paymentMethod === "dinheiro" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Troco para</Label>
+                    <CurrencyInput
+                      value={trocoPara}
+                      onChange={(v) => setTrocoPara(v)}
+                      placeholder="R$ 0,00 (sem troco)"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Deixe vazio se não precisa de troco
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Observações */}

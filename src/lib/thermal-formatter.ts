@@ -172,12 +172,21 @@ export function formatReceipt(
   // v1.2.4 — Tags do "bloco financeiro" agrupadas sem espaçamento entre si
   // (cliente reclamou que subtotal/taxa/total/pagamento ficavam muito espalhados)
   const FINANCE_TAGS = new Set(['{subtotal}', '{taxa_entrega}', '{total}', '{forma_pagamento}']);
+
+  // v1.2.5 — Tags do header empresa também agrupadas (nome/tel/end/cnpj/email/data)
+  // Cliente: header estava com muito espaço entre as linhas
+  const HEADER_TAGS = new Set([
+    '{nome_empresa}', '{telefone_empresa}', '{endereco_empresa}',
+    '{cnpj}', '{email_empresa}', '{data_hora}',
+  ]);
   
   for (let idx = 0; idx < visibleElements.length; idx++) {
     const element = visibleElements[idx];
-    // v1.2.4 — Próximo elemento (pra detectar bloco financeiro contíguo)
+    // v1.2.4/5 — Próximo elemento (pra detectar blocos contíguos sem espaçamento)
     const nextEl = visibleElements[idx + 1];
     const isFinanceBlock = FINANCE_TAGS.has(element.tag) && nextEl && FINANCE_TAGS.has(nextEl.tag);
+    const isHeaderBlock  = HEADER_TAGS.has(element.tag)  && nextEl && HEADER_TAGS.has(nextEl.tag);
+    const isContiguous   = isFinanceBlock || isHeaderBlock;
 
     // v1.2.0 — Override semântico por tag (sobrepõe formatação do user pra tags críticas)
     const sem = SEMANTIC_OVERRIDES[element.tag as PrintTag];
@@ -384,9 +393,8 @@ export function formatReceipt(
       lines.push({ text: margin + divider(char, effectiveWidth) });
     }
 
-    // v1.2.4 — Skip espaçamento se estiver dentro do bloco financeiro contíguo
-    // (subtotal → taxa → total → pagamento ficam grudados, sem linha em branco entre)
-    if (!isFinanceBlock) {
+    // v1.2.4/5 — Skip espaçamento dentro de blocos contíguos (header ou financeiro)
+    if (!isContiguous) {
       for (let i = 0; i < spacingLines; i++) {
         lines.push({ text: margin });
       }

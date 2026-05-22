@@ -191,13 +191,14 @@ const DEFAULT_FOODSERVICE_ELEMENTS: UnifiedPrintElement[] = [
   { id: '{nome_empresa}-0',       tag: '{nome_empresa}',       label: 'Nome da Empresa',     visible: true, fontSize: 'large',  formatting: { bold: true,  underline: false, align: 'center' }, order: 0,  separator_below: { show: false, type: 'line', char: '-' } },
   { id: '{telefone_empresa}-1',   tag: '{telefone_empresa}',   label: 'Telefone Empresa',    visible: true, fontSize: 'xsmall', formatting: { bold: false, underline: false, align: 'center' }, order: 1,  separator_below: { show: false, type: 'line', char: '-' } },
   { id: '{endereco_empresa}-2',   tag: '{endereco_empresa}',   label: 'Endereço Empresa',    visible: true, fontSize: 'xsmall', formatting: { bold: false, underline: false, align: 'center' }, order: 2,  separator_below: { show: false, type: 'line', char: '-' } },
-  { id: '{cnpj}-3',               tag: '{cnpj}',               label: 'CNPJ',                visible: true, fontSize: 'xsmall', formatting: { bold: false, underline: false, align: 'center' }, order: 3,  separator_below: { show: true,  type: 'equals', char: '=' } },
+  { id: '{cnpj}-3',               tag: '{cnpj}',               label: 'CNPJ',                visible: true, fontSize: 'xsmall', formatting: { bold: false, underline: false, align: 'center' }, order: 3,  separator_below: { show: false, type: 'line', char: '-' } },
+  // v1.2.5 — data_hora movida pro bloco header (alinhada direita, dentro do grupo HEADER_TAGS — sem espaço)
+  { id: '{data_hora}-4',          tag: '{data_hora}',          label: 'Data e Hora',         visible: true, fontSize: 'xsmall', formatting: { bold: false, underline: false, align: 'right'  }, order: 4,  separator_below: { show: true,  type: 'equals', char: '=' } },
   // Tipo entrega (override semântico aplica INV 2X)
-  { id: '{tipo_entrega}-4',       tag: '{tipo_entrega}',       label: 'Tipo de Entrega',     visible: true, fontSize: 'medium', formatting: { bold: true,  underline: false, align: 'center' }, order: 4,  separator_below: { show: false, type: 'line', char: '-' } },
+  { id: '{tipo_entrega}-5',       tag: '{tipo_entrega}',       label: 'Tipo de Entrega',     visible: true, fontSize: 'medium', formatting: { bold: true,  underline: false, align: 'center' }, order: 5,  separator_below: { show: false, type: 'line', char: '-' } },
   // Nº pedido GIGANTE (override semântico aplica 2X bold)
-  { id: '{numero_pedido}-5',      tag: '{numero_pedido}',      label: 'Número do Pedido',    visible: true, fontSize: 'xlarge', formatting: { bold: true,  underline: false, align: 'center' }, order: 5,  separator_below: { show: false, type: 'line', char: '-' } },
-  // Data + ETA
-  { id: '{data_hora}-6',          tag: '{data_hora}',          label: 'Pedido às',           visible: true, fontSize: 'small',  formatting: { bold: false, underline: false, align: 'center' }, order: 6,  separator_below: { show: false, type: 'line', char: '-' } },
+  { id: '{numero_pedido}-6',      tag: '{numero_pedido}',      label: 'Número do Pedido',    visible: true, fontSize: 'xlarge', formatting: { bold: true,  underline: false, align: 'center' }, order: 6,  separator_below: { show: false, type: 'line', char: '-' } },
+  // ETA isolado (eta_pronto fica fora do HEADER_TAGS pra ter espaço respiração)
   { id: '{eta_pronto}-7',         tag: '{eta_pronto}',         label: 'Previsão Pronto',     visible: true, fontSize: 'medium', formatting: { bold: true,  underline: false, align: 'center' }, order: 7,  separator_below: { show: true,  type: 'line', char: '-' } },
   // Cliente
   { id: '{nome_cliente}-8',       tag: '{nome_cliente}',       label: 'Nome do Cliente',     visible: true, fontSize: 'large',  formatting: { bold: true,  underline: false, align: 'left'   }, order: 8,  separator_below: { show: false, type: 'line', char: '-' } },
