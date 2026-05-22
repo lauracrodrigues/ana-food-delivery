@@ -105,12 +105,39 @@ export function ThermalPreview({
             >
               {/* Preview com formatação aplicada — fonte mono, sem letter-spacing
                   pra bater 1:1 com impressora térmica que usa fonte de largura fixa */}
+              {/* v1.2.0 — processa markers {{INV}} (reverse video), {{BEEP}} (oculto), {{QR}} (placeholder) */}
               <div className="p-3 leading-tight font-mono">
-                {lines.map((line, idx) => (
-                  <div key={idx} className={getLineClasses(line)} style={{ whiteSpace: 'pre' }}>
-                    {line.text || ' '}
-                  </div>
-                ))}
+                {lines.map((line, idx) => {
+                  const text = line.text || ' ';
+                  if (text.trim() === '{{BEEP}}') return null;
+                  const qrMatch = text.match(/\{\{QR:([^}|:]+)(?::(\d+))?\}\}/);
+                  if (qrMatch) {
+                    return (
+                      <div key={idx} className="flex justify-center my-2">
+                        <div className="w-16 h-16 bg-black/80 text-white text-[6px] flex items-center justify-center rounded">
+                          QR<br/>{qrMatch[1].substring(0, 8)}
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (text.includes('{{INV}}')) {
+                    const parts = text.split(/\{\{INV\}\}|\{\{\/INV\}\}/);
+                    return (
+                      <div key={idx} className={getLineClasses(line)} style={{ whiteSpace: 'pre' }}>
+                        {parts.map((p, i) =>
+                          i % 2 === 1
+                            ? <span key={i} className="bg-black text-[#F5E6D3] px-0.5">{p}</span>
+                            : <span key={i}>{p}</span>
+                        )}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={idx} className={getLineClasses(line)} style={{ whiteSpace: 'pre' }}>
+                      {text}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

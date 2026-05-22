@@ -27,7 +27,9 @@ export type PrintTag =
   | '{taxa_entrega}'
   | '{total}'
   | '{forma_pagamento}'
-  | '{qr_pickup}';   // v1.0.1 — QR code do token de captura por entregador
+  | '{qr_pickup}'        // v1.0.1 — QR code do token de captura por entregador
+  | '{eta_pronto}'       // v1.2.0 — "Pronto até: HH:MM" (calculado de created_at + deliveryTime)
+  | '{qr_rastreio}';     // v1.2.0 — QR pra cliente acompanhar pedido (anafood.vip/p/XXX)
 
 export type TextAlign = 'left' | 'center' | 'right';
 
@@ -439,5 +441,9 @@ export const TAG_METADATA: Record<PrintTag, { label: string; icon: string; categ
   '{taxa_entrega}': { label: 'Taxa de Entrega', icon: '🚚', category: 'body' },
   '{total}': { label: 'Total', icon: '💰', category: 'body' },
   '{forma_pagamento}': { label: 'Forma de Pagamento', icon: '💳', category: 'body' },
-  '{mensagem_rodape}': { label: 'Mensagem de Rodapé', icon: '✉️', category: 'footer' }
+  '{mensagem_rodape}': { label: 'Mensagem de Rodapé', icon: '✉️', category: 'footer' },
+  // v1.2.0 — Tags novas inspiradas em concorrentes food service
+  '{qr_pickup}': { label: 'QR Captura Entregador', icon: '🏍️', category: 'footer' },
+  '{eta_pronto}': { label: 'Previsão Pronto', icon: '⏱️', category: 'body' },
+  '{qr_rastreio}': { label: 'QR Rastreio Cliente', icon: '📱', category: 'footer' },
 };

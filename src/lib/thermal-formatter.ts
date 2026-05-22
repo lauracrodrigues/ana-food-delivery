@@ -1,13 +1,41 @@
 /**
  * THERMAL FORMATTER - SINGLE SOURCE OF TRUTH
- * Este módulo é o ÚNICO responsável por formatar texto para cupom térmico
+ * v1.2.0 — Melhorias inspiradas em players food service (iFood, Goomer, etc):
+ *   - Número pedido GIGANTE centralizado com label
+ *   - Tipo entrega em reverse video (INV marker) 2X
+ *   - Observações com separadores pontilhados e prefixo "▸ OBS:"
+ *   - TOTAL forçado 2X bold direita
+ *   - Separador pontilhado entre itens (não linha cheia)
+ *   - Tags novas: {eta_pronto}, {qr_rastreio}
+ *   - Beep antes do corte (agente acrescenta no rodapé)
  * Preview e impressão CONSOMEM a saída deste módulo
  */
 
 import { formatCurrency } from './currency-formatter';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { ExtendedLayoutConfig, UnifiedPrintElement, FormattedLine } from '@/types/printer-layout-extended';
+import type { ExtendedLayoutConfig, UnifiedPrintElement, FormattedLine, FontSize, TextAlign, PrintTag } from '@/types/printer-layout-extended';
+
+// =====================================================
+// v1.2.0 — OVERRIDES SEMÂNTICOS POR TAG
+// Tags onde Anafood força formatação ideal (concorrentes food service)
+// User customization NESSAS TAGS é override em cima — esses são defaults
+// =====================================================
+type SemanticOverride = {
+  fontSize?: FontSize;
+  align?: TextAlign;
+  bold?: boolean;
+  inverse?: boolean;  // reverse video (ESC GS B 1) — agente processa {{INV}}/{{/INV}}
+};
+
+const SEMANTIC_OVERRIDES: Partial<Record<PrintTag, SemanticOverride>> = {
+  '{numero_pedido}': { fontSize: 'xlarge', align: 'center', bold: true },
+  '{tipo_entrega}':  { fontSize: 'xlarge', align: 'center', bold: true, inverse: true },
+  '{total}':         { fontSize: 'xlarge', align: 'right',  bold: true },
+};
+
+// Separador pontilhado entre itens (vez de linha cheia)
+const ITEM_SEPARATOR = '· · · · · · · · · · · · · · · · · · · · · · · · ';
 
 // =====================================================
 // PRIMITIVAS DE PADDING
@@ -141,6 +169,45 @@ export function formatReceipt(
   const spacingLines = getLineSpacingCount(config.line_spacing || 'normal');
   
   for (const element of visibleElements) {
+    // v1.2.0 — Override semântico por tag (sobrepõe formatação do user pra tags críticas)
+    const sem = SEMANTIC_OVERRIDES[element.tag as PrintTag];
+    const finalFontSize = (sem?.fontSize ?? element.fontSize) as FontSize;
+    const finalAlign    = (sem?.align    ?? element.formatting?.align ?? 'left') as TextAlign;
+    const finalBold     = sem?.bold      ?? element.formatting?.bold ?? false;
+    const wrapInverse   = sem?.inverse   ?? false;
+
+    // SPECIAL CASE: {numero_pedido} — renderização "concorrente": label pequeno + número GIGANTE
+    if (element.tag === '{numero_pedido}') {
+      const num = String(order.order_number || '000');
+      // Linha 1: "PEDIDO" pequeno centralizado
+      lines.push({
+        text: margin + padCenter('PEDIDO', effectiveWidth),
+        formatting: { fontSize: 'small', align: 'center' },
+      });
+      // Linha 2: "#123" gigante centralizado (forçado 2X bold)
+      lines.push({
+        text: margin + padCenter(`#${num}`, effectiveWidth),
+        formatting: { fontSize: 'xlarge', bold: true, align: 'center' },
+      });
+      // Espaçamento
+      for (let i = 0; i < spacingLines; i++) lines.push({ text: margin });
+      continue;
+    }
+
+    // SPECIAL CASE: {tipo_entrega} — bloco invertido (reverse video) centralizado 2X
+    if (element.tag === '{tipo_entrega}') {
+      const isDelivery = order.type === 'delivery';
+      const label = isDelivery ? '🛵 DELIVERY' : '🥡 RETIRADA';
+      // Padding extra pra criar "espaço pintado" ao redor do texto
+      const padded = padCenter(`  ${label}  `, effectiveWidth);
+      lines.push({
+        text: margin + `{{INV}}${padded}{{/INV}}`,
+        formatting: { fontSize: 'xlarge', bold: true, align: 'center' },
+      });
+      for (let i = 0; i < spacingLines; i++) lines.push({ text: margin });
+      continue;
+    }
+
     // SPECIAL CASE: {itens}
     if (element.tag === '{itens}') {
       lines.push({
@@ -152,25 +219,25 @@ export function formatReceipt(
           align: element.formatting?.align
         }
       });
-      
+
       // Espaçamento após título
       for (let i = 0; i < spacingLines; i++) {
         lines.push({ text: margin });
       }
-      
+
       const items = order.items || [];
-      items.forEach((item: any) => {
+      items.forEach((item: any, idx: number) => {
         const itemText = `${item.quantity}x ${item.name}`;
         const itemPrice = formatCurrency(item.price * item.quantity);
         lines.push({
           text: margin + itemWithPrice(itemText, itemPrice, effectiveWidth),
           formatting: {
-            bold: element.formatting?.bold,
+            bold: true,                        // v1.2.0 — nome do item sempre bold
             fontSize: element.fontSize,
             align: 'left'
           }
         });
-        
+
         // Extras com indentação de 2 espaços
         if (item.extras && item.extras.length > 0) {
           item.extras.forEach((extra: any) => {
@@ -181,33 +248,58 @@ export function formatReceipt(
             });
           });
         }
-        
-        // Observações com indentação de 2 espaços
+
+        // Observações com indentação + prefixo "▸ OBS:" bold (v1.2.0)
         if (item.observations) {
-          const obsLines = wrapText(`  Obs: ${item.observations}`, effectiveWidth);
-          obsLines.forEach(line => lines.push({
-            text: margin + line,
-            formatting: { fontSize: 'small', align: 'left' }
+          const obsLines = wrapText(`▸ OBS: ${item.observations}`, effectiveWidth - 2);
+          obsLines.forEach((line, i) => lines.push({
+            text: margin + '  ' + line,
+            formatting: {
+              fontSize: 'medium',
+              bold: i === 0,                   // só 1ª linha em bold pra destacar prefixo
+              align: 'left',
+            },
           }));
         }
-        
-        // Espaçamento após cada item
-        for (let i = 0; i < spacingLines; i++) {
-          lines.push({ text: margin });
+
+        // v1.2.0 — Separador pontilhado entre items (não linha cheia, mais clean)
+        if (idx < items.length - 1) {
+          lines.push({
+            text: margin + ITEM_SEPARATOR.substring(0, effectiveWidth),
+            formatting: { fontSize: 'small', align: 'left' },
+          });
         }
       });
-      
+
       // Separator
       if (element.separator_below?.show) {
         const char = element.separator_below.char || '-';
         lines.push({ text: margin + divider(char, effectiveWidth) });
       }
-      
+
       // Espaçamento após separador
       for (let i = 0; i < spacingLines; i++) {
         lines.push({ text: margin });
       }
-      
+
+      continue;
+    }
+
+    // SPECIAL CASE: {observacoes_pedido} — bloco destacado com separadores
+    if (element.tag === '{observacoes_pedido}' && order.observations) {
+      const obsDots = ITEM_SEPARATOR.substring(0, effectiveWidth);
+      lines.push({ text: margin + obsDots, formatting: { fontSize: 'small', align: 'left' } });
+      const obsLines = wrapText(`▸ OBS DO PEDIDO: ${order.observations}`, effectiveWidth);
+      obsLines.forEach((line, i) => lines.push({
+        text: margin + line,
+        formatting: {
+          fontSize: 'medium',
+          bold: i === 0,
+          align: 'left',
+        },
+      }));
+      lines.push({ text: margin + obsDots, formatting: { fontSize: 'small', align: 'left' } });
+      for (let i = 0; i < spacingLines; i++) lines.push({ text: margin });
       continue;
     }
     
@@ -263,20 +355,17 @@ export function formatReceipt(
     }
     
     // Elementos normais (uma linha)
-    // Para center e right, deixar o CSS fazer o alinhamento
-    // Apenas padding left precisa ser aplicado aqui
-    const formatted = align === 'left' ? padRight(content, effectiveWidth) : content.trim();
-    
-    // Aplicar formatação final
-    const finalText = margin + formatted;
-    
+    // v1.2.0 — usa finalAlign/finalFontSize/finalBold do override semântico
+    const formatted = finalAlign === 'left' ? padRight(content, effectiveWidth) : content.trim();
+    const wrappedText = wrapInverse ? `{{INV}}${formatted}{{/INV}}` : formatted;
+
     lines.push({
-      text: finalText,
+      text: margin + wrappedText,
       formatting: {
-        bold: element.formatting?.bold,
+        bold: finalBold,
         underline: element.formatting?.underline || false,
-        fontSize: element.fontSize,
-        align: element.formatting?.align
+        fontSize: finalFontSize,
+        align: finalAlign,
       }
     });
     
@@ -297,7 +386,11 @@ export function formatReceipt(
   for (let i = 0; i < extraFeed; i++) {
     lines.push({ text: margin });
   }
-  
+
+  // v1.2.0 — Beep antes do corte chama atenção quando recibo sai (concorrentes fazem)
+  // Marker {{BEEP}} é processado pelo agente; se impressora não suporta, ignora silencioso
+  lines.push({ text: '{{BEEP}}' });
+
   return lines;
 }
 
@@ -392,6 +485,25 @@ function getElementContent(
       // Preview mostra placeholder visual
       content = order.pickup_qr_token ? `{{QR:${order.pickup_qr_token}:6}}` : '';
       break;
+    case '{eta_pronto}': {
+      // v1.2.0 — Previsão de pronto: created_at + delivery_time (min)
+      const dt = order.delivery_time_minutes ?? order.estimated_minutes ?? 30;
+      if (order.created_at) {
+        const eta = new Date(new Date(order.created_at).getTime() + dt * 60_000);
+        content = `Pronto até: ${format(eta, 'HH:mm', { locale: ptBR })}`;
+      } else {
+        content = '';
+      }
+      break;
+    }
+    case '{qr_rastreio}': {
+      // v1.2.0 — QR pra cliente acompanhar pedido (anafood.vip/p/{idCurto})
+      // Agente desktop converte em QR Code real, preview mostra placeholder
+      const shortId = String(order.id || '').replace(/-/g, '').substring(0, 8).toUpperCase();
+      const url = shortId ? `anafood.vip/p/${shortId}` : '';
+      content = url ? `{{QR:${url}:6}}` : '';
+      break;
+    }
     default:
       content = '';
   }

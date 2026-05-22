@@ -1,6 +1,7 @@
-// v1.1.0 — Converte FormattedLine[] (do preview) → string com marcadores ESC/POS
-// Agente desktop interpreta {{C}}, {{L}}, {{COND}}, {{N}}, {{2H}}, {{2X}}, {{B}}, {{QR:data}}.
-// 5 níveis proporcionais (PP/P/M/G/GG) com diferenças graduais — não só normal vs big.
+// v1.2.0 — Converte FormattedLine[] (do preview) → string com marcadores ESC/POS
+// Agente desktop interpreta: {{C}}, {{L}}, {{R}}, {{COND}}, {{N}}, {{2H}}, {{2X}}, {{B}}, {{/B}},
+//                            {{INV}}, {{/INV}} (reverse video), {{QR:data}}, {{BEEP}}.
+// 5 níveis proporcionais (PP/P/M/G/GG) com diferenças graduais.
 // Garante que IMPRESSÃO === PREVIEW.
 import type { FormattedLine } from "@/types/printer-layout-extended";
 
