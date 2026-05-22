@@ -136,6 +136,85 @@ serve(async (req) => {
       );
     }
 
+    // v1.1.0 — Enviar texto (relatórios, notificações)
+    if (action === 'sendText') {
+      const { number, message } = body;
+      if (!number || !message) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'missing_fields', message: 'number e message obrigatórios' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const inst = instanceName || sessionName;
+      console.log('[Evolution] 💬 sendText pra', number, 'via', inst);
+
+      const { response, serverError, errorBody, data } = await fetchEvolution(
+        `${EVOLUTION_BASE_URL}/message/sendText/${inst}`,
+        EVOLUTION_API_KEY,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number, text: message, linkPreview: false }),
+        }
+      );
+      if (serverError) return handleEvolutionServerError(response.status, errorBody);
+      if (!response.ok) {
+        console.error('[Evolution] ❌ sendText falhou:', response.status, data);
+        return new Response(
+          JSON.stringify({ success: false, error: 'send_failed', detail: data, status: response.status }),
+          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true, data }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // v1.1.0 — Enviar mídia (PDF/imagem) — usado pra anexar relatório PDF
+    if (action === 'sendMedia') {
+      const { number, mediatype, mimetype, media, fileName, caption } = body;
+      if (!number || !media || !mimetype) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'missing_fields', message: 'number, media, mimetype obrigatórios' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const inst = instanceName || sessionName;
+      console.log('[Evolution] 📎 sendMedia', mediatype, 'pra', number, 'via', inst);
+
+      const payload: any = {
+        number,
+        mediatype: mediatype || (mimetype.startsWith('image/') ? 'image' : 'document'),
+        mimetype,
+        media,
+        caption: caption || '',
+      };
+      if (payload.mediatype === 'document' && fileName) payload.fileName = fileName;
+
+      const { response, serverError, errorBody, data } = await fetchEvolution(
+        `${EVOLUTION_BASE_URL}/message/sendMedia/${inst}`,
+        EVOLUTION_API_KEY,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      );
+      if (serverError) return handleEvolutionServerError(response.status, errorBody);
+      if (!response.ok) {
+        console.error('[Evolution] ❌ sendMedia falhou:', response.status, data);
+        return new Response(
+          JSON.stringify({ success: false, error: 'send_failed', detail: data, status: response.status }),
+          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true, data }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Deletar instância
     if (action === 'delete') {
       console.log('[Evolution] 🗑️ Deletando instância:', instanceName);
