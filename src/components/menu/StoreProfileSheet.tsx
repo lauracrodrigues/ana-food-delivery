@@ -201,12 +201,21 @@ export function StoreProfileSheet({ open, onOpenChange, company }: StoreProfileS
                   const s = company.schedule?.[day];
                   const todayKey = WEEKDAY_ORDER[new Date().getDay()];
                   const isToday = day === todayKey;
+                  // v1.1.0 — Suporta formato novo (periods array) E antigo (open/close direto)
+                  let label = "Fechado";
+                  if (s && !s.closed && (s.enabled !== false)) {
+                    if (Array.isArray(s.periods) && s.periods.length > 0) {
+                      label = s.periods
+                        .map((p: any) => `${(p.open || "").slice(0, 5)} – ${(p.close || "").slice(0, 5)}`)
+                        .join(" e ");
+                    } else if (s.open && s.close) {
+                      label = `${s.open.slice(0, 5)} – ${s.close.slice(0, 5)}`;
+                    }
+                  }
                   return (
                     <li key={day} className={`flex justify-between ${isToday ? "font-semibold" : ""}`}>
                       <span>{WEEKDAY_LABELS[day]}{isToday && " (hoje)"}</span>
-                      <span className="text-muted-foreground">
-                        {s?.closed || !s ? "Fechado" : `${s.open?.slice(0, 5)} – ${s.close?.slice(0, 5)}`}
-                      </span>
+                      <span className="text-muted-foreground">{label}</span>
                     </li>
                   );
                 })}
