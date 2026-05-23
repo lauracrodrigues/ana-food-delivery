@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Printer, Phone, MapPin, XCircle, Clock, Package, Truck, ArrowLeftRight } from "lucide-react";
+import { Printer, Phone, MapPin, XCircle, Clock, Package, Truck, ArrowLeftRight, Pencil } from "lucide-react";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { Order } from "./types";
 
@@ -13,6 +13,7 @@ interface OrderDetailsDialogProps {
   onCancel: () => void;
   onOpenWhatsApp: (phone: string, orderNumber: string) => void;
   onChangeType?: (orderId: string, newType: "delivery" | "pickup") => void;
+  onEdit?: (order: Order) => void;  // v1.1.0 — abre EditOrderDialog
   isPrinting: boolean;
 }
 
@@ -24,6 +25,7 @@ export function OrderDetailsDialog({
   onCancel,
   onOpenWhatsApp,
   onChangeType,
+  onEdit,
   isPrinting,
 }: OrderDetailsDialogProps) {
   if (!order) return null;
@@ -153,7 +155,19 @@ export function OrderDetailsDialog({
           )}
 
           {/* Actions */}
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-2 pt-4 flex-wrap">
+            {/* v1.1.0 — Editar (só em pedidos não finalizados/em rota) */}
+            {onEdit && !["delivering","completed","cancelled","archived"].includes(order.status) && (
+              <Button
+                variant="default"
+                onClick={() => onEdit(order)}
+                className="flex-1"
+              >
+                <Pencil className="w-4 h-4 mr-2" />
+                Editar Pedido
+              </Button>
+            )}
+
             {order.status !== "cancelled" && order.status !== "completed" && (
               <Button
                 variant="destructive"
@@ -164,7 +178,7 @@ export function OrderDetailsDialog({
                 Cancelar Pedido
               </Button>
             )}
-            
+
             {order.status !== "pending" && order.status !== "cancelled" && (
               <Button
                 variant="outline"

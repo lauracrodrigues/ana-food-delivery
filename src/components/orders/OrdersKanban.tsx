@@ -14,6 +14,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { KanbanHeader } from "./KanbanHeader";
 import { KanbanColumn } from "./KanbanColumn";
 import { OrderDetailsDialog } from "./OrderDetailsDialog";
+import { EditOrderDialog } from "./EditOrderDialog";
 import { CancelOrderDialog } from "./CancelOrderDialog";
 import { AssignDelivererDialog } from "./AssignDelivererDialog";
 import { AssignOrderToDelivererDialog } from "./AssignOrderToDelivererDialog";
@@ -39,6 +40,8 @@ export function OrdersKanban() {
 
   // UI States
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  // v1.1.0 — Pedido em edição (abre EditOrderDialog)
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [savedIndicator, setSavedIndicator] = useState(false);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -1246,7 +1249,14 @@ export function OrdersKanban() {
         onCancel={() => setShowCancelDialog(true)}
         onOpenWhatsApp={openWhatsApp}
         onChangeType={handleChangeType}
+        onEdit={(o) => { setSelectedOrder(null); setEditingOrder(o); }}
         isPrinting={isPrinting}
+      />
+
+      <EditOrderDialog
+        order={editingOrder}
+        open={!!editingOrder}
+        onClose={() => setEditingOrder(null)}
       />
 
       <CancelOrderDialog
