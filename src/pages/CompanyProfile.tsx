@@ -589,44 +589,8 @@ export default function CompanyProfile() {
               </CardContent>
             </Card>
 
-            {/* Imagem do Cardápio enviada pelo bot quando cliente pede "cardápio" */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5 text-primary" />
-                  Imagem do Cardápio (WhatsApp)
-                </CardTitle>
-                <CardDescription>
-                  URL da imagem (JPG/PNG) do cardápio do dia. Quando o cliente pedir "cardápio" no WhatsApp, o bot envia esta imagem primeiro e depois o link do cardápio digital.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <Label htmlFor="menu_image_url">URL da imagem</Label>
-                  <Input
-                    id="menu_image_url"
-                    type="url"
-                    placeholder="https://seudominio.com/cardapio-semanal.jpg"
-                    value={formData.menu_image_url}
-                    onChange={(e) => set('menu_image_url', e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Dica: hospede a imagem em qualquer serviço (Google Drive público, Imgur, ou Supabase Storage) e cole o link direto aqui.
-                  </p>
-                </div>
-                {formData.menu_image_url && (
-                  <div>
-                    <Label className="text-xs">Preview:</Label>
-                    <img
-                      src={formData.menu_image_url}
-                      alt="Preview cardápio"
-                      className="mt-1 max-h-64 rounded border"
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* v1.1.0 — Seção "Imagem do Cardápio (WhatsApp)" removida.
+                Sistema gera imagem do cardápio do dia automaticamente. */}
           </TabsContent>
         </Tabs>
 

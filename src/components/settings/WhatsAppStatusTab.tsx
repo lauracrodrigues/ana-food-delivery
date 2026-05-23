@@ -199,11 +199,18 @@ function StatusRow({ item, onDelete, onToggle, onEdit }: { item: StatusItem; onD
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="outline" className="text-[10px]">{item.type.toUpperCase()}</Badge>
+          <Badge variant="outline" className="text-[10px]">
+            {item.type === "text" ? "TEXTO" : item.type === "image" ? "FOTO" : "VÍDEO"}
+          </Badge>
           {item.recurrence_type === "daily" && <Badge variant="secondary" className="gap-1 text-[10px]"><Repeat className="h-3 w-3" />Diário</Badge>}
           {item.recurrence_type === "weekly" && <Badge variant="secondary" className="gap-1 text-[10px]"><Repeat className="h-3 w-3" />Semanal</Badge>}
           {item.recurrence_type === "once" && <Badge variant="secondary" className="gap-1 text-[10px]"><Calendar className="h-3 w-3" />Único</Badge>}
-          <span className={`text-[10px] uppercase font-semibold px-2 rounded ${statusColor} text-white`}>{item.status}</span>
+          <span className={`text-[10px] uppercase font-semibold px-2 rounded ${statusColor} text-white`}>
+            {item.status === "sent" ? "Enviado" :
+             item.status === "failed" ? "Falhou" :
+             item.status === "disabled" ? "Desativado" :
+             item.status === "pending" ? "Agendado" : item.status}
+          </span>
         </div>
         <p className="text-sm mt-1 line-clamp-2">
           {item.type === "text" ? item.content : (item.caption || `[${item.type}] sem legenda`)}

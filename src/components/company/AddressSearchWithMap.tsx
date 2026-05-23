@@ -74,10 +74,13 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const center: [number, number] =
-    address.latitude && address.longitude
-      ? [address.latitude, address.longitude]
-      : [-23.5505, -46.6333]; // São Paulo default
+  // v1.1.0 — Validação robusta de coords: evita NaN/Infinity que quebra MapContainer
+  const lat = Number(address.latitude);
+  const lng = Number(address.longitude);
+  const validCoords = isFinite(lat) && isFinite(lng) && lat !== 0 && lng !== 0;
+  const center: [number, number] = validCoords
+    ? [lat, lng]
+    : [-23.5505, -46.6333]; // São Paulo default
 
   const handleCoordChange = (lat: number, lng: number) => {
     onChange({ ...address, latitude: lat, longitude: lng });
@@ -307,9 +310,9 @@ export function AddressSearchWithMap({ address, onChange }: AddressSearchWithMap
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <MapClickHandler onMove={handleCoordChange} />
-            {address.latitude && address.longitude && (
+            {validCoords && (
               <DraggableMarker
-                position={[address.latitude, address.longitude]}
+                position={center}
                 onDrag={handleCoordChange}
               />
             )}
