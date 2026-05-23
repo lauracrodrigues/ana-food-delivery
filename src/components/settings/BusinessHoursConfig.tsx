@@ -68,6 +68,24 @@ export function BusinessHoursConfig({ companyId }: BusinessHoursConfigProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [schedule, setSchedule] = useState<WeekSchedule>(DEFAULT_SCHEDULE);
+  // v3.0.0 — Toggle "aceitar pedidos fora do horário (agendar pra abertura)"
+  const [windowEnabled, setWindowEnabled] = useState(false);
+
+  // Lê store_settings.delivery_window_enabled
+  const { data: storeSet } = useQuery({
+    queryKey: ["store-settings-window", companyId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("store_settings")
+        .select("delivery_window_enabled")
+        .eq("company_id", companyId)
+        .maybeSingle();
+      return data as any;
+    },
+  });
+  useEffect(() => {
+    if (storeSet) setWindowEnabled(!!storeSet.delivery_window_enabled);
+  }, [storeSet]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["business-hours", companyId],
@@ -89,14 +107,20 @@ export function BusinessHoursConfig({ companyId }: BusinessHoursConfigProps) {
 
   const saveMutation = useMutation({
     mutationFn: async (newSchedule: WeekSchedule) => {
-      const { error } = await supabase
-        .from("companies")
-        .update({ schedule: newSchedule })
-        .eq("id", companyId);
-      if (error) throw error;
+      // v3.0.0 — Salva schedule + flag window_enabled em paralelo
+      const [{ error: e1 }, { error: e2 }] = await Promise.all([
+        supabase.from("companies").update({ schedule: newSchedule }).eq("id", companyId),
+        supabase.from("store_settings").upsert(
+          { company_id: companyId, delivery_window_enabled: windowEnabled },
+          { onConflict: "company_id" }
+        ),
+      ]);
+      if (e1) throw e1;
+      if (e2) throw e2;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["business-hours", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["store-settings-window", companyId] });
       toast({ title: "Horários salvos com sucesso" });
     },
     onError: () => toast({ title: "Erro ao salvar horários", variant: "destructive" }),
@@ -168,6 +192,19 @@ export function BusinessHoursConfig({ companyId }: BusinessHoursConfigProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* v3.0.0 — Toggle agendamento automático fora do horário */}
+        <div className="rounded-lg border-2 border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 p-3 flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <Label className="font-semibold text-sm">⏰ Aceitar pedidos fora do horário (agendados)</Label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Cliente pede antes da abertura → sistema confirma e agenda pro horário de abertura.
+              Cozinha começa o preparo automaticamente quando chegar a hora.
+              <br />Sem isso: pedido fora do horário é bloqueado.
+            </p>
+          </div>
+          <Switch checked={windowEnabled} onCheckedChange={setWindowEnabled} />
+        </div>
+
         {DAYS.map(({ key, label }) => {
           const day = schedule[key] ?? { enabled: false, periods: [{ open: "08:00", close: "22:00" }] };
           return (

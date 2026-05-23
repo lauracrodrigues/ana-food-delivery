@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { MenuHeader } from "@/components/menu/MenuHeader";
+import { SchedulingBanner } from "@/components/menu/SchedulingBanner";
 import { MenuCategories } from "@/components/menu/MenuCategories";
 import { MenuProducts } from "@/components/menu/MenuProducts";
 import { MenuSections } from "@/components/menu/MenuSections";
@@ -559,6 +560,9 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
           />
         }
       />
+
+      {/* v3.0.0 — Banner agendamento automático quando fora horário */}
+      <SchedulingBanner companyId={company.id} schedule={(company as any).schedule} />
 
       {/* Banner de mesa via QR Code */}
       {tableInfo && (

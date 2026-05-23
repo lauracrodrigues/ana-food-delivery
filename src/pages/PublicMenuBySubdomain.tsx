@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { resetPalette, initializeColorPalette } from "@/hooks/use-color-palette";
 import { MenuHeader } from "@/components/menu/MenuHeader";
+import { SchedulingBanner } from "@/components/menu/SchedulingBanner";
 import { MenuCategories } from "@/components/menu/MenuCategories";
 import { MenuProducts } from "@/components/menu/MenuProducts";
 import { MenuCart } from "@/components/menu/MenuCart";
@@ -224,6 +225,8 @@ export default function PublicMenuBySubdomain() {
   return (
     <div className="min-h-screen bg-background">
       <MenuHeader company={company} />
+      {/* v3.0.0 — Banner agendamento automático quando fora horário */}
+      <SchedulingBanner companyId={company.id} schedule={(company as any).schedule} />
       
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

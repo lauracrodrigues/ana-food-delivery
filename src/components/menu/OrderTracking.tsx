@@ -84,6 +84,8 @@ export function OrderTracking({ orderId, company, onClose }: OrderTrackingProps)
 
   const isCancelled = order.status === "cancelled";
   const isDelivered = order.status === "delivered";
+  // v1.3.0 — Agendado: scheduled_for futuro + status scheduled
+  const isScheduled = order.status === "scheduled" && order.scheduled_for && new Date(order.scheduled_for) > new Date();
   const currentStep = getStepIndex(order.status);
   const currentInfo = STATUS_STEPS[currentStep];
   const CurrentIcon = currentInfo?.icon ?? CheckCircle2;
@@ -127,8 +129,31 @@ export function OrderTracking({ orderId, company, onClose }: OrderTrackingProps)
           <PushOptInBanner companyId={company.id} customerPhone={order.customer_phone} />
         )}
 
-        {/* Status atual — destaque */}
-        {!isCancelled ? (
+        {/* v1.3.0 — Card agendado: prioridade visual quando scheduled_for futuro */}
+        {isScheduled && (
+          <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/30 p-4 text-center space-y-2">
+            <div className="flex justify-center">
+              <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                <Clock className="w-7 h-7 text-amber-600 dark:text-amber-300 animate-pulse" />
+              </div>
+            </div>
+            <p className="text-lg font-bold text-amber-900 dark:text-amber-100">Pedido agendado</p>
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              Sua entrega começa{" "}
+              <strong>
+                {new Date(order.scheduled_for).toLocaleString("pt-BR", {
+                  weekday: "long", hour: "2-digit", minute: "2-digit",
+                })}
+              </strong>
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 pt-1">
+              Você receberá atualizações automáticas quando começar
+            </p>
+          </div>
+        )}
+
+        {/* Status atual — destaque (oculto enquanto agendado) */}
+        {!isCancelled && !isScheduled ? (
           <div className={`rounded-2xl border-2 p-4 text-center space-y-2 ${isDelivered ? "border-green-400 bg-green-50" : "border-primary/20 bg-primary/5"}`}>
             <div className="flex justify-center">
               <div className={`w-14 h-14 rounded-full flex items-center justify-center ${isDelivered ? "bg-green-100" : "bg-primary/10"}`}>
@@ -146,18 +171,15 @@ export function OrderTracking({ orderId, company, onClose }: OrderTrackingProps)
               </div>
             )}
           </div>
-        ) : (
+        ) : isCancelled ? (
           <div className="rounded-2xl border-2 border-destructive/30 bg-destructive/5 p-4 text-center">
             <p className="font-bold text-destructive">Pedido cancelado</p>
             <p className="text-sm text-muted-foreground mt-1">Entre em contato com a loja para mais informações.</p>
           </div>
-        )}
+        ) : null}
 
-        {/* v1.3.0 — Stepper com animação igual à página /p/:shortId
-            Ativa: pulse no ícone + halo animate-ping ao redor
-            Done: check verde
-            Pending: cinza */}
-        {!isCancelled && (
+        {/* v1.3.0 — Stepper (oculto se isScheduled — mostra só card agendado acima) */}
+        {!isCancelled && !isScheduled && (
           <div className="bg-card border rounded-xl p-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Acompanhamento</p>
             <div className="space-y-0">

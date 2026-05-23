@@ -47,6 +47,7 @@ interface Company {
   loyalty_points_per_real?: number | null;
   loyalty_min_redeem?: number | null;
   loyalty_redeem_value?: number | null;
+  schedule?: any; // v3.0.0 — schedule semanal pra agendamento automático
 }
 
 interface MenuCheckoutProps {
@@ -397,6 +398,27 @@ export function MenuCheckout({
 
     // Validação agendamento — exige date+time se modo later
     let scheduledForIso: string | null = null;
+    let autoScheduled = false; // v3.0.0 — flag pra status='scheduled' no payload
+
+    // v3.0.0 — Auto-agenda quando cliente pede fora do horário E loja tem window enabled
+    if (schedulingMode === "now" && company.schedule) {
+      try {
+        const { isOpenNow, nextOpeningTime } = await import("@/lib/delivery-window");
+        const { data: ss } = await supabase
+          .from("store_settings")
+          .select("delivery_window_enabled")
+          .eq("company_id", company.id)
+          .maybeSingle();
+        if (ss?.delivery_window_enabled && !isOpenNow(company.schedule)) {
+          const next = nextOpeningTime(company.schedule);
+          if (next) {
+            scheduledForIso = next.toISOString();
+            autoScheduled = true;
+          }
+        }
+      } catch (_) { /* fail-open: não bloqueia checkout */ }
+    }
+
     if (schedulingMode === "later") {
       if (!scheduledDate || !scheduledTime) {
         toast({ title: "Informe data e horário do agendamento", variant: "destructive" });
@@ -449,7 +471,8 @@ export function MenuCheckout({
       address: formData.address,
       payment_method: formData.payment_method,
       observations: formData.observations,
-      status: "pending",
+      // v3.0.0 — status='scheduled' quando auto-agendado (fora horário + window enabled)
+      status: autoScheduled ? "scheduled" : "pending",
       delivery_fee: deliveryFee,
       estimated_time: 30,
       source: tableInfo ? "qr_code" : "digital_menu",
