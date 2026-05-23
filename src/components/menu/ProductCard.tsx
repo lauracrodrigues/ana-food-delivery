@@ -68,7 +68,9 @@ export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onVi
   }, [onView]);
 
   return (
-    <div ref={cardRef} className="group relative bg-card rounded-xl border border-border hover:shadow-md transition-all overflow-hidden flex flex-col">
+    // v1.3.1 — h-full + flex-col faz card ocupar altura total da célula do grid
+    // (irmãos do grid esticam pro maior → todos ficam mesma altura)
+    <div ref={cardRef} className="group relative bg-card rounded-xl border border-border hover:shadow-md transition-all overflow-hidden flex flex-col h-full">
       {/* Badges + Tags — empilhados topo-esquerda */}
       <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
         {/* Badge legado (badges) */}
@@ -125,10 +127,12 @@ export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onVi
 
       {/* Conteúdo */}
       <div className="p-3 flex flex-col flex-1">
-        <h3 className="font-semibold text-sm leading-tight mb-1 line-clamp-2">{product.name}</h3>
-        {product.description && (
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-2 flex-1">{product.description}</p>
-        )}
+        {/* v1.3.1 — min-h-[2.5em] reserva 2 linhas pro nome (alinha cards lado a lado) */}
+        <h3 className="font-semibold text-sm leading-tight mb-1 line-clamp-2 min-h-[2.5em]">{product.name}</h3>
+        {/* v1.3.1 — Sempre renderiza descrição (mesmo vazia) pra reservar altura igual */}
+        <p className="text-xs text-muted-foreground line-clamp-2 mb-2 flex-1 min-h-[2em]">
+          {product.description || ""}
+        </p>
 
         {/* Preço */}
         <div className="flex items-end justify-between mt-auto">

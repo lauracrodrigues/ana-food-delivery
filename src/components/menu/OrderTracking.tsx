@@ -153,38 +153,69 @@ export function OrderTracking({ orderId, company, onClose }: OrderTrackingProps)
           </div>
         )}
 
-        {/* Stepper de status */}
+        {/* v1.3.0 — Stepper com animação igual à página /p/:shortId
+            Ativa: pulse no ícone + halo animate-ping ao redor
+            Done: check verde
+            Pending: cinza */}
         {!isCancelled && (
           <div className="bg-card border rounded-xl p-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Acompanhamento</p>
             <div className="space-y-0">
-              {STATUS_STEPS.filter(s => s.key !== "delivering" || order.type === "delivery").map((step, idx) => {
-                const done = idx <= currentStep;
-                const active = idx === currentStep;
-                const StepIcon = step.icon;
-                return (
-                  <div key={step.key} className="flex gap-3">
-                    {/* Linha + círculo */}
-                    <div className="flex flex-col items-center">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border-2 transition-all ${
-                        done ? "bg-primary border-primary" : "border-muted-foreground/30 bg-muted"
-                      }`}>
-                        <StepIcon className={`w-3.5 h-3.5 ${done ? "text-primary-foreground" : "text-muted-foreground/40"}`} />
+              {(() => {
+                const visibleSteps = STATUS_STEPS.filter(s => s.key !== "delivering" || order.type === "delivery");
+                return visibleSteps.map((step, idx) => {
+                  const isActive = idx === currentStep;
+                  const isDone   = idx < currentStep;
+                  const isPending = idx > currentStep;
+                  const StepIcon = step.icon;
+                  const colorClass = STATUS_COLORS[step.key] || "text-primary";
+                  const bgActive = step.key === "preparing" ? "bg-orange-500"
+                    : step.key === "ready" ? "bg-green-500"
+                    : step.key === "delivering" ? "bg-purple-500"
+                    : step.key === "delivered" ? "bg-emerald-500"
+                    : step.key === "confirmed" ? "bg-blue-500"
+                    : "bg-amber-500";
+
+                  return (
+                    <div key={step.key} className="flex items-start gap-3">
+                      <div className="flex flex-col items-center">
+                        <div className={`
+                          relative h-10 w-10 rounded-full flex items-center justify-center transition-all
+                          ${isActive  ? `${bgActive} text-white shadow-lg` : ""}
+                          ${isDone    ? "bg-emerald-500 text-white" : ""}
+                          ${isPending ? "bg-muted text-muted-foreground" : ""}
+                        `}>
+                          {/* Halo pulsante ativo */}
+                          {isActive && (
+                            <span className={`absolute inline-flex h-full w-full rounded-full ${bgActive} opacity-50 animate-ping`} />
+                          )}
+                          {isDone ? (
+                            <CheckCircle2 className="h-5 w-5" />
+                          ) : (
+                            <StepIcon className={`h-5 w-5 ${isActive ? "animate-pulse" : ""}`} />
+                          )}
+                        </div>
+                        {/* Conector vertical */}
+                        {idx < visibleSteps.length - 1 && (
+                          <div className={`w-0.5 h-6 my-1 ${idx < currentStep ? "bg-emerald-500" : "bg-muted"}`} />
+                        )}
                       </div>
-                      {idx < STATUS_STEPS.filter(s => s.key !== "delivering" || order.type === "delivery").length - 1 && (
-                        <div className={`w-0.5 h-6 ${done && idx < currentStep ? "bg-primary" : "bg-muted"}`} />
-                      )}
+                      <div className="pt-2 pb-2 flex-1">
+                        <p className={`text-sm font-medium ${
+                          isActive ? `${colorClass} font-semibold` :
+                          isPending ? "text-muted-foreground/50" :
+                          "text-foreground"
+                        }`}>
+                          {step.label}
+                        </p>
+                        {isActive && (
+                          <p className="text-xs text-muted-foreground animate-pulse">Em andamento...</p>
+                        )}
+                      </div>
                     </div>
-                    {/* Texto */}
-                    <div className="pb-4">
-                      <p className={`text-sm font-medium leading-7 ${done ? "text-foreground" : "text-muted-foreground/50"}`}>
-                        {step.label}
-                        {active && <span className="ml-2 text-xs text-primary font-semibold">← agora</span>}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           </div>
         )}
