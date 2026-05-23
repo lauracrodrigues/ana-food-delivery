@@ -36,6 +36,7 @@ import { useColorPalette, type ColorPalette } from "@/hooks/use-color-palette";
 import { PrintLayoutConfig } from "@/components/settings/print-layout/PrintLayoutConfig";
 import { AutomationRulesTab } from "@/components/settings/AutomationRulesTab";
 import { WhatsAppGroupTab } from "@/components/settings/WhatsAppGroupTab";
+import { WhatsAppStatusTab } from "@/components/settings/WhatsAppStatusTab";
 import { TablesSettings } from "@/components/settings/TablesSettings";
 import { BusinessHoursConfig } from "@/components/settings/BusinessHoursConfig";
 import { PaymentSettingsConfig } from "@/components/settings/PaymentSettingsConfig";
@@ -285,6 +286,7 @@ export function Settings() {
             <TabsTrigger value="appearance">Aparência</TabsTrigger>
             <TabsTrigger value="print">Impressão</TabsTrigger>
             <TabsTrigger value="automations">⚡ Automações</TabsTrigger>
+            <TabsTrigger value="wa-status">📱 Status WA</TabsTrigger>
             <TabsTrigger value="lgpd">LGPD</TabsTrigger>
           </TabsList>
 
@@ -713,6 +715,10 @@ export function Settings() {
           <TabsContent value="automations" className="space-y-6">
             <AutomationRulesTab />
             <WhatsAppGroupTab />
+          </TabsContent>
+
+          <TabsContent value="wa-status" className="space-y-6">
+            <WhatsAppStatusTab />
           </TabsContent>
 
           {/* LGPD — retenção de dados (movido do menu lateral) */}
