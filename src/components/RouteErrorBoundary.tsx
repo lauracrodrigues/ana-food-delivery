@@ -1,6 +1,7 @@
-// v1.0.0 — Boundary por rota: isola crash sem derrubar o app inteiro
+// v1.1.0 — Boundary por rota: isola crash + RESET automático ao mudar rota
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { AlertTriangle, RefreshCw, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -10,8 +11,12 @@ interface RouteErrorBoundaryProps {
 }
 
 export function RouteErrorBoundary({ children, routeName }: RouteErrorBoundaryProps) {
+  const location = useLocation();
   return (
+    // key={pathname}: força remount do ErrorBoundary ao trocar rota,
+    // limpando hasError automático sem ficar "erro persistente" na próxima página
     <ErrorBoundary
+      key={location.pathname}
       fallback={
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center space-y-4 max-w-md px-4">

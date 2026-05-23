@@ -270,7 +270,7 @@ export function Settings() {
     >
       <div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-7 w-full max-w-4xl">
+          <TabsList className="grid grid-cols-9 w-full max-w-5xl">
             <TabsTrigger value="general">Geral</TabsTrigger>
             <TabsTrigger value="payments" className="flex items-center gap-1">
               <CreditCard className="w-3.5 h-3.5" />Pagamentos
