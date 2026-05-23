@@ -5,16 +5,16 @@
 // Garante que IMPRESSÃO === PREVIEW.
 import type { FormattedLine } from "@/types/printer-layout-extended";
 
-// v1.2.0 — Mapeia fontSize → marker ESC/POS
-// PP (xsmall)  → COND  (condensed mode, ~12% menor)
+// v1.2.1 — Mapeia fontSize → marker ESC/POS
+// PP (xsmall)  → COND  (condensed mode, ~12% menor) [agente 1.0.14+]
 // P  (small)   → N     (normal 1x1)
 // M  (medium)  → N     (normal 1x1 — baseline)
-// G  (large)   → 2W    (double WIDTH — diferença mais sutil que 2H, cliente reclamou que era grande demais)
-// GG (xlarge)  → 2X    (double width + height — grande full)
+// G  (large)   → 2H    (double height — agente 1.0.14+ entende; 2W requeria 1.0.16+ que nem todos clientes tem)
+// GG (xlarge)  → 2X    (double width + height — todos agentes entendem)
 function sizeMarker(fontSize?: string): string {
   switch (fontSize) {
     case 'xsmall': return '{{COND}}';
-    case 'large':  return '{{2W}}';     // antes era 2H (height) — mudou pra width
+    case 'large':  return '{{2H}}';     // compat máxima com agentes v1.0.14+
     case 'xlarge': return '{{2X}}';
     default:       return '{{N}}';
   }
