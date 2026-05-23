@@ -326,12 +326,17 @@ export function formatReceipt(
     if (!content) continue;
     
     // Elementos com preço justificado (usar :: como separador)
-    if (element.tag === '{subtotal}' || 
-        element.tag === '{taxa_entrega}' || 
+    // v1.2.6 — Total tem override semântico xlarge (2X) → chars ocupam 2x largura
+    //           Pad com effectiveWidth/2 senão linha quebra na impressora
+    if (element.tag === '{subtotal}' ||
+        element.tag === '{taxa_entrega}' ||
         element.tag === '{total}') {
       if (content.includes('::')) {
         const [label, price] = content.split('::');
-        content = itemWithPrice(label, price, effectiveWidth);
+        const widthForLine = finalFontSize === 'xlarge'
+          ? Math.floor(effectiveWidth / 2)
+          : effectiveWidth;
+        content = itemWithPrice(label, price, widthForLine);
       }
     }
     
