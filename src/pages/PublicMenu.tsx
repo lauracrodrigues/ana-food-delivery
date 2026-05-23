@@ -577,36 +577,60 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
         <CallWaiterButton companyId={company.id} tableNumber={tableInfo.table_number} />
       )}
 
-      {/* Banners do cardápio */}
+      {/* v3.1.0 — Carrossel slide horizontal com transição animada */}
       {banners.length > 0 && (
-        <div className="relative w-full overflow-hidden">
-          <div className="relative aspect-[3/1] max-h-48">
-            {banners.map((banner, idx) => (
-              <div
-                key={banner.id}
-                className={`absolute inset-0 transition-opacity duration-500 ${idx === activeBanner ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-              >
-                <img
-                  src={banner.image_url}
-                  alt="Banner promocional"
-                  className={`w-full h-full object-cover ${banner.link_type && banner.link_type !== "none" ? "cursor-pointer" : ""}`}
-                  onClick={() => handleBannerClick(banner)}
-                  loading="lazy"
-                  decoding="async"
-                />
-              </div>
-            ))}
-          </div>
-          {banners.length > 1 && (
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-              {banners.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setActiveBanner(idx)}
-                  className={`w-2 h-2 rounded-full transition-all ${idx === activeBanner ? "bg-white scale-125" : "bg-white/50"}`}
-                />
+        <div className="relative w-full overflow-hidden group">
+          <div className="relative aspect-[3/1] max-h-48 overflow-hidden">
+            {/* Container slide com transform translateX */}
+            <div
+              className="flex h-full transition-transform duration-700 ease-out"
+              style={{ transform: `translateX(-${activeBanner * 100}%)` }}
+            >
+              {banners.map((banner) => (
+                <div key={banner.id} className="w-full h-full shrink-0">
+                  <img
+                    src={banner.image_url}
+                    alt="Banner promocional"
+                    className={`w-full h-full object-cover ${banner.link_type && banner.link_type !== "none" ? "cursor-pointer" : ""}`}
+                    onClick={() => handleBannerClick(banner)}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
               ))}
             </div>
+          </div>
+
+          {/* Setas de navegação (só >1 banner, aparecem no hover) */}
+          {banners.length > 1 && (
+            <>
+              <button
+                onClick={() => setActiveBanner(i => (i - 1 + banners.length) % banners.length)}
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-opacity opacity-0 group-hover:opacity-100 backdrop-blur-sm"
+                aria-label="Banner anterior"
+              >
+                ‹
+              </button>
+              <button
+                onClick={() => setActiveBanner(i => (i + 1) % banners.length)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-opacity opacity-0 group-hover:opacity-100 backdrop-blur-sm"
+                aria-label="Próximo banner"
+              >
+                ›
+              </button>
+
+              {/* Indicadores (dots) */}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {banners.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveBanner(idx)}
+                    className={`h-1.5 rounded-full transition-all ${idx === activeBanner ? "bg-white w-6" : "bg-white/50 w-1.5"}`}
+                    aria-label={`Ir pro banner ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}
