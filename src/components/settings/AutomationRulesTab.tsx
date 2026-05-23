@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Clock, ArrowRight, Zap, Gift } from "lucide-react";
+import { Loader2, Clock, ArrowRight, Zap, Gift, Moon } from "lucide-react";
 
 interface Rule {
   id: string;
@@ -130,7 +130,137 @@ export function AutomationRulesTab() {
 
       {/* v1.1.0 — Card retenção de cancelamento */}
       <RetentionCard companyId={companyId} />
+
+      {/* v1.2.0 — Card horário silencioso */}
+      <QuietHoursCard companyId={companyId} />
     </div>
+  );
+}
+
+// v1.2.0 — Configura janela silenciosa: bot NÃO envia proativos (lembrete/upsell/etc)
+function QuietHoursCard({ companyId }: { companyId: string | undefined }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["company-quiet", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const { data } = await supabase
+        .from("companies")
+        .select("quiet_hours_enabled, quiet_start, quiet_end, quiet_sundays, quiet_holidays")
+        .eq("id", companyId)
+        .maybeSingle();
+      return data as any;
+    },
+    enabled: !!companyId,
+  });
+
+  const update = useMutation({
+    mutationFn: async (patch: any) => {
+      if (!companyId) throw new Error("Sem empresa");
+      const { error } = await supabase.from("companies").update(patch).eq("id", companyId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["company-quiet"] });
+      toast({ title: "Salvo" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  if (isLoading) return null;
+  const holidays = (data?.quiet_holidays || []) as string[];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Moon className="h-5 w-5 text-indigo-500" />
+          Horário Silencioso (Não Perturbe)
+        </CardTitle>
+        <p className="text-xs text-muted-foreground mt-1">
+          Bot fica MUDO neste horário: NÃO envia lembretes, upsells, alertas de pedido atrasado,
+          nem cobrança de títulos. Continua respondendo se cliente mandar mensagem primeiro.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between p-3 border rounded-lg">
+          <div>
+            <Label className="text-sm font-semibold">🌙 Ativar horário silencioso</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Não incomoda cliente fora do expediente</p>
+          </div>
+          <Switch
+            checked={data?.quiet_hours_enabled ?? true}
+            onCheckedChange={(v) => update.mutate({ quiet_hours_enabled: v })}
+          />
+        </div>
+
+        {(data?.quiet_hours_enabled ?? true) && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Início (silêncio começa)</Label>
+                <Input
+                  type="time"
+                  value={data?.quiet_start || "18:00"}
+                  onChange={(e) => update.mutate({ quiet_start: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Fim (silêncio termina)</Label>
+                <Input
+                  type="time"
+                  value={data?.quiet_end || "08:00"}
+                  onChange={(e) => update.mutate({ quiet_end: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-3 border rounded-lg">
+              <Label className="text-sm">Bloqueio em domingos</Label>
+              <Switch
+                checked={data?.quiet_sundays ?? true}
+                onCheckedChange={(v) => update.mutate({ quiet_sundays: v })}
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs">Feriados (datas adicionais)</Label>
+              <p className="text-[10px] text-muted-foreground mb-2">
+                Feriados nacionais fixos (01/01, 21/04, 01/05, 07/09, 12/10, 02/11, 15/11, 25/12) já são bloqueados automaticamente.
+                Adicione aqui datas extras (carnaval, recesso, etc).
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    const newList = [...new Set([...holidays, e.target.value])].sort();
+                    update.mutate({ quiet_holidays: newList });
+                    e.target.value = "";
+                  }}
+                  className="max-w-[180px]"
+                />
+              </div>
+              {holidays.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {holidays.map(d => (
+                    <button
+                      key={d}
+                      onClick={() => update.mutate({ quiet_holidays: holidays.filter(h => h !== d) })}
+                      className="text-xs px-2 py-1 bg-muted hover:bg-destructive/10 rounded flex items-center gap-1"
+                      title="Remover"
+                    >
+                      {new Date(d + "T00:00").toLocaleDateString("pt-BR")} ×
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
