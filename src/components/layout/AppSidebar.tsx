@@ -118,20 +118,29 @@ export function AppSidebar() {
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+  // v2.0.0 — Logout sem erro intermediário: usa window.location.replace pra
+  // sair da árvore React ANTES dos useQuery refazerem fetch com user=null
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    // SECURITY: limpa TODO cache React Query pra evitar vazamento entre sessões
-    queryClient.clear();
-    // SECURITY: limpa localStorage scopados por user (tema, prefs, etc)
     try {
-      Object.keys(localStorage).forEach((k) => {
-        if (k.startsWith("anafood_") || k.startsWith("user_theme_")) {
-          localStorage.removeItem(k);
-        }
-      });
-    } catch {}
-    toast({ title: "Logout realizado", description: "Você foi desconectado com sucesso." });
-    navigate("/login");
+      // Limpa storage primeiro (evita autoLogin de cache stale)
+      try {
+        Object.keys(localStorage).forEach((k) => {
+          if (k.startsWith("anafood_") || k.startsWith("user_theme_") || k.startsWith("sb-")) {
+            localStorage.removeItem(k);
+          }
+        });
+        sessionStorage.clear();
+      } catch {}
+
+      // SignOut em paralelo (não bloqueia redirect)
+      supabase.auth.signOut().catch(() => {});
+
+      // Hard redirect: força reload da app + limpa todo estado React/queries
+      // Evita "erro depois volta" porque componentes não chegam a renderizar com user=null
+      window.location.replace("/login");
+    } catch (err) {
+      window.location.replace("/login");
+    }
   };
 
   const isActive = (path: string) => location.pathname === path;

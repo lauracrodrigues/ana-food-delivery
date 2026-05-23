@@ -106,12 +106,17 @@ function getCustomDomain(): string | null {
   return host;
 }
 
+// v2.1.0 — Fix duplo carregamento: refetchOnMount=false (usa staleTime),
+// retry=1 (não retry agressivo), structural sharing pra não re-renderizar igual
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5,
       gcTime: 1000 * 60 * 10,
       refetchOnWindowFocus: false,
+      refetchOnMount: false,         // antes default 'always' → recarregava ao trocar página
+      refetchOnReconnect: false,
+      retry: 1,
     },
   },
 });
