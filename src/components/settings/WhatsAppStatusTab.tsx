@@ -1,6 +1,6 @@
 // v1.0.0 — Agendamento de status WhatsApp (texto/imagem/vídeo)
 // + Otimização client-side de mídia antes do upload
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyId } from "@/hooks/useCompanyId";
