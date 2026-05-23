@@ -88,6 +88,29 @@ export function MenuProducts({
     </div>
   );
 
+  // v3.3.0 — Carrossel horizontal (scroll-snap nativo) — facilita visualização
+  // Cards fixos 180px (mobile) / 200px (sm+), scroll suave entre eles
+  const ProductCarousel = ({ items }: { items: Product[] }) => (
+    <div className="relative -mx-4 sm:mx-0">
+      <div
+        className="flex gap-3 overflow-x-auto px-4 sm:px-0 pb-2 snap-x snap-mandatory scroll-smooth scrollbar-hide"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {items.map((p) => (
+          <div key={p.id} className="snap-start shrink-0 w-[180px] sm:w-[200px]">
+            <ProductCard
+              product={p}
+              onAdd={() => setSelectedProduct(p)}
+              isFavorite={favorites.includes(p.id)}
+              onToggleFavorite={onToggleFavorite ? () => onToggleFavorite(p.id) : undefined}
+              onView={onProductView ? () => onProductView(p.id) : undefined}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <>
       {/* Busca ativa — resultados flat */}
@@ -113,7 +136,8 @@ export function MenuProducts({
               <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border">
                 {category.name}
               </h2>
-              <ProductGrid items={catProducts} />
+              {/* v3.3.0 — Carrossel horizontal por categoria (cliente pediu) */}
+              <ProductCarousel items={catProducts} />
             </section>
           ))}
         </div>

@@ -23,6 +23,10 @@
   animation: fade-in-up 250ms ease-out both;
 }
 
+/* v3.3.0 — Esconde scrollbar mas mantém scroll funcional (usado em carrossel) */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
 @keyframes pulse-subtle {
   0%, 100% {
     opacity: 1;
