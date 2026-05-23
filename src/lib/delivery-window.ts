@@ -71,10 +71,50 @@ export function nextOpeningTime(schedule: WeekSchedule | null | undefined, now: 
 
 // Formata Date relativa: "hoje às 11:00" / "amanhã às 11:00" / "segunda às 11:00"
 export function formatOpeningLabel(opening: Date, now: Date = new Date()): string {
-  const diffDays = Math.floor((opening.getTime() - now.setHours(0,0,0,0)) / 86_400_000);
+  const today0 = new Date(now); today0.setHours(0, 0, 0, 0);
+  const diffDays = Math.floor((opening.getTime() - today0.getTime()) / 86_400_000);
   const time = opening.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   if (diffDays === 0) return `hoje às ${time}`;
   if (diffDays === 1) return `amanhã às ${time}`;
   const dayName = opening.toLocaleDateString("pt-BR", { weekday: "long" });
   return `${dayName} às ${time}`;
+}
+
+// v1.1.0 — Resumo legível da janela semanal (ex: "seg a sáb das 11:00 às 14:00")
+export function formatScheduleSummary(schedule: WeekSchedule | null | undefined): string | null {
+  if (!schedule) return null;
+  const dayLabels: Record<string, string> = {
+    monday: "seg", tuesday: "ter", wednesday: "qua", thursday: "qui",
+    friday: "sex", saturday: "sáb", sunday: "dom",
+  };
+  const order = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
+  const enabledDays = order.filter(d => getPeriods(schedule[d]).length > 0);
+  if (!enabledDays.length) return null;
+
+  const firstPeriods = getPeriods(schedule[enabledDays[0]]);
+  const allSame = enabledDays.every(d =>
+    JSON.stringify(getPeriods(schedule[d])) === JSON.stringify(firstPeriods)
+  );
+
+  let daysLabel: string;
+  if (enabledDays.length === 7) {
+    daysLabel = "todos os dias";
+  } else if (enabledDays.length >= 3) {
+    const idxs = enabledDays.map(d => order.indexOf(d)).sort((a, b) => a - b);
+    const contiguous = idxs.every((v, i) => i === 0 || v === idxs[i - 1] + 1);
+    daysLabel = contiguous
+      ? `${dayLabels[order[idxs[0]]]} a ${dayLabels[order[idxs[idxs.length-1]]]}`
+      : enabledDays.map(d => dayLabels[d]).join(", ");
+  } else {
+    daysLabel = enabledDays.map(d => dayLabels[d]).join(" e ");
+  }
+
+  if (allSame && firstPeriods.length === 1) {
+    const p = firstPeriods[0];
+    return `${daysLabel} das ${p.open} às ${p.close}`;
+  }
+  return enabledDays.map(d => {
+    const periods = getPeriods(schedule[d]).map(p => `${p.open}-${p.close}`).join(", ");
+    return `${dayLabels[d]} ${periods}`;
+  }).join(" | ");
 }

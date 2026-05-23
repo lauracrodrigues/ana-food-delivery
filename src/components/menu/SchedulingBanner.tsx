@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { isOpenNow, nextOpeningTime, formatOpeningLabel } from "@/lib/delivery-window";
+import { isOpenNow, nextOpeningTime, formatOpeningLabel, formatScheduleSummary } from "@/lib/delivery-window";
 
 interface Props {
   companyId: string;
@@ -30,6 +30,7 @@ export function SchedulingBanner({ companyId, schedule }: Props) {
   const next = nextOpeningTime(schedule);
   if (!next) return null;
   const label = formatOpeningLabel(next);
+  const summary = formatScheduleSummary(schedule);
 
   return (
     <div className="bg-amber-50 dark:bg-amber-950/30 border-l-4 border-amber-500 px-4 py-3 mx-4 mt-3 rounded-r-lg flex items-start gap-3">
@@ -39,7 +40,9 @@ export function SchedulingBanner({ companyId, schedule }: Props) {
           Estamos fechados agora — pedidos serão agendados
         </p>
         <p className="text-amber-800 dark:text-amber-200 mt-0.5">
-          Você pode fazer seu pedido normalmente. Entregaremos a partir de <strong>{label}</strong>.
+          Você pode fazer seu pedido normalmente.{" "}
+          {summary && <>Entregamos <strong>{summary}</strong>. </>}
+          Começaremos seu pedido <strong>{label}</strong>.
         </p>
       </div>
     </div>
