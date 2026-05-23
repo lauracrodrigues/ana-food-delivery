@@ -487,7 +487,8 @@ function monthStart() {
 }
 
 function ReportsTab({ deliverer }: { deliverer: Deliverer }) {
-  const [dateFrom, setDateFrom] = useState(todayStr());
+  // v1.0.1 — Default período: início do mês até hoje (cliente pediu)
+  const [dateFrom, setDateFrom] = useState(monthStart());
   const [dateTo, setDateTo] = useState(todayStr());
 
   // Completions com dados do pedido
