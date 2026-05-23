@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Plus, Trash2, Image as ImageIcon, Video, Type, Calendar, Repeat,
-  Loader2, CheckCircle2, XCircle, Clock, Send,
+  Loader2, CheckCircle2, XCircle, Clock, Send, Pencil,
 } from "lucide-react";
 import { optimizeImage, validateVideo, formatBytes } from "@/lib/media-optimizer";
 
@@ -63,6 +63,8 @@ export function WhatsAppStatusTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  // v1.1.0 — Edição de status existente (null=criar novo)
+  const [editingItem, setEditingItem] = useState<StatusItem | null>(null);
 
   const { data: items = [], isLoading } = useQuery<StatusItem[]>({
     queryKey: ["wa-status-schedule", companyId],
@@ -135,6 +137,7 @@ export function WhatsAppStatusTab() {
                   item={item}
                   onDelete={() => remove.mutate(item.id)}
                   onToggle={(enabled) => toggleEnabled.mutate({ id: item.id, enabled })}
+                  onEdit={() => setEditingItem(item)}
                 />
               ))}
             </div>
@@ -148,11 +151,19 @@ export function WhatsAppStatusTab() {
         companyId={companyId}
         onCreated={() => queryClient.invalidateQueries({ queryKey: ["wa-status-schedule"] })}
       />
+
+      <CreateStatusDialog
+        open={!!editingItem}
+        onOpenChange={(v) => { if (!v) setEditingItem(null); }}
+        companyId={companyId}
+        editing={editingItem}
+        onCreated={() => queryClient.invalidateQueries({ queryKey: ["wa-status-schedule"] })}
+      />
     </div>
   );
 }
 
-function StatusRow({ item, onDelete, onToggle }: { item: StatusItem; onDelete: () => void; onToggle: (v: boolean) => void }) {
+function StatusRow({ item, onDelete, onToggle, onEdit }: { item: StatusItem; onDelete: () => void; onToggle: (v: boolean) => void; onEdit: () => void }) {
   const Icon = item.type === "text" ? Type : item.type === "image" ? ImageIcon : Video;
   const statusColor =
     item.status === "sent" ? "bg-emerald-500" :
@@ -185,7 +196,10 @@ function StatusRow({ item, onDelete, onToggle }: { item: StatusItem; onDelete: (
       </div>
       <div className="flex items-center gap-1">
         <Switch checked={item.status !== "disabled"} onCheckedChange={onToggle} />
-        <Button variant="ghost" size="icon" className="text-destructive" onClick={onDelete}>
+        <Button variant="ghost" size="icon" onClick={onEdit} title="Editar">
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="text-destructive" onClick={onDelete} title="Apagar">
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
@@ -193,10 +207,13 @@ function StatusRow({ item, onDelete, onToggle }: { item: StatusItem; onDelete: (
   );
 }
 
-function CreateStatusDialog({ open, onOpenChange, companyId, onCreated }: {
-  open: boolean; onOpenChange: (v: boolean) => void; companyId: string | undefined; onCreated: () => void;
+function CreateStatusDialog({ open, onOpenChange, companyId, onCreated, editing }: {
+  open: boolean; onOpenChange: (v: boolean) => void; companyId: string | undefined;
+  onCreated: () => void;
+  editing?: StatusItem | null;  // v1.1.0 — se fornecido, modo EDIT
 }) {
   const { toast } = useToast();
+  const isEdit = !!editing;
   const [type, setType] = useState<StatusType>("text");
   const [content, setContent] = useState("");
   const [caption, setCaption] = useState("");
@@ -211,6 +228,34 @@ function CreateStatusDialog({ open, onOpenChange, companyId, onCreated }: {
   const [recurrenceUntil, setRecurrenceUntil] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [optimizedBlob, setOptimizedBlob] = useState<Blob | null>(null);
+
+  // v1.1.0 — Prefill ao entrar em modo edit
+  useEffect(() => {
+    if (editing && open) {
+      setType(editing.type);
+      setContent(editing.content || "");
+      setCaption(editing.caption || "");
+      setBgColor(editing.background_color || "#000000");
+      setRecurrence(editing.recurrence_type);
+      setRecurrenceTime(editing.recurrence_time || "09:00");
+      setRecurrenceDays(editing.recurrence_days || [1,2,3,4,5]);
+      setRecurrenceUntil(editing.recurrence_until || "");
+      if (editing.schedule_at) {
+        // datetime-local format YYYY-MM-DDTHH:MM
+        const d = new Date(editing.schedule_at);
+        const pad = (n: number) => String(n).padStart(2, "0");
+        setScheduleAt(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+      } else {
+        setScheduleAt("");
+      }
+      setMediaFile(null);
+      setOptimizedBlob(null);
+      setOptimizedInfo(editing.media_url ? "Mídia atual mantida (não enviado novo arquivo)" : "");
+    } else if (!editing && open) {
+      reset();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, open]);
 
   const reset = () => {
     setType("text"); setContent(""); setCaption(""); setBgColor("#000000");
@@ -249,7 +294,8 @@ function CreateStatusDialog({ open, onOpenChange, companyId, onCreated }: {
     if (!companyId) return;
     setSubmitting(true);
     try {
-      let mediaUrl: string | null = null;
+      // v1.1.0 — Upload novo media só se houver blob otimizado (em edit, opcional)
+      let mediaUrl: string | null = editing?.media_url || null;
       let mediaPath: string | null = null;
 
       if (type !== "text" && optimizedBlob) {
@@ -263,13 +309,17 @@ function CreateStatusDialog({ open, onOpenChange, companyId, onCreated }: {
         mediaUrl = pub.publicUrl;
       }
 
+      // Validação: tipo != text exige media (nova ou existente em edit)
+      if (type !== "text" && !mediaUrl) {
+        throw new Error("Envie um arquivo de mídia");
+      }
+
       // Calcula next_run_at
       let nextRun: string | null = null;
       if (recurrence === "once") {
         if (!scheduleAt) throw new Error("Selecione data/hora");
         nextRun = new Date(scheduleAt).toISOString();
       } else {
-        // Próxima ocorrência baseada em time/days
         const [h, m] = recurrenceTime.split(":").map(Number);
         const next = new Date();
         next.setHours(h, m, 0, 0);
@@ -291,7 +341,8 @@ function CreateStatusDialog({ open, onOpenChange, companyId, onCreated }: {
         content: type === "text" ? content : null,
         caption: type !== "text" ? caption : null,
         media_url: mediaUrl,
-        media_storage_path: mediaPath,
+        // media_storage_path: só seta se for upload novo
+        ...(mediaPath ? { media_storage_path: mediaPath } : {}),
         background_color: type === "text" ? bgColor : null,
         font: 1,
         recurrence_type: recurrence,
@@ -300,13 +351,28 @@ function CreateStatusDialog({ open, onOpenChange, companyId, onCreated }: {
         recurrence_until: recurrenceUntil || null,
         schedule_at: recurrence === "once" ? nextRun : null,
         next_run_at: nextRun,
-        status: "pending",
-        channel: "whatsapp_status",
+        // status: em edit, preserva o atual (mas reseta error_msg pra tentar de novo se falhou)
+        ...(isEdit ? { error_msg: null, attempts: 0 } : { status: "pending", channel: "whatsapp_status" }),
+        updated_at: new Date().toISOString(),
       };
-      const { error } = await supabase.from("whatsapp_status_schedule").insert(payload);
-      if (error) throw error;
 
-      toast({ title: "Status agendado ✓" });
+      if (isEdit && editing) {
+        // Se mudou pra disabled antes e agora salvando, mantém disabled
+        if (editing.status === "disabled") payload.status = "disabled";
+        else payload.status = "pending";
+
+        const { error } = await supabase
+          .from("whatsapp_status_schedule")
+          .update(payload)
+          .eq("id", editing.id);
+        if (error) throw error;
+        toast({ title: "Status atualizado ✓" });
+      } else {
+        const { error } = await supabase.from("whatsapp_status_schedule").insert(payload);
+        if (error) throw error;
+        toast({ title: "Status agendado ✓" });
+      }
+
       reset();
       onCreated();
       onOpenChange(false);
@@ -320,7 +386,7 @@ function CreateStatusDialog({ open, onOpenChange, companyId, onCreated }: {
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Novo Status Agendado</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEdit ? "Editar Status" : "Novo Status Agendado"}</DialogTitle></DialogHeader>
         <div className="space-y-4">
           {/* Tipo */}
           <div>
@@ -428,9 +494,9 @@ function CreateStatusDialog({ open, onOpenChange, companyId, onCreated }: {
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={submit} disabled={submitting || optimizing || (type !== "text" && !optimizedBlob)}>
+          <Button onClick={submit} disabled={submitting || optimizing || (type !== "text" && !optimizedBlob && !editing?.media_url)}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Agendar
+            {isEdit ? "Salvar Alterações" : "Agendar"}
           </Button>
         </DialogFooter>
       </DialogContent>
