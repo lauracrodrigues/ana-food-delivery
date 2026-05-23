@@ -106,17 +106,28 @@ function getCustomDomain(): string | null {
   return host;
 }
 
-// v2.1.0 — Fix duplo carregamento: refetchOnMount=false (usa staleTime),
-// retry=1 (não retry agressivo), structural sharing pra não re-renderizar igual
+// v2.2.0 — Fix erros piscando ao trocar página:
+// - throwOnError: false → query failures NÃO crashm o componente nem disparam
+//   RouteErrorBoundary. Componente lida via `error` state (mostrar mensagem inline).
+// - retry: 1 + refetchOnMount: false → menos chance de erro de race
+// - retryOnMount: false → não tenta refetch ao remontar (UX limpa)
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5,
       gcTime: 1000 * 60 * 10,
       refetchOnWindowFocus: false,
-      refetchOnMount: false,         // antes default 'always' → recarregava ao trocar página
+      refetchOnMount: false,
       refetchOnReconnect: false,
       retry: 1,
+      retryOnMount: false,
+      // CRÍTICO pro UX: query failure não propaga pra ErrorBoundary.
+      // ErrorBoundary fica só pra erros REAIS de render (TypeError, etc).
+      throwOnError: false,
+    },
+    mutations: {
+      // Mutation failure também não dispara boundary
+      throwOnError: false,
     },
   },
 });

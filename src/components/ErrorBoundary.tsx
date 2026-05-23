@@ -27,10 +27,25 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
 
-    // v1.2.0 — ChunkLoadError = deploy novo invalidou JS antigo. Reload automático SEM mostrar erro.
-    // Detecta: ChunkLoadError, "Failed to fetch dynamically imported module", "Importing a module script failed"
+    // v1.3.0 — Erros de network/Supabase transientes: NÃO mostra error UI
+    // (já são reportados via toast pelos hooks de mutation). Auto-reset rápido.
     const msg = String(error?.message || "");
     const name = String(error?.name || "");
+    const isTransientErr =
+      /Failed to fetch/i.test(msg) ||
+      /NetworkError/i.test(msg) ||
+      /Load failed/i.test(msg) ||
+      /AbortError/i.test(name) ||
+      /TypeError.*fetch/i.test(msg);
+
+    if (isTransientErr) {
+      console.warn("[ErrorBoundary] Erro transiente — recovery automático");
+      // Reset rápido sem mostrar UI de erro pro usuário
+      setTimeout(() => this.setState({ hasError: false, error: null }), 50);
+      return;
+    }
+
+    // v1.2.0 — ChunkLoadError = deploy novo invalidou JS antigo. Reload automático SEM mostrar erro.
     const isChunkErr = name === "ChunkLoadError"
       || /Loading chunk \d+ failed/i.test(msg)
       || /Failed to fetch dynamically imported module/i.test(msg)
