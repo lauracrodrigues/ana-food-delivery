@@ -172,10 +172,30 @@ function StatusRow({ item, onDelete, onToggle, onEdit }: { item: StatusItem; onD
   const next = item.next_run_at ? new Date(item.next_run_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : null;
   const sent = item.sent_at ? new Date(item.sent_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : null;
 
+  // v1.1.1 — Preview thumbnail no avatar pra image/video (com fundo de status color)
+  const isMedia = item.type === "image" || item.type === "video";
+
   return (
     <div className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/30 transition-colors">
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${statusColor} text-white`}>
-        <Icon className="h-5 w-5" />
+      <div className={`relative w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${statusColor} text-white overflow-hidden`}>
+        {isMedia && item.media_url ? (
+          item.type === "image" ? (
+            <img src={item.media_url} alt="preview" className="w-full h-full object-cover" loading="lazy" />
+          ) : (
+            <video src={item.media_url} className="w-full h-full object-cover" muted preload="metadata" />
+          )
+        ) : item.type === "text" ? (
+          <div className="w-full h-full flex items-center justify-center text-[8px] font-bold p-1 text-center leading-tight" style={{ backgroundColor: item.background_color || "#000" }}>
+            {(item.content || "").substring(0, 12)}
+          </div>
+        ) : (
+          <Icon className="h-5 w-5" />
+        )}
+        {isMedia && (
+          <div className="absolute bottom-0 right-0 bg-black/60 rounded-tl p-0.5">
+            <Icon className="h-2.5 w-2.5 text-white" />
+          </div>
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
