@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Minus, Trash2, Loader2, Save, Search } from "lucide-react";
+import { Plus, Minus, Trash2, Loader2, Save, Search, Truck, Package } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency-formatter";
@@ -43,14 +45,39 @@ export function EditOrderDialog({ order, open, onClose }: Props) {
   const [observations, setObservations] = useState("");
   const [address, setAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
+  // v1.0.1 — troco quando dinheiro
+  const [trocoPara, setTrocoPara] = useState<number>(0);
+  // v1.0.1 — tipo entrega/retirada editável
+  const [orderType, setOrderType] = useState<"delivery" | "pickup">("delivery");
   const [search, setSearch] = useState("");
+
+  // v1.0.1 — opções padronizadas de pagamento
+  const PAYMENT_OPTIONS = [
+    { value: "pix", label: "Pix" },
+    { value: "dinheiro", label: "Dinheiro" },
+    { value: "cartao_credito", label: "Cartão de Crédito" },
+    { value: "cartao_debito", label: "Cartão de Débito" },
+    { value: "vr", label: "VR/VA" },
+  ];
 
   useEffect(() => {
     if (order) {
       setItems(Array.isArray(order.items) ? order.items.map((i: any) => ({ ...i })) : []);
       setObservations(order.observations || "");
       setAddress(order.address || "");
-      setPaymentMethod(order.payment_method || "");
+      // v1.0.1 — Parse payment_method: "dinheiro - Troco para R$ 50,00" → método + troco
+      const pm = (order.payment_method || "").toLowerCase();
+      const trocoMatch = pm.match(/troco para r\$\s*([\d.,]+)/i);
+      if (trocoMatch) {
+        setTrocoPara(parseFloat(trocoMatch[1].replace(/\./g, "").replace(",", ".")));
+        setPaymentMethod("dinheiro");
+      } else {
+        setTrocoPara(0);
+        // Match contra valores do select
+        const found = PAYMENT_OPTIONS.find(p => pm.includes(p.value) || pm.includes(p.label.toLowerCase()));
+        setPaymentMethod(found?.value || "");
+      }
+      setOrderType((order.type === "pickup" ? "pickup" : "delivery"));
       setSearch("");
     }
   }, [order]);
@@ -85,16 +112,26 @@ export function EditOrderDialog({ order, open, onClose }: Props) {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!order) throw new Error("Sem pedido");
+      // v1.0.1 — Recalcula total considerando se virou pickup (sem taxa) ou continua delivery
       const itemsTotal = items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
-      const total = itemsTotal + ((order as any).delivery_fee || 0);
+      const deliveryFee = orderType === "delivery" ? ((order as any).delivery_fee || 0) : 0;
+      const total = itemsTotal + deliveryFee;
+
+      // v1.0.1 — Anexa troco ao payment_method quando dinheiro
+      const paymentMethodFinal = paymentMethod === "dinheiro" && trocoPara > 0
+        ? `dinheiro - Troco para R$ ${trocoPara.toFixed(2).replace(".", ",")}`
+        : paymentMethod;
+
       const { error } = await supabase
         .from("orders")
         .update({
           items: items as any,
           total,
+          type: orderType,
+          delivery_fee: deliveryFee,
           observations: observations.trim() || null,
-          address: address.trim() || null,
-          payment_method: paymentMethod || null,
+          address: orderType === "delivery" ? (address.trim() || null) : null,
+          payment_method: paymentMethodFinal || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", order.id);
@@ -224,8 +261,33 @@ export function EditOrderDialog({ order, open, onClose }: Props) {
 
             <Separator />
 
-            {/* Endereço (só delivery) */}
-            {order.type === "delivery" && (
+            {/* v1.0.1 — Tipo: entrega/retirada (toggle) */}
+            <div>
+              <Label className="text-sm font-semibold">Tipo</Label>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <Button
+                  type="button"
+                  variant={orderType === "delivery" ? "default" : "outline"}
+                  onClick={() => setOrderType("delivery")}
+                  className="gap-2"
+                >
+                  <Truck className="h-4 w-4" />
+                  Entrega
+                </Button>
+                <Button
+                  type="button"
+                  variant={orderType === "pickup" ? "default" : "outline"}
+                  onClick={() => setOrderType("pickup")}
+                  className="gap-2"
+                >
+                  <Package className="h-4 w-4" />
+                  Retirada
+                </Button>
+              </div>
+            </div>
+
+            {/* Endereço — só renderiza se delivery */}
+            {orderType === "delivery" && (
               <div>
                 <Label className="text-sm font-semibold">Endereço</Label>
                 <Textarea
@@ -238,15 +300,30 @@ export function EditOrderDialog({ order, open, onClose }: Props) {
               </div>
             )}
 
-            {/* Pagamento */}
+            {/* v1.0.1 — Pagamento: Select padronizado em vez de Input livre */}
             <div>
               <Label className="text-sm font-semibold">Forma de pagamento</Label>
-              <Input
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="mt-1"
-                placeholder="Dinheiro, Pix, Cartão..."
-              />
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* v1.0.1 — Campo Troco aparece só quando Dinheiro */}
+              {paymentMethod === "dinheiro" && (
+                <div className="mt-2">
+                  <Label className="text-xs">Troco para</Label>
+                  <CurrencyInput
+                    value={trocoPara}
+                    onChange={(v) => setTrocoPara(v)}
+                    placeholder="R$ 0,00 (sem troco)"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Observações */}
