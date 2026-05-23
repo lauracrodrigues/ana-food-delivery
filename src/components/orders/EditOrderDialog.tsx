@@ -106,8 +106,10 @@ export function EditOrderDialog({ order, open, onClose }: Props) {
 
   const newTotal = useMemo(() => {
     const itemsTotal = items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
-    return itemsTotal + ((order as any)?.delivery_fee || 0);
-  }, [items, order]);
+    // v1.0.2 — Pickup zera taxa de entrega no preview (reflete o save)
+    const fee = orderType === "delivery" ? ((order as any)?.delivery_fee || 0) : 0;
+    return itemsTotal + fee;
+  }, [items, order, orderType]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {

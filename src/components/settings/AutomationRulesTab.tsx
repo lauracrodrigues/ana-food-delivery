@@ -1,4 +1,4 @@
-// v1.0.0 — Painel "Automações" — regras de auto-avanço de status por timeout
+// v1.1.0 — Painel "Automações": auto-avanço status + retenção de cancelamento
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyId } from "@/hooks/useCompanyId";
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Clock, ArrowRight, Zap } from "lucide-react";
+import { Loader2, Clock, ArrowRight, Zap, Gift } from "lucide-react";
 
 interface Rule {
   id: string;
@@ -127,6 +127,87 @@ export function AutomationRulesTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* v1.1.0 — Card retenção de cancelamento */}
+      <RetentionCard companyId={companyId} />
     </div>
+  );
+}
+
+// v1.1.0 — Configuração do cupom de retenção quando cliente cancela pedido
+function RetentionCard({ companyId }: { companyId: string | undefined }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["company-retention", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const { data } = await supabase
+        .from("companies")
+        .select("cancellation_retention_enabled, cancellation_retention_percent")
+        .eq("id", companyId)
+        .maybeSingle();
+      return data as any;
+    },
+    enabled: !!companyId,
+  });
+
+  const update = useMutation({
+    mutationFn: async (patch: { cancellation_retention_enabled?: boolean; cancellation_retention_percent?: number }) => {
+      if (!companyId) throw new Error("Sem empresa");
+      const { error } = await supabase.from("companies").update(patch).eq("id", companyId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["company-retention"] });
+      toast({ title: "Configuração salva" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  if (isLoading) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Gift className="h-5 w-5 text-amber-500" />
+          Retenção em Cancelamento (Cupom)
+        </CardTitle>
+        <p className="text-xs text-muted-foreground mt-1">
+          Quando cliente pedir pra cancelar pedido em preparo/pronto, bot oferece prioridade primeiro.
+          Se cliente insistir, oferece cupom de desconto pro próximo pedido — tentativa de manter o cliente.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between p-3 border rounded-lg">
+          <div>
+            <Label className="text-sm font-semibold">🎁 Oferecer cupom ao cancelar</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Cliente que cancela recebe código pra usar no próximo pedido
+            </p>
+          </div>
+          <Switch
+            checked={!!data?.cancellation_retention_enabled}
+            onCheckedChange={(v) => update.mutate({ cancellation_retention_enabled: v })}
+          />
+        </div>
+        {data?.cancellation_retention_enabled && (
+          <div>
+            <Label className="text-xs">Desconto do cupom (%)</Label>
+            <Input
+              type="number" min={5} max={50}
+              value={data?.cancellation_retention_percent ?? 15}
+              onChange={(e) => {
+                const v = Math.max(5, Math.min(50, parseInt(e.target.value) || 15));
+                update.mutate({ cancellation_retention_percent: v });
+              }}
+              className="mt-1 max-w-[120px]"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">Sugestão: 10-20%</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
