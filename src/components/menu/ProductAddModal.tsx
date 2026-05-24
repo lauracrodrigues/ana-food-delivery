@@ -53,6 +53,25 @@ interface ProductAddModalProps {
   onAddToCart: (extras: SelectedExtra[], quantity: number, observations: string) => void;
 }
 
+// v1.2.0 — Badge "Disponível seg, ter, qua" pra items modifier não disponíveis hoje
+const DAY_SHORT: Record<string, string> = {
+  sunday: "dom", monday: "seg", tuesday: "ter", wednesday: "qua",
+  thursday: "qui", friday: "sex", saturday: "sáb",
+};
+function DaysBadge({ weekdays }: { weekdays?: string[] | null }) {
+  if (!weekdays || weekdays.length === 0) return null;
+  const order = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+  const sorted = order.filter(d => weekdays.includes(d));
+  const label = sorted.length === 7
+    ? "todos dias"
+    : sorted.map(d => DAY_SHORT[d]).join(", ");
+  return (
+    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200" title="Disponível em">
+      {label}
+    </span>
+  );
+}
+
 export function ProductAddModal({
   product,
   companyId,
@@ -163,9 +182,10 @@ export function ProductAddModal({
         extras: (g.items ?? []).map((it: any) => ({
           id: it.id,
           name: it.name,
-          // No novo schema é price_delta (não price), mas reusa mesmo formato
           price: Number(it.price_delta) || 0,
-          available_weekdays: null,
+          // v1.1.0 — Propaga available_weekdays pro frontend renderizar
+          // items indisponíveis hoje com badge "Disponível seg/ter/..."
+          available_weekdays: it.available_weekdays || null,
           available_start_time: null,
           available_end_time: null,
         })),
@@ -298,63 +318,61 @@ export function ProductAddModal({
                       )}
                     </div>
 
-                    {/* Lista de extras */}
+                    {/* v1.2.0 — Lista de extras: items indisponíveis hoje aparecem disabled
+                        com badge dos dias que tá disponível (ex: "seg, ter") */}
                     <div className="divide-y">
                       {isRadio(group) ? (
                         <RadioGroup
                           value={selected[0] || ""}
                           onValueChange={(val) => toggleExtra(group, val)}
                         >
-                          {group.extras.map((extra) => (
-                            <label
-                              key={extra.id}
-                              className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors"
-                            >
-                              <div className="flex items-center gap-3">
-                                <RadioGroupItem
-                                  value={extra.id}
-                                  id={`${group.id}-${extra.id}`}
-                                />
-                                <span className="text-sm">{extra.name}</span>
-                              </div>
-                              {extra.price > 0 && (
-                                <span className="text-sm font-medium text-primary">
-                                  +{formatCurrency(extra.price)}
-                                </span>
-                              )}
-                            </label>
-                          ))}
+                          {group.extras.map((extra) => {
+                            const availToday = isExtraAvailable(extra.available_weekdays, extra.available_start_time, extra.available_end_time);
+                            return (
+                              <label
+                                key={extra.id}
+                                className={`flex items-center justify-between px-4 py-3 transition-colors ${
+                                  availToday ? "cursor-pointer hover:bg-muted/40" : "opacity-50 cursor-not-allowed"
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <RadioGroupItem value={extra.id} id={`${group.id}-${extra.id}`} disabled={!availToday} />
+                                  <span className="text-sm">{extra.name}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {!availToday && <DaysBadge weekdays={extra.available_weekdays} />}
+                                  {extra.price > 0 && <span className="text-sm font-medium text-primary">+{formatCurrency(extra.price)}</span>}
+                                </div>
+                              </label>
+                            );
+                          })}
                         </RadioGroup>
                       ) : (
                         group.extras.map((extra) => {
                           const isChecked = selected.includes(extra.id);
-                          const maxReached =
-                            group.max_selection !== null &&
-                            selected.length >= group.max_selection &&
-                            !isChecked;
+                          const availToday = isExtraAvailable(extra.available_weekdays, extra.available_start_time, extra.available_end_time);
+                          const maxReached = group.max_selection !== null && selected.length >= group.max_selection && !isChecked;
+                          const disabled = !availToday || maxReached;
                           return (
                             <label
                               key={extra.id}
-                              className={`flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors ${
-                                maxReached ? "opacity-40 cursor-not-allowed" : ""
+                              className={`flex items-center justify-between px-4 py-3 transition-colors ${
+                                disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-muted/40"
                               }`}
                             >
                               <div className="flex items-center gap-3">
                                 <Checkbox
                                   id={`${group.id}-${extra.id}`}
                                   checked={isChecked}
-                                  disabled={maxReached}
-                                  onCheckedChange={() =>
-                                    !maxReached && toggleExtra(group, extra.id)
-                                  }
+                                  disabled={disabled}
+                                  onCheckedChange={() => !disabled && toggleExtra(group, extra.id)}
                                 />
                                 <span className="text-sm">{extra.name}</span>
                               </div>
-                              {extra.price > 0 && (
-                                <span className="text-sm font-medium text-primary">
-                                  +{formatCurrency(extra.price)}
-                                </span>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {!availToday && <DaysBadge weekdays={extra.available_weekdays} />}
+                                {extra.price > 0 && <span className="text-sm font-medium text-primary">+{formatCurrency(extra.price)}</span>}
+                              </div>
                             </label>
                           );
                         })
