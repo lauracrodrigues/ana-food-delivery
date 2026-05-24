@@ -266,24 +266,27 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
         if (tableData) setTableInfo(tableData);
       }
 
-// v1.0.1 — Ordem pelo admin (display_order) — não alfabética
+// v1.0.2 — Filtra is_modifier_only=true (acomp/saladas/carnes do marmitex)
+      // Essas categorias são OPÇÕES dentro do produto, não exibir como produtos avulsos
       const { data: categoriesData } = await supabase
         .from('categories')
         .select('*')
         .eq('company_id', companyData.id)
         .eq('on_off', true)
+        .neq('is_modifier_only', true)
         .order('display_order', { ascending: true, nullsFirst: false })
         .order('name');
 
       setCategories(categoriesData || []);
 
-      // Ordenação POR CATEGORIA — cada categoria tem seu sort_mode próprio
-      // (cardápio de marmita pode ser alfabético, bebidas por preço, etc)
+      // v1.0.2 — Só puxa produtos das categorias VISÍVEIS (exclui modifier_only)
+      const visibleCategoryIds = (categoriesData || []).map((c: any) => c.id);
       const { data: productsData } = await supabase
         .from('products')
         .select('*')
         .eq('company_id', companyData.id)
-        .eq('on_off', true);
+        .eq('on_off', true)
+        .in('category_id', visibleCategoryIds.length > 0 ? visibleCategoryIds : ['00000000-0000-0000-0000-000000000000']);
 
       // Aplica sort_mode por categoria nos produtos
       const catSortMap: Record<string, string> = {};

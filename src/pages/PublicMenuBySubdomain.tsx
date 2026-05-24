@@ -121,23 +121,26 @@ export default function PublicMenuBySubdomain() {
 
       setCompany(companyData);
 
-      // v1.0.1 — Categorias na ordem definida pelo admin (display_order), não alfabética
+      // v1.0.2 — Filtra is_modifier_only (acomp/saladas/proteínas que são opções de marmitex)
       const { data: categoriesData } = await supabase
         .from('categories')
         .select('*')
         .eq('company_id', companyData.id)
         .eq('on_off', true)
+        .neq('is_modifier_only', true)
         .order('display_order', { ascending: true, nullsFirst: false })
-        .order('name'); // fallback se display_order for igual/null
+        .order('name');
 
       setCategories(categoriesData || []);
 
-      // v1.0.1 — Produtos na ordem definida pelo admin (display_order), não alfabética
+      // v1.0.2 — Filtra produtos de categorias visíveis (exclui modifier_only)
+      const visibleCategoryIds = (categoriesData || []).map((c: any) => c.id);
       const { data: productsData } = await supabase
         .from('products')
         .select('*')
         .eq('company_id', companyData.id)
         .eq('on_off', true)
+        .in('category_id', visibleCategoryIds.length > 0 ? visibleCategoryIds : ['00000000-0000-0000-0000-000000000000'])
         .order('display_order', { ascending: true, nullsFirst: false })
         .order('name');
 

@@ -71,12 +71,14 @@ function SectionStrip({
         <span>{emoji}</span>
         <span>{title}</span>
       </h2>
+      {/* v3.2.0 — Strips usam variant compact: card vertical mais alto pra acomodar nome+imagem+preço */}
       <ScrollArea className="w-full">
         <div className="flex gap-3 pb-2">
           {products.slice(0, 10).map((p) => (
-            <div key={p.id} className="w-44 shrink-0">
+            <div key={p.id} className="w-40 sm:w-44 shrink-0">
               <ProductCard
                 product={p}
+                variant="compact"
                 onAdd={() => onAdd(p)}
                 isFavorite={favorites?.includes(p.id)}
                 onToggleFavorite={onToggleFavorite ? () => onToggleFavorite(p.id) : undefined}

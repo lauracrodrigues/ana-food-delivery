@@ -33,9 +33,12 @@ interface ProductCardProps {
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
   onView?: () => void;
+  // v2.1.0 — variant compact (img topo, vertical) usada em strips horizontais
+  // como "Mais Pedidos" / "Comprar Novamente". Default horizontal.
+  variant?: "horizontal" | "compact";
 }
 
-export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onView }: ProductCardProps) {
+export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onView, variant = "horizontal" }: ProductCardProps) {
   const hasPromo = product.promotional_price != null && product.promotional_price < product.price;
   const discount = hasPromo
     ? Math.round((1 - product.promotional_price! / product.price) * 100)
@@ -66,6 +69,45 @@ export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onVi
     obs.observe(el);
     return () => { obs.disconnect(); if (timer) clearTimeout(timer); };
   }, [onView]);
+
+  // v2.1.0 — Variant compact: layout vertical (img topo + info baixo) pra strips horizontais
+  if (variant === "compact") {
+    return (
+      <div ref={cardRef} className="group relative bg-card rounded-xl border border-border hover:shadow-md transition-all overflow-hidden flex flex-col h-full">
+        {/* Imagem topo aspect 4:3 */}
+        <div className="relative w-full aspect-[4/3] bg-muted">
+          <OptimizedImage
+            src={product.image_url}
+            alt={product.name}
+            className="w-full h-full object-cover"
+            aspectRatio="4/3"
+            fallback={<div className="w-full h-full flex items-center justify-center"><ImageIcon className="h-8 w-8 text-muted-foreground/40" /></div>}
+          />
+          {onToggleFavorite && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
+              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm"
+              aria-label="Favoritar"
+            >
+              <Heart className={`h-3.5 w-3.5 ${isFavorite ? "fill-red-500 text-red-500" : "text-gray-500"}`} />
+            </button>
+          )}
+        </div>
+        {/* Info compacta */}
+        <div className="p-2 flex flex-col flex-1">
+          <h3 className="font-semibold text-xs leading-tight line-clamp-2 min-h-[2em]">{product.name}</h3>
+          <div className="flex items-end justify-between mt-auto pt-1">
+            <span className="text-sm font-bold text-primary truncate">
+              {hasPromo ? formatCurrency(product.promotional_price!) : formatCurrency(product.price)}
+            </span>
+            <Button size="icon" className="h-7 w-7 rounded-full shrink-0" onClick={onAdd}>
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     // v2.0.0 — Layout horizontal estilo Saipos/Anota Aí
