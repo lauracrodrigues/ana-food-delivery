@@ -70,11 +70,16 @@ export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onVi
     return () => { obs.disconnect(); if (timer) clearTimeout(timer); };
   }, [onView]);
 
-  // v2.1.0 — Variant compact: layout vertical (img topo + info baixo) pra strips horizontais
+  // v2.2.0 — Card inteiro clicável (abre modal). Botão + também abre.
+  // Favoritar faz stopPropagation pra não disparar.
+  // Variant compact: layout vertical (img topo + info baixo) pra strips horizontais
   if (variant === "compact") {
     return (
-      <div ref={cardRef} className="group relative bg-card rounded-xl border border-border hover:shadow-md transition-all overflow-hidden flex flex-col h-full">
-        {/* Imagem topo aspect 4:3 */}
+      <div
+        ref={cardRef}
+        onClick={onAdd}
+        className="group relative bg-card rounded-xl border border-border hover:shadow-md hover:border-primary/40 transition-all overflow-hidden flex flex-col h-full cursor-pointer active:scale-[0.98]"
+      >
         <div className="relative w-full aspect-[4/3] bg-muted">
           <OptimizedImage
             src={product.image_url}
@@ -86,21 +91,24 @@ export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onVi
           {onToggleFavorite && (
             <button
               onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
-              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm"
+              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
               aria-label="Favoritar"
             >
               <Heart className={`h-3.5 w-3.5 ${isFavorite ? "fill-red-500 text-red-500" : "text-gray-500"}`} />
             </button>
           )}
         </div>
-        {/* Info compacta */}
         <div className="p-2 flex flex-col flex-1">
           <h3 className="font-semibold text-xs leading-tight line-clamp-2 min-h-[2em]">{product.name}</h3>
           <div className="flex items-end justify-between mt-auto pt-1">
             <span className="text-sm font-bold text-primary truncate">
               {hasPromo ? formatCurrency(product.promotional_price!) : formatCurrency(product.price)}
             </span>
-            <Button size="icon" className="h-7 w-7 rounded-full shrink-0" onClick={onAdd}>
+            <Button
+              size="icon"
+              className="h-7 w-7 rounded-full shrink-0"
+              onClick={(e) => { e.stopPropagation(); onAdd(); }}
+            >
               <Plus className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -110,11 +118,12 @@ export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onVi
   }
 
   return (
-    // v2.0.0 — Layout horizontal estilo Saipos/Anota Aí
-    // Texto à esquerda + imagem 110x110 à direita. Scroll vertical 1 col mobile, 2 col desktop.
+    // v2.2.0 — Card inteiro clicável (abre modal). Botão + e ♥ stopPropagation.
+    // Layout horizontal estilo Saipos/Anota Aí: texto esquerda + imagem direita
     <div
       ref={cardRef}
-      className="group relative bg-card rounded-xl border border-border hover:shadow-md transition-all overflow-hidden flex h-[120px] sm:h-[130px]"
+      onClick={onAdd}
+      className="group relative bg-card rounded-xl border border-border hover:shadow-md hover:border-primary/40 transition-all overflow-hidden flex h-[120px] sm:h-[130px] cursor-pointer active:scale-[0.98]"
     >
       {/* Conteúdo à esquerda */}
       <div className="flex-1 min-w-0 p-3 flex flex-col">
@@ -195,7 +204,7 @@ export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onVi
         <Button
           size="icon"
           className="absolute bottom-1.5 right-1.5 h-9 w-9 rounded-full shadow-lg"
-          onClick={onAdd}
+          onClick={(e) => { e.stopPropagation(); onAdd(); }}
           aria-label="Adicionar ao carrinho"
         >
           <Plus className="h-4 w-4" />
