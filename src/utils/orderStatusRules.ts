@@ -17,6 +17,18 @@ const statusMap: Record<string, string> = {
 export const normalizeStatus = (status: string): string =>
   statusMap[status?.toLowerCase()] || 'pending';
 
+// v3.0.0 — Mapa: status real → coluna do kanban (5 colunas).
+// Pronto/Saiu unifica ready+delivering+out_for_delivery.
+// Pendente engloba pending+scheduled+confirmed.
+export const mapStatusToColumn = (status: string): string => {
+  if (status === "scheduled" || status === "pending" || status === "confirmed") return "pending";
+  if (status === "preparing") return "preparing";
+  if (status === "ready" || status === "delivering" || status === "out_for_delivery") return "ready";
+  if (status === "completed" || status === "delivered" || status === "archived") return "completed";
+  if (status === "cancelled") return "cancelled";
+  return "pending";
+};
+
 export const getNextStatus = (currentStatus: string, type: string): string => {
   switch (currentStatus) {
     case "pending":    return "preparing";
