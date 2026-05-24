@@ -68,27 +68,29 @@ export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onVi
   }, [onView]);
 
   return (
-    // v1.3.1 — h-full + flex-col faz card ocupar altura total da célula do grid
-    // (irmãos do grid esticam pro maior → todos ficam mesma altura)
-    <div ref={cardRef} className="group relative bg-card rounded-xl border border-border hover:shadow-md transition-all overflow-hidden flex flex-col h-full">
-      {/* Badges + Tags — empilhados topo-esquerda */}
-      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
-        {/* Badge legado (badges) */}
-        {badgeCfg && (
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${badgeCfg.className} w-fit`}>
-            {badgeCfg.label}
-          </span>
-        )}
-        {/* Tags pré-definidas (vegano, picante, etc) — máx 3 no card pra não poluir */}
-        {product.tags && product.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {product.tags.slice(0, 3).map((tagId) => {
+    // v2.0.0 — Layout horizontal estilo Saipos/Anota Aí
+    // Texto à esquerda + imagem 110x110 à direita. Scroll vertical 1 col mobile, 2 col desktop.
+    <div
+      ref={cardRef}
+      className="group relative bg-card rounded-xl border border-border hover:shadow-md transition-all overflow-hidden flex h-[120px] sm:h-[130px]"
+    >
+      {/* Conteúdo à esquerda */}
+      <div className="flex-1 min-w-0 p-3 flex flex-col">
+        {/* Badges/tags inline no topo */}
+        {(badgeCfg || (product.tags && product.tags.length > 0)) && (
+          <div className="flex flex-wrap gap-1 mb-1">
+            {badgeCfg && (
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${badgeCfg.className}`}>
+                {badgeCfg.label}
+              </span>
+            )}
+            {product.tags?.slice(0, 2).map((tagId) => {
               const tag = getTagById(tagId);
               if (!tag) return null;
               return (
                 <span
                   key={tagId}
-                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${tag.color} w-fit`}
+                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${tag.color}`}
                   title={tag.label}
                 >
                   {tag.emoji} {tag.label}
@@ -97,73 +99,65 @@ export function ProductCard({ product, onAdd, isFavorite, onToggleFavorite, onVi
             })}
           </div>
         )}
-      </div>
 
-      {/* Botão favorito */}
-      {onToggleFavorite && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
-          className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
-          aria-label={isFavorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-        >
-          <Heart className={`h-4 w-4 transition-colors ${isFavorite ? "fill-red-500 text-red-500" : "text-gray-400"}`} />
-        </button>
-      )}
+        {/* Nome (1 linha truncada) */}
+        <h3 className="font-semibold text-sm leading-tight line-clamp-1">{product.name}</h3>
 
-      {/* Imagem */}
-      <div className="w-full h-36 bg-muted overflow-hidden shrink-0">
-        <OptimizedImage
-          src={product.image_url}
-          alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          aspectRatio="16/10"
-          fallback={
-            <div className="w-full h-full flex items-center justify-center bg-muted">
-              <ImageIcon className="h-10 w-10 text-muted-foreground/40" />
-            </div>
-          }
-        />
-      </div>
+        {/* Descrição (2 linhas) */}
+        {product.description && (
+          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 flex-1">{product.description}</p>
+        )}
 
-      {/* Conteúdo */}
-      <div className="p-3 flex flex-col flex-1">
-        {/* v1.3.1 — min-h-[2.5em] reserva 2 linhas pro nome (alinha cards lado a lado) */}
-        <h3 className="font-semibold text-sm leading-tight mb-1 line-clamp-2 min-h-[2.5em]">{product.name}</h3>
-        {/* v1.3.1 — Sempre renderiza descrição (mesmo vazia) pra reservar altura igual */}
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-2 flex-1 min-h-[2em]">
-          {product.description || ""}
-        </p>
-
-        {/* Preço */}
-        <div className="flex items-end justify-between mt-auto">
-          <div>
+        {/* Preço + ação */}
+        <div className="flex items-end justify-between mt-auto pt-1">
+          <div className="min-w-0">
             {hasPromo ? (
               <>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-base font-bold text-primary">
-                    {formatCurrency(product.promotional_price!)}
-                  </span>
-                  <span className="text-xs bg-red-100 text-red-700 px-1 rounded font-medium">
-                    -{discount}%
-                  </span>
+                  <span className="text-base font-bold text-primary">{formatCurrency(product.promotional_price!)}</span>
+                  <span className="text-[10px] bg-red-100 text-red-700 px-1 rounded font-medium">-{discount}%</span>
                 </div>
-                <span className="text-xs text-muted-foreground line-through">
-                  {formatCurrency(product.price)}
-                </span>
+                <span className="text-[10px] text-muted-foreground line-through">{formatCurrency(product.price)}</span>
               </>
             ) : (
               <span className="text-base font-bold text-primary">{formatCurrency(product.price)}</span>
             )}
           </div>
-
-          <Button
-            size="icon"
-            className="h-8 w-8 rounded-full shrink-0"
-            onClick={onAdd}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
         </div>
+      </div>
+
+      {/* Imagem à direita — quadrada, full height do card */}
+      <div className="relative w-[110px] sm:w-[130px] shrink-0 bg-muted">
+        <OptimizedImage
+          src={product.image_url}
+          alt={product.name}
+          className="w-full h-full object-cover"
+          aspectRatio="1/1"
+          fallback={
+            <div className="w-full h-full flex items-center justify-center bg-muted">
+              <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+            </div>
+          }
+        />
+        {/* Botão favorito sobre imagem (canto sup direito) */}
+        {onToggleFavorite && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
+            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
+            aria-label={isFavorite ? "Remover dos favoritos" : "Adicionar"}
+          >
+            <Heart className={`h-3.5 w-3.5 ${isFavorite ? "fill-red-500 text-red-500" : "text-gray-500"}`} />
+          </button>
+        )}
+        {/* Botão + flutuante canto inferior direito sobre a imagem */}
+        <Button
+          size="icon"
+          className="absolute bottom-1.5 right-1.5 h-9 w-9 rounded-full shadow-lg"
+          onClick={onAdd}
+          aria-label="Adicionar ao carrinho"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

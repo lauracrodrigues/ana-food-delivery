@@ -27,6 +27,7 @@ import {
 } from "./types";
 import {
   normalizeStatus,
+  mapStatusToColumn,
   isInvalidStatusMove,
   requiresDelivererAssignment,
 } from "@/utils/orderStatusRules";
@@ -871,7 +872,7 @@ export function OrdersKanban() {
     const newSelected = new Set(selectedOrders);
     if (orderIds.length === 0) {
       // Desmarcar todos da coluna — remove apenas os ids que pertencem à coluna
-      const columnOrders = filteredOrders.filter(o => normalizeStatus(o.status) === _columnId);
+      const columnOrders = filteredOrders.filter(o => mapStatusToColumn(normalizeStatus(o.status)) === _columnId);
       columnOrders.forEach(o => newSelected.delete(o.id));
     } else {
       orderIds.forEach(id => newSelected.add(id));
@@ -1204,9 +1205,9 @@ export function OrdersKanban() {
           })
           .map((column) => {
             const columnOrders = filteredOrders.filter(
-              (order) => normalizeStatus(order.status) === column.id
+              (order) => mapStatusToColumn(normalizeStatus(order.status)) === column.id
             );
-            const isDraggedOver = draggedOrder && normalizeStatus(draggedOrder.status) !== column.id;
+            const isDraggedOver = draggedOrder && mapStatusToColumn(normalizeStatus(draggedOrder.status)) !== column.id;
 
             return (
               <KanbanColumn

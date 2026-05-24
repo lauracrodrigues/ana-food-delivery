@@ -58,16 +58,25 @@ export interface StoreSettings {
   };
 }
 
-// Status columns configuration — "scheduled" novo: pedidos pré-agendados pra hora futura
+// v3.0.0 — 5 colunas (era 7). Pronto/Saiu unifica ready+delivering+out_for_delivery.
+// Sub-status visível como badge no card.
 export const STATUS_COLUMNS = [
-  { id: "scheduled", title: "Agendados", color: "bg-indigo-500" },
-  { id: "pending", title: "Novo", color: "bg-red-500" },
-  { id: "preparing", title: "Em Preparo", color: "bg-yellow-500" },
-  { id: "ready", title: "Pronto", color: "bg-green-500" },
-  { id: "delivering", title: "Em Entrega", color: "bg-purple-500" },
-  { id: "completed", title: "Concluído", color: "bg-blue-500" },
-  { id: "cancelled", title: "Cancelado", color: "bg-gray-500" },
+  { id: "pending",   title: "Pendente",      color: "bg-red-500" },
+  { id: "preparing", title: "Em Preparo",    color: "bg-yellow-500" },
+  { id: "ready",     title: "Pronto/Saiu",   color: "bg-purple-500" },
+  { id: "completed", title: "Concluído",     color: "bg-blue-500" },
+  { id: "cancelled", title: "Cancelado",     color: "bg-gray-500" },
 ] as const;
+
+// v3.0.0 — Mapa: status real → coluna do kanban
+export function mapStatusToColumn(status: string): string {
+  if (status === "scheduled" || status === "pending" || status === "confirmed") return "pending";
+  if (status === "preparing") return "preparing";
+  if (status === "ready" || status === "delivering" || status === "out_for_delivery") return "ready";
+  if (status === "completed" || status === "delivered" || status === "archived") return "completed";
+  if (status === "cancelled") return "cancelled";
+  return "pending";
+}
 
 // Map Portuguese status to English
 const statusMap: Record<string, string> = {
