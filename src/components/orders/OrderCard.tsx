@@ -9,6 +9,10 @@ import {
   Truck,
   Package,
   MessageCircle,
+  Smartphone,
+  Hand,
+  QrCode as QrCodeIcon,
+  Store as StoreIcon,
   PauseCircle,
   PlayCircle,
 } from "lucide-react";
@@ -43,6 +47,39 @@ function ProgressBar({ elapsed, maxTime }: { elapsed: number; maxTime: number })
     <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5 mt-1">
       <div className={`h-1.5 rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
     </div>
+  );
+}
+
+// v3.1.0 — Badge da origem do pedido: ícone + cor por canal
+// Suporta whatsapp, digital_menu, manual, qr_code, ifood (futuro), 99food (futuro)
+function SourceBadge({ source }: { source?: string }) {
+  const cfg = (() => {
+    switch (source) {
+      case "whatsapp":
+        return { Icon: MessageCircle, bg: "bg-green-500", title: "WhatsApp" };
+      case "digital_menu":
+        return { Icon: Smartphone, bg: "bg-blue-500", title: "Cardápio Digital" };
+      case "qr_code":
+        return { Icon: QrCodeIcon, bg: "bg-purple-500", title: "QR Code Mesa" };
+      case "manual":
+        return { Icon: Hand, bg: "bg-amber-500", title: "Pedido Manual" };
+      case "ifood":
+        return { Icon: StoreIcon, bg: "bg-red-600", title: "iFood" };
+      case "99food":
+        return { Icon: StoreIcon, bg: "bg-yellow-500", title: "99Food" };
+      default:
+        return { Icon: StoreIcon, bg: "bg-gray-400", title: source || "Outro" };
+    }
+  })();
+  const { Icon, bg, title } = cfg;
+  return (
+    <span
+      className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${bg} text-white shadow-sm shrink-0`}
+      title={title}
+      aria-label={title}
+    >
+      <Icon className="w-3 h-3" />
+    </span>
   );
 }
 
@@ -125,6 +162,8 @@ export const OrderCard = memo(function OrderCard({
               onClick={(e) => e.stopPropagation()}
               className="w-3.5 h-3.5"
             />
+            {/* v3.1.0 — Badge de origem do pedido (WhatsApp/Cardápio/iFood/99Food) */}
+            <SourceBadge source={(order as any).source} />
             <span className="text-sm font-bold text-gray-800 dark:text-gray-100">
               #{order.order_number || order.id.slice(0, 8)}
             </span>
