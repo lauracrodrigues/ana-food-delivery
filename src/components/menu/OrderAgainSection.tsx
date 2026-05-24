@@ -54,12 +54,14 @@ export function OrderAgainSection({
         <RotateCcw className="h-4 w-4 text-primary" />
         <span>Peça novamente</span>
       </h2>
+      {/* v1.1.0 — Mesmo tamanho/layout de "Os Mais Pedidos" (SectionStrip): w-40/44 + variant compact */}
       <ScrollArea className="w-full">
         <div className="flex gap-3 pb-2">
           {products.map(p => (
-            <div key={p.id} className="w-44 shrink-0">
+            <div key={p.id} className="w-40 sm:w-44 shrink-0">
               <ProductCard
                 product={p}
+                variant="compact"
                 onAdd={() => onAdd(p)}
                 isFavorite={favorites?.includes(p.id)}
                 onToggleFavorite={onToggleFavorite ? () => onToggleFavorite(p.id) : undefined}
