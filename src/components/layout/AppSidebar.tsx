@@ -130,10 +130,10 @@ export function AppSidebar() {
           }
         });
         sessionStorage.clear();
-      } catch {}
+      } catch { /* noop */ }
 
       // SignOut em paralelo (não bloqueia redirect)
-      supabase.auth.signOut().catch(() => {});
+      supabase.auth.signOut().catch(() => { /* noop */ });
 
       // Hard redirect: força reload da app + limpa todo estado React/queries
       // Evita "erro depois volta" porque componentes não chegam a renderizar com user=null

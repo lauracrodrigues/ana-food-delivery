@@ -244,7 +244,6 @@ export function OrdersKanban() {
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let channel: ReturnType<typeof supabase.channel> | null = null;
-    let poll: ReturnType<typeof setInterval>;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let retryCount = 0;
     let unmounted = false;
@@ -271,7 +270,7 @@ export function OrdersKanban() {
       } catch (_) { /* segue mesmo se falhar */ }
 
       if (channel) {
-        try { await supabase.removeChannel(channel); } catch (_) {}
+        try { await supabase.removeChannel(channel); } catch (_) { /* noop */ }
         channel = null;
       }
 
@@ -354,7 +353,7 @@ export function OrdersKanban() {
     document.addEventListener('visibilitychange', onVisibility);
 
     subscribeRealtime();
-    poll = setInterval(scheduleInvalidate, 60_000); // polling sempre rodando como safety net
+    const poll = setInterval(scheduleInvalidate, 60_000); // polling sempre rodando como safety net
 
     return () => {
       unmounted = true;

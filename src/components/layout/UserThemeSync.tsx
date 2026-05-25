@@ -14,7 +14,7 @@ function themeKey(userId: string) {
 // Usado pelo inline script no index.html pra evitar flash no primeiro paint
 const LAST_THEME_KEY = "anafood-last-theme";
 function rememberLastTheme(theme: "light" | "dark") {
-  try { localStorage.setItem(LAST_THEME_KEY, theme); } catch {}
+  try { localStorage.setItem(LAST_THEME_KEY, theme); } catch { /* noop */ }
 }
 
 export function UserThemeSync() {

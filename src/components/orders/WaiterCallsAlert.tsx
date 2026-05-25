@@ -66,8 +66,8 @@ export function WaiterCallsAlert({ companyId }: WaiterCallsAlertProps) {
         try {
           const audio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
           audio.volume = 0.5;
-          audio.play().catch(() => {});
-        } catch {}
+          audio.play().catch(() => { /* noop */ });
+        } catch { /* noop */ }
         setAudioPlayed(prev => new Set(prev).add(call.id));
       }
     });

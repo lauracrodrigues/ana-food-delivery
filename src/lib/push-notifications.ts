@@ -79,5 +79,5 @@ export async function disablePush(): Promise<void> {
         });
       }
     }
-  } catch (_) {}
+  } catch (_) { /* noop */ }
 }

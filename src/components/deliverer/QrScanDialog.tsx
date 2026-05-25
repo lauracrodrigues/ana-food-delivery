@@ -46,7 +46,7 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
     try {
       // Cleanup instância anterior se houver
       if (scannerRef.current) {
-        try { await scannerRef.current.stop(); } catch (_) {}
+        try { await scannerRef.current.stop(); } catch (_) { /* noop */ }
         scannerRef.current = null;
       }
 
@@ -55,10 +55,10 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
         { facingMode: "environment" },                           // câmera traseira
         { fps: 10, qrbox: { width: 250, height: 250 } },
         async (decodedText) => {
-          try { await scannerRef.current?.stop(); } catch (_) {}
+          try { await scannerRef.current?.stop(); } catch (_) { /* noop */ }
           await handleToken(decodedText);
         },
-        () => {} // ignora falhas frame-a-frame
+        () => { /* noop */ } // ignora falhas frame-a-frame
       );
     } catch (err: any) {
       setStatus("error");
@@ -85,7 +85,7 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
     } else {
       // Cleanup ao fechar
       if (scannerRef.current) {
-        try { scannerRef.current.stop().catch(() => {}); } catch (_) {}
+        try { scannerRef.current.stop().catch(() => { /* noop */ }); } catch (_) { /* noop */ }
         scannerRef.current = null;
       }
       setStatus("idle");
@@ -168,7 +168,7 @@ export function QrScanDialog({ open, onOpenChange, onClaimed }: Props) {
   return (
     <Dialog open={open} onOpenChange={(v) => {
       if (!v && scannerRef.current) {
-        try { scannerRef.current.stop().catch(() => {}); } catch (_) {}
+        try { scannerRef.current.stop().catch(() => { /* noop */ }); } catch (_) { /* noop */ }
       }
       onOpenChange(v);
     }}>
