@@ -343,15 +343,21 @@ export function ProductAddModal({
                       )}
                     </div>
 
-                    {/* v1.2.0 — Lista de extras: items indisponíveis hoje aparecem disabled
-                        com badge dos dias que tá disponível (ex: "seg, ter") */}
+                    {/* v1.3.0 — Ordena: ativos primeiro, indisponíveis no final */}
+                    {(() => {
+                      const sortedExtras = [...group.extras].sort((a, b) => {
+                        const aAvail = isExtraAvailable(a.available_weekdays, a.available_start_time, a.available_end_time) ? 0 : 1;
+                        const bAvail = isExtraAvailable(b.available_weekdays, b.available_start_time, b.available_end_time) ? 0 : 1;
+                        return aAvail - bAvail; // 0 (ativo) antes de 1 (indisponível)
+                      });
+                      return (
                     <div className="divide-y">
                       {isRadio(group) ? (
                         <RadioGroup
                           value={selected[0] || ""}
                           onValueChange={(val) => toggleExtra(group, val)}
                         >
-                          {group.extras.map((extra) => {
+                          {sortedExtras.map((extra) => {
                             const availToday = isExtraAvailable(extra.available_weekdays, extra.available_start_time, extra.available_end_time);
                             return (
                               <label
@@ -373,7 +379,7 @@ export function ProductAddModal({
                           })}
                         </RadioGroup>
                       ) : (
-                        group.extras.map((extra) => {
+                        sortedExtras.map((extra) => {
                           const isChecked = selected.includes(extra.id);
                           const availToday = isExtraAvailable(extra.available_weekdays, extra.available_start_time, extra.available_end_time);
                           const maxReached = group.max_selection !== null && selected.length >= group.max_selection && !isChecked;
@@ -403,6 +409,8 @@ export function ProductAddModal({
                         })
                       )}
                     </div>
+                      );
+                    })()}
                   </div>
                 );
               })
