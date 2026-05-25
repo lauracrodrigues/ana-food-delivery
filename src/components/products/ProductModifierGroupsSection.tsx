@@ -1,6 +1,7 @@
 // v1.0.0 — Aba "Acompanhamentos" no produto
 // Permite vincular grupos de opções a um produto + override min/max
 // Fase 3 do plano catalogo-modifiers
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyId } from "@/hooks/useCompanyId";
@@ -11,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Layers, X, Plus, ArrowUp, ArrowDown } from "lucide-react";
-import { Link } from "react-router-dom";
+import { CreateModifierGroupDialog } from "./CreateModifierGroupDialog";
 
 interface ModifierGroup {
   id: string;
@@ -39,6 +40,7 @@ export function ProductModifierGroupsSection({ productId }: Props) {
   const { companyId } = useCompanyId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [createOpen, setCreateOpen] = useState(false);
 
   // Todos grupos da empresa (pra opções de adicionar)
   const { data: allGroups = [] } = useQuery({
@@ -142,11 +144,9 @@ export function ProductModifierGroupsSection({ productId }: Props) {
           <Layers className="h-4 w-4 text-primary" />
           <span className="text-sm font-semibold">Grupos de Opções Vinculados</span>
         </div>
-        {allGroups.length === 0 && (
-          <Link to="/modifier-groups" className="text-xs text-primary underline">
-            Criar grupos primeiro
-          </Link>
-        )}
+        <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1">
+          <Plus className="h-3 w-3" /> Novo grupo
+        </Button>
       </div>
 
       {isLoading ? (
@@ -239,17 +239,24 @@ export function ProductModifierGroupsSection({ productId }: Props) {
         </div>
       )}
 
-      {allGroups.length === 0 && (
+      {allGroups.length === 0 && links.length === 0 && (
         <Card className="border-dashed bg-muted/30">
-          <CardContent className="p-3 text-center text-xs text-muted-foreground">
-            <Plus className="h-4 w-4 mx-auto mb-1 opacity-50" />
-            Nenhum grupo cadastrado ainda.
-            <Link to="/modifier-groups" className="text-primary underline ml-1">
-              Criar agora
-            </Link>
+          <CardContent className="p-4 text-center space-y-2">
+            <Plus className="h-5 w-5 mx-auto opacity-50" />
+            <p className="text-sm text-muted-foreground">Nenhum grupo cadastrado ainda.</p>
+            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
+              Criar primeiro grupo
+            </Button>
           </CardContent>
         </Card>
       )}
+
+      <CreateModifierGroupDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        productId={productId}
+        nextSortOrder={links.length}
+      />
     </div>
   );
 }
