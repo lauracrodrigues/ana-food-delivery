@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Lock, Store, ArrowRight, Chrome } from "lucide-react";
+import { Mail, Lock, Store, ArrowRight, Chrome, Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { supabaseQueryNullable } from "@/lib/supabase-safe";
@@ -27,6 +27,7 @@ export default function Login() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<LoginData>({
     resolver: zodResolver(loginSchema),
@@ -93,11 +94,17 @@ export default function Login() {
       });
 
       if (error) {
+        // Log completo no console pra debug (DevTools F12)
+        console.error('[Login] Erro Supabase:', error.message, error);
+        const msg = error.message || '';
+        let userMsg = msg;
+        if (msg === 'Invalid login credentials') userMsg = 'Email ou senha incorretos';
+        else if (msg.includes('Email not confirmed')) userMsg = 'Email não confirmado — verifique sua caixa de entrada';
+        else if (msg.includes('rate limit')) userMsg = 'Muitas tentativas. Aguarde 1 minuto e tente novamente';
+        else if (msg.includes('Network')) userMsg = 'Sem internet — verifique sua conexão';
         toast({
           title: "Erro ao fazer login",
-          description: error.message === "Invalid login credentials" 
-            ? "Email ou senha incorretos" 
-            : error.message,
+          description: userMsg,
           variant: "destructive",
         });
         setIsLoading(false);
@@ -207,12 +214,21 @@ export default function Login() {
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input 
-                            type="password" 
-                            placeholder="••••••••" 
-                            className="pl-10"
-                            {...field} 
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            className="pl-10 pr-10"
+                            {...field}
                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(s => !s)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            tabIndex={-1}
+                            aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                          >
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
                         </div>
                       </FormControl>
                       <FormMessage />

@@ -13,6 +13,7 @@ interface CancelOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orderId: string;
+  /** Chamado após cancelamento com sucesso — passe função que volta pra tela inicial / recarrega */
   onCancelled: () => void;
 }
 
@@ -44,17 +45,25 @@ export function CancelOrderDialog({ open, onOpenChange, orderId, onCancelled }: 
       : reasonLabel;
 
     try {
-      const { error } = await supabase
-        .from("orders")
-        .update({
-          status: "cancelled",
-          cancellation_reason: fullReason,
-          cancelled_by: "customer",
-          cancelled_at: new Date().toISOString(),
-        } as any)
-        .eq("id", orderId);
+      // v1.0.1 — usa RPC cancel_order_by_customer (SECURITY DEFINER)
+      // Antes UPDATE direto era bloqueado por RLS pra usuário anônimo → silent fail
+      const { data, error } = await supabase.rpc("cancel_order_by_customer", {
+        p_order_id: orderId,
+        p_reason: fullReason,
+      });
 
       if (error) throw error;
+
+      const result = data as { ok?: boolean; error?: string; message?: string; current_status?: string } | null;
+      if (!result?.ok) {
+        const msg = result?.message
+          || (result?.error === 'cannot_cancel' ? 'Pedido já está sendo preparado — entre em contato com a loja' : null)
+          || (result?.error === 'order_not_found' ? 'Pedido não encontrado' : null)
+          || 'Não foi possível cancelar';
+        toast({ title: "Não foi possível cancelar", description: msg, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
 
       toast({
         title: "Pedido cancelado",
@@ -65,6 +74,7 @@ export function CancelOrderDialog({ open, onOpenChange, orderId, onCancelled }: 
       setReasonId("");
       setExtraNote("");
     } catch (err: any) {
+      console.error('[CancelOrder] erro:', err);
       toast({
         title: "Erro ao cancelar",
         description: err?.message || "Tente novamente ou entre em contato com a loja",

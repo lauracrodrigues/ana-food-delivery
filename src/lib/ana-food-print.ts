@@ -1,5 +1,6 @@
-// v1.0.0 — Cliente JS pro gateway Ana Food Print (agente desktop oficial)
+// v1.0.1 — Cliente JS pro gateway Ana Food Print (agente desktop oficial)
 // Envia jobs ao backend que despacha via WebSocket pros agentes desktop
+// v1.0.1: auto-refresh sessão se token expirou (evita falha 1ª impressão após inatividade)
 import { supabase } from "@/integrations/supabase/client";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "https://api.anafood.vip";
@@ -13,19 +14,43 @@ interface QueueJobInput {
   copies?: number;
 }
 
+// Pega token fresco — se expirou, força refresh antes de retornar
+async function getFreshToken(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) return null;
+  // expires_at é unix seconds. Renova se faltam < 60s
+  const expSec = session.expires_at || 0;
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (expSec - nowSec < 60) {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session?.access_token) return session.access_token; // tenta com o velho
+    return data.session.access_token;
+  }
+  return session.access_token;
+}
+
+async function postPrint(token: string, input: QueueJobInput) {
+  return fetch(`${API_BASE}/api/print/queue`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
+  });
+}
+
 export async function queuePrintJob(input: QueueJobInput): Promise<{ ok: boolean; error?: string }> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) return { ok: false, error: "no_session" };
+    let token = await getFreshToken();
+    if (!token) return { ok: false, error: "no_session" };
 
-    const res = await fetch(`${API_BASE}/api/print/queue`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify(input),
-    });
+    let res = await postPrint(token, input);
+
+    // 401 → token rejeitado → refresh forçado + retry 1x
+    if (res.status === 401) {
+      const { data } = await supabase.auth.refreshSession();
+      token = data.session?.access_token || null;
+      if (!token) return { ok: false, error: "session_expired" };
+      res = await postPrint(token, input);
+    }
 
     if (!res.ok) {
       const txt = await res.text();

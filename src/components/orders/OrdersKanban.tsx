@@ -236,12 +236,19 @@ export function OrdersKanban() {
   const stopSoundRef = useRef(stopNotificationSound);
   useEffect(() => { stopSoundRef.current = stopNotificationSound; }, [stopNotificationSound]);
 
-  // v1.1.0 — Realtime + debounce invalidate (300ms) — múltiplos eventos em rajada = 1 fetch
+  // v1.2.0 — Realtime + debounce + auto-retry resilient
+  // Antes: CHANNEL_ERROR/TIMED_OUT só caía pra polling permanente (cliente via toast feio)
+  // Agora: refresh session + resubscribe automático com backoff exponencial
   useEffect(() => {
     if (!companyId) return;
 
-    // Debounce: agrupa eventos próximos em janela 300ms
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let poll: ReturnType<typeof setInterval>;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryCount = 0;
+    let unmounted = false;
+
     const scheduleInvalidate = () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
@@ -250,67 +257,110 @@ export function OrdersKanban() {
       }, 300);
     };
 
-    const channel = supabase
-      .channel(`orders-realtime-${companyId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders', filter: `company_id=eq.${companyId}` },
-        (payload) => {
-          scheduleInvalidate();
+    const subscribeRealtime = async () => {
+      if (unmounted) return;
 
-          if (payload.eventType !== 'INSERT') return;
+      // Refresh sessão antes de subscribe — evita CHANNEL_ERROR por JWT expirado
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const expSec = session?.expires_at || 0;
+        const nowSec = Math.floor(Date.now() / 1000);
+        if (session && expSec - nowSec < 120) {
+          await supabase.auth.refreshSession();
+        }
+      } catch (_) { /* segue mesmo se falhar */ }
 
-          const newOrder = payload.new as Order;
-          const s = settingsRef.current;
+      if (channel) {
+        try { await supabase.removeChannel(channel); } catch (_) {}
+        channel = null;
+      }
 
-          stopSoundRef.current();
+      channel = supabase
+        .channel(`orders-realtime-${companyId}-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'orders', filter: `company_id=eq.${companyId}` },
+          (payload) => {
+            scheduleInvalidate();
 
-          if (s.soundEnabled) {
-            const soundUrl = s.notificationSound || '/sounds/default-notification.mp3';
-            const audio = new Audio(soundUrl);
-            audio.loop = true;
-            audio.volume = 0.7;
-            audio.play()
-              .then(() => { setCurrentAudio(audio); setAudioPreloaded(true); })
-              .catch(() => {
-                document.addEventListener('click', () => {
-                  audio.play().then(() => { setCurrentAudio(audio); setAudioPreloaded(true); }).catch(() => {});
-                }, { once: true });
-                toast({
-                  title: "🔔 NOVO PEDIDO — clique para ativar som",
-                  description: `Pedido #${newOrder.order_number} aguardando.`,
-                  duration: 30000,
+            if (payload.eventType !== 'INSERT') return;
+
+            const newOrder = payload.new as Order;
+            const s = settingsRef.current;
+
+            stopSoundRef.current();
+
+            if (s.soundEnabled) {
+              const soundUrl = s.notificationSound || '/sounds/default-notification.mp3';
+              const audio = new Audio(soundUrl);
+              audio.loop = true;
+              audio.volume = 0.7;
+              audio.play()
+                .then(() => { setCurrentAudio(audio); setAudioPreloaded(true); })
+                .catch(() => {
+                  document.addEventListener('click', () => {
+                    audio.play().then(() => { setCurrentAudio(audio); setAudioPreloaded(true); }).catch(() => {});
+                  }, { once: true });
+                  toast({
+                    title: "🔔 NOVO PEDIDO — clique para ativar som",
+                    description: `Pedido #${newOrder.order_number} aguardando.`,
+                    duration: 30000,
+                  });
                 });
-              });
-            setTimeout(() => { audio.pause(); audio.currentTime = 0; setCurrentAudio(null); }, 20000);
+              setTimeout(() => { audio.pause(); audio.currentTime = 0; setCurrentAudio(null); }, 20000);
+            }
+
+            toast({
+              title: "🎉 Novo Pedido!",
+              description: `Pedido #${newOrder.order_number} de ${newOrder.customer_name}`,
+            });
           }
+        )
+        .subscribe((status, err) => {
+          if (status === 'SUBSCRIBED') {
+            retryCount = 0; // sucesso reseta contador
+            return;
+          }
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            if (unmounted) return;
+            console.warn('[Kanban] Realtime status:', status, err?.message);
 
-          toast({
-            title: "🎉 Novo Pedido!",
-            description: `Pedido #${newOrder.order_number} de ${newOrder.customer_name}`,
-          });
-        }
-      )
-      .subscribe((status, err) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.error('[Kanban] ❌ Realtime subscription falhou:', status, err);
-          toast({
-            title: "Conexão em tempo real perdida",
-            description: "Atualização automática de pedidos pode estar lenta. Atualizações via polling a cada 15s.",
-            variant: "destructive",
-            duration: 8000,
-          });
-          // Aumenta frequência do polling como fallback quando realtime cai
-          clearInterval(poll);
-          poll = setInterval(scheduleInvalidate, 15000);
-        }
-      });
+            // Backoff exponencial: 2s, 4s, 8s, 16s, 30s max
+            const delay = Math.min(2000 * Math.pow(2, retryCount), 30_000);
+            retryCount++;
 
-    // v1.1.0 — polling fallback 60s (era 30s; realtime cobre). Usa debounce também.
-    let poll = setInterval(scheduleInvalidate, 60_000);
+            // Só notifica usuário após 3 falhas seguidas (evita flash quando hot-reload/aba volta)
+            if (retryCount === 3) {
+              toast({
+                title: "Reconectando...",
+                description: "Conexão em tempo real instável. Tentando restaurar automaticamente.",
+                duration: 4000,
+              });
+            }
+
+            retryTimer = setTimeout(subscribeRealtime, delay);
+          }
+        });
+    };
+
+    // Reconectar quando aba voltar do background (navegador throttla WS)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && channel?.state !== 'joined') {
+        retryCount = 0;
+        if (retryTimer) clearTimeout(retryTimer);
+        subscribeRealtime();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    subscribeRealtime();
+    poll = setInterval(scheduleInvalidate, 60_000); // polling sempre rodando como safety net
 
     return () => {
-      supabase.removeChannel(channel);
+      unmounted = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (retryTimer) clearTimeout(retryTimer);
+      if (channel) supabase.removeChannel(channel);
       clearInterval(poll);
       if (debounceTimer) clearTimeout(debounceTimer);
     };

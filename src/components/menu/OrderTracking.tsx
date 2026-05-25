@@ -317,7 +317,12 @@ export function OrderTracking({ orderId, company, onClose }: OrderTrackingProps)
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         orderId={orderId}
-        onCancelled={() => { fetchOrder(); }}
+        onCancelled={() => {
+          // Limpa estado local + fecha tracking + volta pra tela inicial do cardápio
+          if (company.id) localStorage.removeItem(`anafood_order_${company.id}`);
+          setCancelOpen(false);
+          onClose();
+        }}
       />
     </div>
   );
