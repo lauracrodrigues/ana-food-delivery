@@ -18,6 +18,8 @@ import Index from "./pages/Index";
 import Menu from "./pages/Menu";
 
 const Login = lazy(() => import("./pages/Login"));
+const RecuperarSenha = lazy(() => import("./pages/RecuperarSenha"));
+const AtualizarSenha = lazy(() => import("./pages/AtualizarSenha"));
 
 // Lazy load non-critical routes
 const Registration = lazy(() => import("./pages/Registration"));
@@ -200,6 +202,8 @@ const App = () => {
               ) : <Index />
             } />
             <Route path="/login" element={<Suspense fallback={<FullLoadingFallback />}><Login /></Suspense>} />
+            <Route path="/recuperar-senha" element={<Suspense fallback={<FullLoadingFallback />}><RecuperarSenha /></Suspense>} />
+            <Route path="/atualizar-senha" element={<Suspense fallback={<FullLoadingFallback />}><AtualizarSenha /></Suspense>} />
             <Route path="/cadastro" element={
               <Suspense fallback={<FullLoadingFallback />}>
                 <Registration />
