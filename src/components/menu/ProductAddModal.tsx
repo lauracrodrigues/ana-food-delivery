@@ -84,7 +84,7 @@ export function ProductAddModal({
   const [selections, setSelections] = useState<Record<string, string[]>>({});
   const [observations, setObservations] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [showUnavailable, setShowUnavailable] = useState(true);
+  const [showUnavailable, setShowUnavailable] = useState(false);
 
   // Carrega flag store_settings.show_unavailable_extras
   useEffect(() => {
