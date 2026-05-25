@@ -4,6 +4,7 @@ import { MessageCircle, Instagram } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { pickWhatsAppNumber } from "@/lib/phone-validation";
+import { isOpenNow } from "@/lib/delivery-window";
 
 interface Company {
   name: string;
@@ -28,18 +29,20 @@ interface MenuHeaderProps {
   onProfileClick?: () => void;
 }
 
+// v3.1.0 — Status aberto/fechado usa isOpenNow (suporta periods múltiplos + formato antigo)
+// Antes calcIsOpen interno só lia {open,close} simples → ignorava periods novos
 function calcIsOpen(company: Company): boolean {
   if (!company.is_active) return false;
-  const now = new Date();
-  const day = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"][now.getDay()];
-  const schedule = company.schedule?.[day];
-  if (!schedule || schedule.closed) return false;
-  const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
-  const cur = now.getHours() * 60 + now.getMinutes();
-  return cur >= toMin(schedule.open || "00:00") && cur <= toMin(schedule.close || "23:59");
+  return isOpenNow(company.schedule);
 }
 
 export function MenuHeader({ company, customerSlot, themeSlot, onProfileClick }: MenuHeaderProps) {
+  // Recalcula a cada minuto pra status atualizar sem reload
+  const [, setTick] = React.useState(0);
+  React.useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
   const open = calcIsOpen(company);
   const displayName = company.fantasy_name || company.name;
 
