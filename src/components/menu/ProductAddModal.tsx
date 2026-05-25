@@ -93,6 +93,31 @@ export function ProductAddModal({
     loadGroups();
   }, [open, product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // v1.3.0 — Auto-seleciona PRIMEIRO item de grupos radio obrigatórios
+  // (ex: Talheres → "Sem talher" como default)
+  useEffect(() => {
+    if (groups.length === 0) return;
+    setSelections(prev => {
+      const next = { ...prev };
+      let changed = false;
+      for (const g of groups) {
+        const isRadio = g.max_selection === 1;
+        const isRequired = (g.min_selection ?? 0) > 0;
+        if (isRadio && isRequired && (!next[g.id] || next[g.id].length === 0)) {
+          // Pega primeiro extra disponível hoje
+          const first = g.extras.find(e =>
+            isExtraAvailable(e.available_weekdays, e.available_start_time, e.available_end_time)
+          );
+          if (first) {
+            next[g.id] = [first.id];
+            changed = true;
+          }
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [groups]);
+
   const loadGroups = async () => {
     if (!product) return;
     setLoading(true);
