@@ -84,6 +84,20 @@ export function ProductAddModal({
   const [selections, setSelections] = useState<Record<string, string[]>>({});
   const [observations, setObservations] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [showUnavailable, setShowUnavailable] = useState(true);
+
+  // Carrega flag store_settings.show_unavailable_extras
+  useEffect(() => {
+    if (!companyId) return;
+    supabase
+      .from("store_settings")
+      .select("show_unavailable_extras")
+      .eq("company_id", companyId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setShowUnavailable((data as any).show_unavailable_extras !== false);
+      });
+  }, [companyId]);
 
   useEffect(() => {
     if (!open || !product) return;
@@ -343,12 +357,15 @@ export function ProductAddModal({
                       )}
                     </div>
 
-                    {/* v1.3.0 — Ordena: ativos primeiro, indisponíveis no final */}
+                    {/* v1.4.0 — Filtra indisponíveis se config off + ordena ativos primeiro */}
                     {(() => {
-                      const sortedExtras = [...group.extras].sort((a, b) => {
+                      const visible = showUnavailable
+                        ? group.extras
+                        : group.extras.filter(e => isExtraAvailable(e.available_weekdays, e.available_start_time, e.available_end_time));
+                      const sortedExtras = [...visible].sort((a, b) => {
                         const aAvail = isExtraAvailable(a.available_weekdays, a.available_start_time, a.available_end_time) ? 0 : 1;
                         const bAvail = isExtraAvailable(b.available_weekdays, b.available_start_time, b.available_end_time) ? 0 : 1;
-                        return aAvail - bAvail; // 0 (ativo) antes de 1 (indisponível)
+                        return aAvail - bAvail;
                       });
                       return (
                     <div className="divide-y">
@@ -362,18 +379,18 @@ export function ProductAddModal({
                             return (
                               <label
                                 key={extra.id}
-                                className={`flex items-center justify-between px-4 py-3 transition-colors ${
-                                  availToday ? "cursor-pointer hover:bg-muted/40" : "opacity-50 cursor-not-allowed"
+                                className={`flex items-center justify-between gap-3 px-4 py-3 transition-colors ${
+                                  availToday ? "cursor-pointer hover:bg-muted/40" : "opacity-60 cursor-not-allowed"
                                 }`}
                               >
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
                                   <RadioGroupItem value={extra.id} id={`${group.id}-${extra.id}`} disabled={!availToday} />
-                                  <span className="text-sm">{extra.name}</span>
+                                  <div className="flex flex-col min-w-0 flex-1">
+                                    <span className="text-sm truncate">{extra.name}</span>
+                                    {!availToday && <DaysBadge weekdays={extra.available_weekdays} />}
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  {!availToday && <DaysBadge weekdays={extra.available_weekdays} />}
-                                  {extra.price > 0 && <span className="text-sm font-medium text-primary">+{formatCurrency(extra.price)}</span>}
-                                </div>
+                                {extra.price > 0 && <span className="text-sm font-medium text-primary shrink-0">+{formatCurrency(extra.price)}</span>}
                               </label>
                             );
                           })}
@@ -387,23 +404,23 @@ export function ProductAddModal({
                           return (
                             <label
                               key={extra.id}
-                              className={`flex items-center justify-between px-4 py-3 transition-colors ${
-                                disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-muted/40"
-                              }`}
+                              className={`flex items-center justify-between gap-3 px-4 py-3 transition-colors ${
+                                disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:bg-muted/40"
+                              } ${!availToday ? "opacity-60" : ""}`}
                             >
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
                                 <Checkbox
                                   id={`${group.id}-${extra.id}`}
                                   checked={isChecked}
                                   disabled={disabled}
                                   onCheckedChange={() => !disabled && toggleExtra(group, extra.id)}
                                 />
-                                <span className="text-sm">{extra.name}</span>
+                                <div className="flex flex-col min-w-0 flex-1">
+                                  <span className="text-sm truncate">{extra.name}</span>
+                                  {!availToday && <DaysBadge weekdays={extra.available_weekdays} />}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                {!availToday && <DaysBadge weekdays={extra.available_weekdays} />}
-                                {extra.price > 0 && <span className="text-sm font-medium text-primary">+{formatCurrency(extra.price)}</span>}
-                              </div>
+                              {extra.price > 0 && <span className="text-sm font-medium text-primary shrink-0">+{formatCurrency(extra.price)}</span>}
                             </label>
                           );
                         })

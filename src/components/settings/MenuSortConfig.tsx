@@ -6,7 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowDownAZ } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { ArrowDownAZ, EyeOff } from "lucide-react";
 
 type SortMode = "manual" | "alphabetical" | "price_asc" | "price_desc" | "newest";
 
@@ -29,7 +30,7 @@ export function MenuSortConfig() {
       if (!companyId) return null;
       const { data } = await supabase
         .from("store_settings")
-        .select("menu_sort_mode")
+        .select("menu_sort_mode, show_unavailable_extras")
         .eq("company_id", companyId)
         .maybeSingle();
       return data;
@@ -38,6 +39,7 @@ export function MenuSortConfig() {
   });
 
   const current = ((data as any)?.menu_sort_mode || "manual") as SortMode;
+  const showUnavailable = (data as any)?.show_unavailable_extras !== false;
 
   const mutate = useMutation({
     mutationFn: async (mode: SortMode) => {
@@ -51,6 +53,22 @@ export function MenuSortConfig() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["store-settings-sort", companyId] });
       toast({ title: "Ordenação atualizada ✓" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const toggleUnavailable = useMutation({
+    mutationFn: async (v: boolean) => {
+      if (!companyId) throw new Error("Empresa não encontrada");
+      const { error } = await supabase.from("store_settings").upsert(
+        { company_id: companyId, show_unavailable_extras: v, updated_at: new Date().toISOString() } as any,
+        { onConflict: "company_id" }
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["store-settings-sort", companyId] });
+      toast({ title: "Visibilidade atualizada ✓" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
@@ -84,6 +102,28 @@ export function MenuSortConfig() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Toggle indisponíveis */}
+        <div className="border-t pt-3 mt-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-0.5">
+              <Label className="flex items-center gap-1.5">
+                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                Mostrar proteínas/acompanhamentos indisponíveis
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {showUnavailable
+                  ? "Itens fora do dia/horário aparecem desabilitados com badge"
+                  : "Itens indisponíveis ficam totalmente escondidos do cliente"}
+              </p>
+            </div>
+            <Switch
+              checked={showUnavailable}
+              onCheckedChange={(v) => toggleUnavailable.mutate(v)}
+              disabled={toggleUnavailable.isPending}
+            />
+          </div>
         </div>
       </CardContent>
     </Card>
