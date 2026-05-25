@@ -1,6 +1,6 @@
-// v1.5.0 — Splash screen profissional aguarda load completo
+// v1.6.0 — Mobile responsivo: SidebarTrigger no header + NotificationBell ajustado
 import { ReactNode, useEffect, useState } from "react";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { initializeColorPalette, resetPalette } from "@/hooks/use-color-palette";
 import { UserThemeSync } from "@/components/layout/UserThemeSync";
@@ -53,17 +53,23 @@ export function DashboardLayout({ children, fullScreen }: DashboardLayoutProps) 
         style={{ opacity: showSplash ? 0 : 1 }}
       >
         <AppSidebar />
-        {/* Sino de notificações — fixo top-right em todas páginas admin */}
-        <div className="fixed top-3 right-3 lg:right-4 z-40">
-          <div className="bg-background/90 backdrop-blur rounded-full shadow-sm border">
+        {/* v1.6.0 — Mobile header com hambúrguer + sino. Desktop sino canto direito flutuante */}
+        <main className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${fullScreen ? 'overflow-hidden' : 'overflow-auto'}`}>
+          {/* Mobile-only header bar — hamburger + sino (não sobrepõe conteúdo) */}
+          <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between bg-background/95 backdrop-blur border-b px-3 py-2 shrink-0">
+            <SidebarTrigger className="h-9 w-9" />
             <NotificationBell />
           </div>
-        </div>
-        <main className={`flex-1 transition-all duration-300 lg:ml-0 pt-16 lg:pt-0 ${fullScreen ? 'overflow-hidden flex flex-col' : 'overflow-auto'}`}>
+          {/* Desktop sino fixed top-right (não bloqueia conteúdo central) */}
+          <div className="hidden lg:block fixed top-3 right-4 z-40">
+            <div className="bg-background/90 backdrop-blur rounded-full shadow-sm border">
+              <NotificationBell />
+            </div>
+          </div>
           {fullScreen ? (
             children
           ) : (
-            <div className="px-4 sm:px-6 lg:px-8 content-fade-in">
+            <div className="px-4 sm:px-6 lg:px-8 py-4 content-fade-in flex-1">
               {children}
             </div>
           )}

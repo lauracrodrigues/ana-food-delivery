@@ -270,7 +270,8 @@ export function Settings() {
     >
       <div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-9 w-full max-w-5xl">
+          {/* v1.1.0 — Mobile: scroll horizontal pra evitar quebra. Desktop: grid 9 cols */}
+          <TabsList className="flex w-full overflow-x-auto lg:grid lg:grid-cols-9 lg:max-w-5xl">
             <TabsTrigger value="general">Geral</TabsTrigger>
             <TabsTrigger value="payments" className="flex items-center gap-1">
               <CreditCard className="w-3.5 h-3.5" />Pagamentos
