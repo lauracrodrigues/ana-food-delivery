@@ -262,7 +262,7 @@ export default function Billing() {
                   size="sm"
                   variant="outline"
                   className="w-full"
-                  onClick={() => window.open("https://wa.me/5511999999999", "_blank")}
+                  onClick={() => window.open("https://wa.me/5562992271019?text=" + encodeURIComponent("Olá! Preciso de ajuda com AnaFood."), "_blank")}
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Falar com Suporte
