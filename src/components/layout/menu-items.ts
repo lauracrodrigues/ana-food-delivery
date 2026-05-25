@@ -106,7 +106,6 @@ export function getMenuItems({
     ...(hasWhatsapp ? [{
       title: "WhatsApp", icon: MessageSquare,
       subItems: [
-        { title: "Conversas",     url: "/whatsapp-chat", icon: MessageSquare },
         { title: "Configurações", url: "/whatsapp",      icon: Settings },
       ],
     }] : []),

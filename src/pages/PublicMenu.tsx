@@ -281,12 +281,21 @@ export default function PublicMenu({ subdomainOverride, customDomainOverride }: 
 
       // v1.0.2 — Só puxa produtos das categorias VISÍVEIS (exclui modifier_only)
       const visibleCategoryIds = (categoriesData || []).map((c: any) => c.id);
-      const { data: productsData } = await supabase
+      const { data: productsRaw } = await supabase
         .from('products')
         .select('*')
         .eq('company_id', companyData.id)
         .eq('on_off', true)
         .in('category_id', visibleCategoryIds.length > 0 ? visibleCategoryIds : ['00000000-0000-0000-0000-000000000000']);
+
+      // v1.0.3 — Filtra products por available_weekdays (hoje)
+      // Lista vazia/null = disponível todo dia (compat antigo)
+      const todayKey = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"][new Date().getDay()];
+      const productsData = (productsRaw || []).filter((p: any) => {
+        const days = p.available_weekdays;
+        if (!days || !Array.isArray(days) || days.length === 0) return true;
+        return days.includes(todayKey);
+      });
 
       // Aplica sort_mode por categoria nos produtos
       const catSortMap: Record<string, string> = {};
