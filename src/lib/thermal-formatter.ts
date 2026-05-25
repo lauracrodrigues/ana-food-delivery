@@ -245,8 +245,12 @@ export function formatReceipt(
 
       const items = order.items || [];
       items.forEach((item: any, idx: number) => {
-        const itemText = `${item.quantity}x ${item.name}`;
-        const itemPrice = formatCurrency(item.price * item.quantity);
+        const qty = item.quantity || 1;
+        const unitPrice = Number(item.price) || 0;
+        const total = unitPrice * qty;
+        const itemText = `${qty}x ${item.name}`;
+        const itemPrice = formatCurrency(total);
+        // Linha 1: "2x Nome do produto                    R$ 44,00"
         lines.push({
           text: margin + itemWithPrice(itemText, itemPrice, effectiveWidth),
           formatting: {
@@ -255,6 +259,13 @@ export function formatReceipt(
             align: 'left'
           }
         });
+        // v1.2.7 — Linha 2: "  (R\$ 22,00 cada)" só se qty > 1 (evita poluir item único)
+        if (qty > 1) {
+          lines.push({
+            text: margin + `  (${formatCurrency(unitPrice)} cada)`,
+            formatting: { fontSize: 'small', align: 'left' },
+          });
+        }
 
         // Extras com indentação de 2 espaços
         if (item.extras && item.extras.length > 0) {
