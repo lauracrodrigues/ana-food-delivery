@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -306,14 +307,9 @@ export function GroupEditDialog({
                   </div>
                   <div className="space-y-2">
                     <Label className="text-sm">Preço *</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={newExtraForm.price}
-                      onChange={(e) =>
-                        setNewExtraForm({ ...newExtraForm, price: e.target.value })
-                      }
-                      placeholder="0.00"
+                    <CurrencyInput
+                      value={newExtraForm.price ? parseFloat(newExtraForm.price) : 0}
+                      onChange={(v) => setNewExtraForm({ ...newExtraForm, price: v.toString() })}
                     />
                   </div>
                 </div>

@@ -1,5 +1,6 @@
 // v1.0.0 — Página Caixa: abertura, sangria, fechamento
 import { useState } from "react";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useToast } from "@/hooks/use-toast";
@@ -162,7 +163,7 @@ export default function Caixa() {
           <DialogHeader><DialogTitle>Abrir caixa</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>Fundo de troco (R$)</Label>
-              <Input type="number" step="0.01" value={valorInicial} onChange={e => setValorInicial(e.target.value)} placeholder="100.00" /></div>
+              <CurrencyInput value={valorInicial ? parseFloat(valorInicial) : 0} onChange={(v) => setValorInicial(v.toString())} /></div>
             <div><Label>Operador</Label>
               <Input value={operadorNome} onChange={e => setOperadorNome(e.target.value)} placeholder="Seu nome" /></div>
           </div>
@@ -185,7 +186,7 @@ export default function Caixa() {
           }</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>Valor (R$)</Label>
-              <Input type="number" step="0.01" value={valorMov} onChange={e => setValorMov(e.target.value)} /></div>
+              <CurrencyInput value={valorMov ? parseFloat(valorMov) : 0} onChange={(v) => setValorMov(v.toString())} /></div>
             <div><Label>Motivo</Label>
               <Input value={motivoMov} onChange={e => setMotivoMov(e.target.value)} placeholder="Ex: troco, compra água, transferência fim de turno" /></div>
           </div>
@@ -208,7 +209,7 @@ export default function Caixa() {
               <p className="text-2xl font-bold">{formatCurrency(caixa?.saldo_esperado || 0)}</p>
             </div>
             <div><Label>Valor contado (R$)</Label>
-              <Input type="number" step="0.01" value={valorContado} onChange={e => setValorContado(e.target.value)} placeholder={String(caixa?.saldo_esperado || 0)} /></div>
+              <CurrencyInput value={valorContado ? parseFloat(valorContado) : 0} onChange={(v) => setValorContado(v.toString())} /></div>
             {valorContado && (
               <div className="bg-muted/50 rounded p-2 text-sm">
                 <p>Quebra: <strong className={

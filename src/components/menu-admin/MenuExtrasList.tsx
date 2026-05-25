@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -167,12 +168,9 @@ export function MenuExtrasList({ companyId }: MenuExtrasListProps) {
               </div>
               <div className="space-y-2">
                 <Label>Preço *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="0.00"
+                <CurrencyInput
+                  value={formData.price ? parseFloat(formData.price) : 0}
+                  onChange={(v) => setFormData({ ...formData, price: v.toString() })}
                 />
               </div>
             </div>
