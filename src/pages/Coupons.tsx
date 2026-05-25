@@ -7,6 +7,7 @@ import { useUserRole } from "@/hooks/use-user-role";
 import { formatCurrency } from "@/lib/currency-formatter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -370,39 +371,43 @@ export default function Coupons() {
               </div>
               <div className="space-y-1.5">
                 <Label>Valor *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.discount_value}
-                  onChange={(e) => setForm({ ...form, discount_value: e.target.value })}
-                  placeholder={form.discount_type === "percentage" ? "Ex: 10" : "Ex: 5.00"}
-                />
+                {/* v1.0.1 — Percentual: Input number normal. Valor fixo (R\$): CurrencyInput máscara R\$ */}
+                {form.discount_type === "percentage" ? (
+                  <Input
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="100"
+                    value={form.discount_value}
+                    onChange={(e) => setForm({ ...form, discount_value: e.target.value })}
+                    placeholder="Ex: 10 (%)"
+                  />
+                ) : (
+                  <CurrencyInput
+                    value={form.discount_value ? parseFloat(form.discount_value) : 0}
+                    onChange={(v) => setForm({ ...form, discount_value: v.toString() })}
+                  />
+                )}
               </div>
             </div>
 
-            {/* Limite de desconto (só para %) */}
+            {/* Limite de desconto (só para %) — máscara R\$ */}
             {form.discount_type === "percentage" && (
               <div className="space-y-1.5">
                 <Label>Desconto máximo (R$) <span className="text-muted-foreground text-xs">opcional</span></Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.discount_limit}
-                  onChange={(e) => setForm({ ...form, discount_limit: e.target.value })}
-                  placeholder="Ex: 20.00"
+                <CurrencyInput
+                  value={form.discount_limit ? parseFloat(form.discount_limit) : 0}
+                  onChange={(v) => setForm({ ...form, discount_limit: v > 0 ? v.toString() : "" })}
                 />
               </div>
             )}
 
-            {/* Pedido mínimo */}
+            {/* Pedido mínimo — máscara R\$ */}
             <div className="space-y-1.5">
               <Label>Valor mínimo do pedido (R$) <span className="text-muted-foreground text-xs">opcional</span></Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.min_order_value}
-                onChange={(e) => setForm({ ...form, min_order_value: e.target.value })}
-                placeholder="Ex: 30.00"
+              <CurrencyInput
+                value={form.min_order_value ? parseFloat(form.min_order_value) : 0}
+                onChange={(v) => setForm({ ...form, min_order_value: v > 0 ? v.toString() : "" })}
               />
             </div>
 
