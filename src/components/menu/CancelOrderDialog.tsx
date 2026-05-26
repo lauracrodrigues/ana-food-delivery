@@ -1,4 +1,4 @@
-// v1.0.0 — Modal de cancelamento com motivos pré-definidos (métrica)
+// v1.1.0 — Cancel em qualquer status ativo + aviso pra cancel tardio (preparing+)
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -13,9 +13,14 @@ interface CancelOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orderId: string;
+  /** Status atual do pedido — usado pra mostrar aviso quando cancel é tardio (preparing+) */
+  currentStatus?: string;
   /** Chamado após cancelamento com sucesso — passe função que volta pra tela inicial / recarrega */
   onCancelled: () => void;
 }
+
+// Status onde cancelar gera perda pra loja (já houve produção/insumos consumidos)
+const LATE_CANCEL_STATUSES = ["preparing", "ready", "delivering"];
 
 // Lista de motivos pré-definidos (vira métrica pra empresa analisar churn)
 const REASONS = [
@@ -27,11 +32,13 @@ const REASONS = [
   { id: "outro",          label: "Outro motivo" },
 ];
 
-export function CancelOrderDialog({ open, onOpenChange, orderId, onCancelled }: CancelOrderDialogProps) {
+export function CancelOrderDialog({ open, onOpenChange, orderId, currentStatus, onCancelled }: CancelOrderDialogProps) {
   const { toast } = useToast();
   const [reasonId, setReasonId] = useState<string>("");
   const [extraNote, setExtraNote] = useState("");
   const [loading, setLoading] = useState(false);
+  // v1.1.0 — flag de cancelamento tardio (pedido já em produção/entrega)
+  const isLateCancel = LATE_CANCEL_STATUSES.includes(currentStatus ?? "");
 
   const handleConfirm = async () => {
     if (!reasonId) {
@@ -45,8 +52,7 @@ export function CancelOrderDialog({ open, onOpenChange, orderId, onCancelled }: 
       : reasonLabel;
 
     try {
-      // v1.0.1 — usa RPC cancel_order_by_customer (SECURITY DEFINER)
-      // Antes UPDATE direto era bloqueado por RLS pra usuário anônimo → silent fail
+      // v1.1.0 — RPC aceita qualquer status ativo (só bloqueia finalizados)
       const { data, error } = await supabase.rpc("cancel_order_by_customer", {
         p_order_id: orderId,
         p_reason: fullReason,
@@ -54,10 +60,11 @@ export function CancelOrderDialog({ open, onOpenChange, orderId, onCancelled }: 
 
       if (error) throw error;
 
-      const result = data as { ok?: boolean; error?: string; message?: string; current_status?: string } | null;
+      const result = data as { ok?: boolean; error?: string; message?: string; current_status?: string; late_cancel?: boolean } | null;
       if (!result?.ok) {
+        // Pedido já finalizado (delivered/completed/archived) ou não encontrado
         const msg = result?.message
-          || (result?.error === 'cannot_cancel' ? 'Pedido já está sendo preparado — entre em contato com a loja' : null)
+          || (result?.error === 'already_finalized' ? 'Pedido já foi finalizado e não pode mais ser cancelado' : null)
           || (result?.error === 'order_not_found' ? 'Pedido não encontrado' : null)
           || 'Não foi possível cancelar';
         toast({ title: "Não foi possível cancelar", description: msg, variant: "destructive" });
@@ -65,9 +72,14 @@ export function CancelOrderDialog({ open, onOpenChange, orderId, onCancelled }: 
         return;
       }
 
+      // Mensagem diferenciada quando cancel é tardio — loja vai entrar em contato
+      const successDesc = result.late_cancel
+        ? "Pedido cancelado. A loja foi notificada e pode entrar em contato com você."
+        : "Seu pedido foi cancelado. Se quiser, faça um novo!";
+
       toast({
         title: "Pedido cancelado",
-        description: "Seu pedido foi cancelado. Se quiser, faça um novo!",
+        description: successDesc,
       });
       onCancelled();
       onOpenChange(false);
@@ -97,6 +109,17 @@ export function CancelOrderDialog({ open, onOpenChange, orderId, onCancelled }: 
             Conta pra gente o motivo — assim a loja pode melhorar o atendimento.
           </DialogDescription>
         </DialogHeader>
+
+        {/* v1.1.0 — Aviso pra cancel tardio (pedido já em produção/entrega) */}
+        {isLateCancel && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-xs text-amber-900 dark:text-amber-100 flex gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+            <p>
+              Seu pedido <strong>já está em preparo ou a caminho</strong>. Você ainda pode cancelar,
+              mas a loja pode entrar em contato pra confirmar — produção/insumos podem ter sido usados.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-3 py-2">
           <RadioGroup value={reasonId} onValueChange={setReasonId}>

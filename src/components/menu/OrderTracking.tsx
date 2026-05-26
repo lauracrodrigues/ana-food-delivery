@@ -1,4 +1,4 @@
-// v1.2.0 — Tela acompanhamento + push opt-in + cancelamento com motivos
+// v1.3.0 — Cancelamento liberado em qualquer status ativo (cliente decide)
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency-formatter";
@@ -295,8 +295,9 @@ export function OrderTracking({ orderId, company, onClose }: OrderTrackingProps)
           Fazer novo pedido
         </Button>
 
-        {/* Botão cancelar — bloqueado pra pedidos finalizados (delivered/completed/archived) ou em entrega */}
-        {!isDelivered && !isCancelled && !["delivering", "completed", "archived"].includes(order.status) && (
+        {/* v1.3.0 — Botão cancelar liberado em qualquer status ativo.
+            Só esconde quando pedido já finalizou (delivered/completed/archived) ou já foi cancelado. */}
+        {!isDelivered && !isCancelled && !["completed", "archived"].includes(order.status) && (
           <button
             type="button"
             onClick={() => setCancelOpen(true)}
@@ -312,11 +313,12 @@ export function OrderTracking({ orderId, company, onClose }: OrderTrackingProps)
         </p>
       </div>
 
-      {/* Modal de motivos de cancelamento */}
+      {/* Modal de motivos de cancelamento — passa status atual pra dialog avisar cancel tardio */}
       <CancelOrderDialog
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         orderId={orderId}
+        currentStatus={order.status}
         onCancelled={() => {
           // Limpa estado local + fecha tracking + volta pra tela inicial do cardápio
           if (company.id) localStorage.removeItem(`anafood_order_${company.id}`);

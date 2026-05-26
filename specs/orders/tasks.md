@@ -9,6 +9,7 @@
 - [x] Notificação sonora (toggle por usuário)
 - [x] Busca por número/nome/telefone
 - [x] Cancelamento com motivo
+- [x] Cancelamento pelo cliente (cardápio) — RPC v1.1.0 libera qualquer status ativo + flag `late_cancel` quando pedido já em preparo/entrega
 - [x] Auto-arquivamento via cron job backend (worker.js)
 - [x] Colunas visíveis configuráveis (por usuário em profiles.preferences)
 - [x] Pedido manual (ManualOrderSidebar — Sheet 80vw)
