@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import QRCode from "qrcode";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare, Plus, Clock, Bot, Mic, Play, Loader2 } from "lucide-react";
+import { MessageSquare, Clock, Bot, Mic, Play, Loader2, Printer, Wifi, WifiOff, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
@@ -11,15 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { WhatsAppSessionList } from "@/components/whatsapp/WhatsAppSessionList";
-import { WhatsAppTestMessage } from "@/components/whatsapp/WhatsAppTestMessage";
 import { WelcomeMessageEditor } from "@/components/whatsapp/WelcomeMessageEditor";
 import { UpgradeGate } from "@/components/billing/UpgradeGate";
 import { WhatsAppStatusMessages } from "@/components/whatsapp/WhatsAppStatusMessages";
-import { WhatsAppSessionDialog } from "@/components/whatsapp/WhatsAppSessionDialog";
-import { WhatsAppQRCodeDialog } from "@/components/whatsapp/WhatsAppQRCodeDialog";
 import { AgentBehaviorConfig, type AgentBehaviorData } from "@/components/whatsapp/AgentBehaviorConfig";
-import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 
 interface WhatsAppSession {
   id: string;
@@ -33,35 +27,211 @@ interface WhatsAppSession {
   display_name?: string | null; // apelido amigável ("Principal", "Backup")
 }
 
-interface SessionForm {
-  session_name: string;
-  agent_name: string;
-  agent_prompt: string;
-}
 
 export default function WhatsApp() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [companyId, setCompanyId] = useState<string | null>(null);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingSession, setEditingSession] = useState<WhatsAppSession | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [qrCodeDialog, setQrCodeDialog] = useState<{ open: boolean; qrCode: string; sessionName: string }>({
-    open: false,
-    qrCode: '',
-    sessionName: '',
+  const isElectron = typeof window !== 'undefined' && !!(window as any).require;
+  const [activeTab, setActiveTab] = useState("sessions");
+  const placeholderRef = useRef<HTMLDivElement>(null);
+  const [localSettings, setLocalSettings] = useState<any>({
+    autoReplyEnabled: true,
+    autoReplyMessage: "",
+    autoReplyDelay: 3000,
+    printerName: "",
+    enableLocalPrint: true,
   });
-  const [loadingStatus, setLoadingStatus] = useState<Record<string, boolean>>({});
+  const [printers, setPrinters] = useState<string[]>([]);
+  const [whatsConnected, setWhatsConnected] = useState<boolean>(false);
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [printAgentStatus, setPrintAgentStatus] = useState<{
+    connected: boolean;
+    devices: any[];
+    onlineCount?: number;
+    error?: string;
+    loading: boolean;
+  }>({
+    connected: false,
+    devices: [],
+    loading: false,
+  });
+  const [testPrinting, setTestPrinting] = useState(false);
   const [isTesting, setIsTesting] = useState<string | false>(false);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   // estado local de velocidade — atualiza imediatamente sem esperar cache DB
   const [localSpeed, setLocalSpeed] = useState<string>('normal');
-  
-  const [formData, setFormData] = useState<SessionForm>({
-    session_name: "",
-    agent_name: "",
-    agent_prompt: "",
-  });
+
+  // Electron IPC bounds sync
+  useEffect(() => {
+    if (!isElectron) return;
+
+    const { ipcRenderer } = (window as any).require("electron");
+
+    // Inform that route is active
+    ipcRenderer.send("route-changed", "/whatsapp");
+    ipcRenderer.send("whatsapp-view-status", { active: true });
+
+    // Listen to status updates
+    const handleStatus = (event: any, status: any) => {
+      if (status && typeof status.connected === 'boolean') {
+        setWhatsConnected(status.connected);
+      }
+    };
+    ipcRenderer.on("whats-status-update", handleStatus);
+
+    // Watch placeholder bounds
+    const placeholder = placeholderRef.current;
+    if (!placeholder) return;
+
+    const updateBounds = () => {
+      if (activeTab !== "sessions" || !placeholderRef.current) {
+        // Outros tabs: esconde o BrowserView
+        ipcRenderer.send("whatsapp-view-status", { active: false });
+        ipcRenderer.send("whatsapp-view-bounds", { x: 0, y: 0, width: 0, height: 0 });
+        return;
+      }
+      ipcRenderer.send("whatsapp-view-status", { active: true });
+      const rect = placeholderRef.current.getBoundingClientRect();
+      ipcRenderer.send("whatsapp-view-bounds", {
+        x: Math.round(rect.left),
+        y: Math.round(rect.top),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      });
+    };
+
+    // Update bounds immediately and on window resize/scroll
+    updateBounds();
+    window.addEventListener("resize", updateBounds);
+
+    const observer = new ResizeObserver(() => {
+      updateBounds();
+    });
+    observer.observe(placeholder);
+
+    // Load local settings and printers
+    ipcRenderer.invoke("get-settings").then((settings: any) => {
+      if (settings) {
+        setLocalSettings({
+          autoReplyEnabled: settings.autoReplyEnabled,
+          autoReplyMessage: settings.autoReplyMessage,
+          autoReplyDelay: settings.autoReplyDelay,
+          printerName: settings.printerName,
+          enableLocalPrint: settings.enableLocalPrint !== false,
+        });
+      }
+    });
+
+    ipcRenderer.invoke("get-printers").then((list: any[]) => {
+      if (list) {
+        setPrinters(list.map(p => p.name));
+      }
+    });
+
+    return () => {
+      ipcRenderer.removeListener("whats-status-update", handleStatus);
+      ipcRenderer.send("route-changed", "");
+      ipcRenderer.send("whatsapp-view-status", { active: false });
+      window.removeEventListener("resize", updateBounds);
+      observer.disconnect();
+    };
+  }, [activeTab]);
+
+  const handleReload = () => {
+    if (isElectron) {
+      const { ipcRenderer } = (window as any).require("electron");
+      ipcRenderer.send("reload-whatsapp");
+    }
+  };
+
+  const handleClearSession = () => {
+    if (isElectron) {
+      const { ipcRenderer } = (window as any).require("electron");
+      ipcRenderer.send("clear-whatsapp-session");
+    }
+  };
+
+  const handleZoomIn = () => {
+    if (isElectron) {
+      const { ipcRenderer } = (window as any).require("electron");
+      ipcRenderer.send("zoom-in");
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (isElectron) {
+      const { ipcRenderer } = (window as any).require("electron");
+      ipcRenderer.send("zoom-out");
+    }
+  };
+
+  const handleResetZoom = () => {
+    if (isElectron) {
+      const { ipcRenderer } = (window as any).require("electron");
+      ipcRenderer.send("reset-zoom");
+    }
+  };
+
+  const handleSaveLocalSettings = async () => {
+    if (isElectron) {
+      const { ipcRenderer } = (window as any).require("electron");
+      const res = await ipcRenderer.invoke("save-settings", localSettings);
+      if (res.success) {
+        toast({
+          title: "Configurações salvas",
+          description: "As configurações do desktop foram salvas com sucesso.",
+        });
+      } else {
+        toast({
+          title: "Erro ao salvar",
+          description: "Não foi possível salvar as configurações.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  // Verificar status do agente Ana Food Print
+  const checkPrintAgentStatus = async () => {
+    if (!isElectron) return;
+    setPrintAgentStatus(prev => ({ ...prev, loading: true }));
+    try {
+      const { ipcRenderer } = (window as any).require("electron");
+      const result = await ipcRenderer.invoke("get-print-agent-status");
+      setPrintAgentStatus({
+        connected: result.connected || false,
+        devices: result.devices || [],
+        onlineCount: result.onlineCount || 0,
+        error: result.error,
+        loading: false,
+      });
+    } catch (err: any) {
+      setPrintAgentStatus(prev => ({
+        ...prev,
+        loading: false,
+        error: err.message || "Erro ao verificar status",
+      }));
+    }
+  };
+
+  // Imprimir teste local
+  const handleTestPrint = async () => {
+    if (!isElectron) return;
+    setTestPrinting(true);
+    try {
+      const { ipcRenderer } = (window as any).require("electron");
+      const result = await ipcRenderer.invoke("test-print", { printerName: localSettings.printerName || "" });
+      if (result.success) {
+        toast({ title: "Impressão de teste enviada", description: "Verifique se o recibo foi impresso." });
+      } else {
+        toast({ title: "Falha na impressão de teste", description: result.error || "Erro desconhecido", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setTestPrinting(false);
+    }
+  };
 
   // Load company info
   useEffect(() => {
@@ -159,7 +329,7 @@ export default function WhatsApp() {
   });
 
   // Load WhatsApp sessions with optimized caching
-  const { data: sessions = [], isLoading, isError: sessionsLoadError } = useQuery({
+  const { data: sessions = [] } = useQuery({
     queryKey: ["whatsapp-sessions", companyId],
     queryFn: async () => {
       if (!companyId) return [];
@@ -179,534 +349,317 @@ export default function WhatsApp() {
     gcTime: 60000,
   });
 
-  useEffect(() => {
-    if (sessionsLoadError) {
-      toast({
-        title: "Erro ao carregar sessões",
-        description: "Não foi possível buscar as sessões do WhatsApp.",
-        variant: "destructive",
-      });
-    }
-  }, [sessionsLoadError, toast]);
 
-  // Auto-check status de todas sessões ao carregar — sem toast, silencioso
-  const autoCheckedRef = useRef(false);
-  useEffect(() => {
-    if (!sessions.length || autoCheckedRef.current) return;
-    autoCheckedRef.current = true;
-    sessions.forEach(s => {
-      checkConnectionStatus(s.session_name, true);
-    });
-  }, [sessions]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (isElectron) {
+    return (
+      <PageLayout title="WhatsApp" subtitle="Conexão e controle do WhatsApp Web">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <div className="flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="sessions" className="flex items-center gap-1.5">
+                <MessageSquare className="h-4 w-4" />
+                WhatsApp Web
+              </TabsTrigger>
+              <TabsTrigger value="mensagens" className="flex items-center gap-1.5">
+                <Bot className="h-4 w-4" />
+                Controle de Mensagens
+              </TabsTrigger>
+              <TabsTrigger value="configuracoes" className="flex items-center gap-1.5">
+                <Printer className="h-4 w-4" />
+                Configurações
+              </TabsTrigger>
+            </TabsList>
 
-  // Realtime: webhook do Evolution atualiza connection_status no DB —
-  // realtime subscription faz UI refletir sem refresh manual
-  useEffect(() => {
-    if (!companyId) return;
-    const channel = supabase
-      .channel(`whatsapp-config-${companyId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "whatsapp_config",
-          filter: `company_id=eq.${companyId}`,
-        },
-        () => {
-          // Invalida cache → React Query refetch puxa novo status do DB
-          queryClient.invalidateQueries({ queryKey: ["whatsapp-sessions", companyId] });
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [companyId, queryClient]);
+            <div className="flex items-center gap-2 text-sm">
+              <span className={`h-2.5 w-2.5 rounded-full ${whatsConnected ? "bg-green-500" : "bg-red-500"}`} />
+              <span className="text-muted-foreground">
+                {whatsConnected ? "WhatsApp conectado" : "Aguardando conexão"}
+              </span>
+            </div>
+          </div>
 
-  // Polling fallback: a cada 15s re-check status de cada sessão
-  // (caso Evolution não chame webhook quando status muda — comum em dev)
-  useEffect(() => {
-    if (sessions.length === 0) return;
-    const interval = setInterval(() => {
-      sessions.forEach(s => checkConnectionStatus(s.session_name, true));
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [sessions]); // eslint-disable-line react-hooks/exhaustive-deps
+          {/* ── Aba 1: WhatsApp Web ── */}
+          <TabsContent value="sessions" className="m-0 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">Sessão direta com WhatsApp Web — sem Evolution API</p>
+              <div className="flex items-center gap-1.5">
+                <Button variant="outline" size="sm" onClick={handleZoomOut}>A-</Button>
+                <Button variant="outline" size="sm" onClick={handleResetZoom}>100%</Button>
+                <Button variant="outline" size="sm" onClick={handleZoomIn}>A+</Button>
+                <Button variant="outline" size="sm" onClick={handleReload} className="flex items-center gap-1">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Recarregar
+                </Button>
+                <Button variant="destructive" size="sm" onClick={handleClearSession}>
+                  Desconectar
+                </Button>
+              </div>
+            </div>
 
-  // Add/Update mutation
-  const saveMutation = useMutation({
-    mutationFn: async (data: SessionForm & { id?: string }) => {
-      if (data.id) {
-        // Update existing session
-        const { error } = await supabase
-          .from('whatsapp_config')
-          .update({
-            session_name: data.session_name,
-            agent_name: data.agent_name,
-            agent_prompt: data.agent_prompt || null,
-          })
-          .eq('id', data.id);
+            <div
+              ref={placeholderRef}
+              className="w-full rounded-xl border border-border bg-muted/20 overflow-hidden relative"
+              style={{ height: "calc(100vh - 260px)", minHeight: "420px" }}
+            >
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center select-none pointer-events-none">
+                <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+                <p className="text-sm text-muted-foreground">WhatsApp Web carregando...</p>
+              </div>
+            </div>
+          </TabsContent>
 
-        if (error) throw error;
-        return { isNew: false, data };
-      } else {
-        // Add new session
-        const { error } = await supabase
-          .from('whatsapp_config')
-          .insert({ 
-            company_id: companyId,
-            config_type: 'session',
-            session_name: data.session_name,
-            agent_name: data.agent_name,
-            agent_prompt: data.agent_prompt || null,
-          });
+          {/* ── Aba 2: Controle de Mensagens ── */}
+          <TabsContent value="mensagens" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Auto-Resposta</CardTitle>
+                <CardDescription>Bot local responde automaticamente novas conversas</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-base">Ativar Auto-Resposta</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Envia mensagem de boas-vindas para novos contatos
+                    </p>
+                  </div>
+                  <Switch
+                    checked={localSettings.autoReplyEnabled}
+                    onCheckedChange={(checked) => setLocalSettings((prev: any) => ({ ...prev, autoReplyEnabled: checked }))}
+                  />
+                </div>
 
-        if (error) throw error;
-        return { isNew: true, data };
-      }
-    },
-    onSuccess: async ({ isNew, data }) => {
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-sessions"] });
-      toast({
-        title: editingSession ? "Sessão atualizada" : "Sessão adicionada",
-        description: `A sessão foi ${editingSession ? 'atualizada' : 'adicionada'} com sucesso.`,
-      });
-      handleCloseDialog();
+                <div className="space-y-2">
+                  <Label>Mensagem de Boas-vindas</Label>
+                  <textarea
+                    className="w-full min-h-[120px] p-3 rounded-md border border-input bg-transparent text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+                    value={localSettings.autoReplyMessage}
+                    onChange={(e) => setLocalSettings((prev: any) => ({ ...prev, autoReplyMessage: e.target.value }))}
+                    placeholder="Olá! 👋 Bem-vindo ao nosso atendimento. Como posso ajudar?"
+                  />
+                </div>
 
-      // Comunicar com Evolution API apenas para novas sessões
-      if (isNew) {
-        try {
-          const response = await supabase.functions.invoke('whatsapp-evolution', {
-            body: {
-              sessionName: data.session_name,
-              agentName: data.agent_name,
-              agentPrompt: data.agent_prompt || '',
-            }
-          });
+                <div className="space-y-2">
+                  <Label>Atraso antes de responder</Label>
+                  <Select
+                    value={String(localSettings.autoReplyDelay)}
+                    onValueChange={(v) => setLocalSettings((prev: any) => ({ ...prev, autoReplyDelay: parseInt(v) }))}
+                  >
+                    <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1000">1 segundo</SelectItem>
+                      <SelectItem value="3000">3 segundos — padrão</SelectItem>
+                      <SelectItem value="5000">5 segundos</SelectItem>
+                      <SelectItem value="10000">10 segundos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-          if (response.error) {
-            console.error('Erro ao comunicar com Evolution API:', response.error);
-            toast({
-              title: "Atenção",
-              description: "Sessão salva, mas houve erro ao comunicar com Evolution API.",
-              variant: "destructive",
-            });
-          }
-        } catch (error) {
-          console.error('Erro ao chamar edge function:', error);
-          toast({
-            title: "Aviso",
-            description: "Sessão salva localmente, mas não foi possível registrar na Evolution API.",
-            variant: "destructive",
-          });
-        }
-      }
-    },
-    onError: () => {
-      toast({
-        title: `Erro ao ${editingSession ? 'atualizar' : 'adicionar'}`,
-        description: `Não foi possível ${editingSession ? 'atualizar' : 'adicionar'} a sessão.`,
-        variant: "destructive",
-      });
-    },
-  });
+                <Button onClick={handleSaveLocalSettings}>Salvar</Button>
+              </CardContent>
+            </Card>
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      // Buscar o nome da sessão antes de deletar
-      const session = sessions.find(s => s.id === id);
-      
-      // Deletar do banco de dados
-      const { error } = await supabase
-        .from('whatsapp_config')
-        .delete()
-        .eq('id', id);
+          </TabsContent>
 
-      if (error) throw error;
+          {/* ── Aba 3: Configurações ── */}
+          <TabsContent value="configuracoes" className="space-y-4">
+            {/* Timings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Timings de Resposta
+                </CardTitle>
+                <CardDescription>Controle debounce e indicadores de presença do bot</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-base">Mostrar "digitando..." / "gravando..."</Label>
+                    <p className="text-sm text-muted-foreground">Desligado = resposta imediata sem indicador</p>
+                  </div>
+                  <Switch
+                    checked={botSettings?.presence_enabled !== false}
+                    onCheckedChange={(v) => updateBotSettingsMutation.mutate({ presence_enabled: v })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending}
+                  />
+                </div>
 
-      // Deletar da Evolution API
-      if (session) {
-        try {
-          await supabase.functions.invoke('whatsapp-evolution', {
-            body: { instanceName: session.session_name, action: 'delete' }
-          });
-        } catch (error) {
-          console.error('Erro ao deletar da Evolution API:', error);
-          // Continua mesmo se falhar na API
-        }
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-sessions"] });
-      toast({
-        title: "Sessão removida",
-        description: "A sessão foi removida com sucesso.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Erro ao remover",
-        description: "Não foi possível remover a sessão.",
-        variant: "destructive",
-      });
-    },
-  });
+                <div className="space-y-2">
+                  <Label>Duração indicador "digitando"</Label>
+                  <Select
+                    value={String(botSettings?.typing_duration_ms ?? 2500)}
+                    onValueChange={(v) => updateBotSettingsMutation.mutate({ typing_duration_ms: parseInt(v) })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending || botSettings?.presence_enabled === false}
+                  >
+                    <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1500">1.5s — bem rápido</SelectItem>
+                      <SelectItem value="2500">2.5s — padrão</SelectItem>
+                      <SelectItem value="5000">5s — normal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-  const handleOpenAddDialog = () => {
-    setFormData({
-      session_name: "",
-      agent_name: "",
-      agent_prompt: "",
-    });
-    setEditingSession(null);
-    setIsAddDialogOpen(true);
-  };
+                <div className="space-y-2">
+                  <Label>Debounce de Mensagens (buffer de acúmulo)</Label>
+                  <Select
+                    value={String(botSettings?.debounce_ms ?? 5000)}
+                    onValueChange={(v) => updateBotSettingsMutation.mutate({ debounce_ms: parseInt(v) })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending}
+                  >
+                    <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1500">1.5s — rápido</SelectItem>
+                      <SelectItem value="3000">3s</SelectItem>
+                      <SelectItem value="5000">5s — padrão</SelectItem>
+                      <SelectItem value="8000">8s</SelectItem>
+                      <SelectItem value="10000">10s — devagar</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-  const handleOpenEditDialog = (session: WhatsAppSession) => {
-    setFormData({
-      session_name: session.session_name,
-      agent_name: session.agent_name,
-      agent_prompt: session.agent_prompt || "",
-    });
-    setEditingSession(session);
-    setIsAddDialogOpen(true);
-  };
+                <div className="space-y-2">
+                  <Label>Followup após inatividade (minutos)</Label>
+                  <Select
+                    value={String(botSettings?.followup_minutes ?? 10)}
+                    onValueChange={(v) => updateBotSettingsMutation.mutate({ followup_minutes: parseInt(v) })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending}
+                  >
+                    <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5 minutos</SelectItem>
+                      <SelectItem value="10">10 minutos — padrão</SelectItem>
+                      <SelectItem value="15">15 minutos</SelectItem>
+                      <SelectItem value="30">30 minutos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-  const handleCloseDialog = () => {
-    setIsAddDialogOpen(false);
-    setEditingSession(null);
-    setFormData({
-      session_name: "",
-      agent_name: "",
-      agent_prompt: "",
-    });
-  };
+                <div className="space-y-2">
+                  <Label>Cancelamento automático (minutos)</Label>
+                  <Select
+                    value={String(botSettings?.cancel_minutes ?? 20)}
+                    onValueChange={(v) => updateBotSettingsMutation.mutate({ cancel_minutes: parseInt(v) })}
+                    disabled={loadingBotSettings || updateBotSettingsMutation.isPending}
+                  >
+                    <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="15">15 minutos</SelectItem>
+                      <SelectItem value="20">20 minutos — padrão</SelectItem>
+                      <SelectItem value="30">30 minutos</SelectItem>
+                      <SelectItem value="60">60 minutos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
 
-  const handleSave = () => {
-    if (!formData.session_name.trim() || !formData.agent_name.trim()) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Nome da sessão e nome do agente são obrigatórios.",
-        variant: "destructive",
-      });
-      return;
-    }
+            {/* Impressão */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Printer className="h-5 w-5" />
+                  Impressão Térmica
+                </CardTitle>
+                <CardDescription>Configure a impressora para recibos dos pedidos</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold">Agente Ana Food Print</Label>
+                    <Button variant="outline" size="sm" onClick={checkPrintAgentStatus} disabled={printAgentStatus.loading}>
+                      {printAgentStatus.loading
+                        ? <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        : <RefreshCw className="h-4 w-4 mr-1" />
+                      }
+                      Verificar
+                    </Button>
+                  </div>
+                  <div className={`flex items-center gap-2 text-sm rounded-md px-3 py-2 ${
+                    printAgentStatus.connected
+                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                      : printAgentStatus.error
+                        ? 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400'
+                        : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {printAgentStatus.connected
+                      ? <><CheckCircle2 className="h-4 w-4" /> {printAgentStatus.onlineCount} agente(s) conectado(s)</>
+                      : printAgentStatus.error
+                        ? <><AlertCircle className="h-4 w-4" /> {printAgentStatus.error}</>
+                        : <><WifiOff className="h-4 w-4" /> Nenhum agente de impressão conectado</>
+                    }
+                  </div>
+                  {printAgentStatus.devices.length > 0 && (
+                    <div className="space-y-1">
+                      {printAgentStatus.devices.map((dev: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between text-xs px-2 py-1 rounded bg-background border">
+                          <span className="font-medium">{dev.device_name || 'Agente ' + (i + 1)}</span>
+                          <span className={`px-2 py-0.5 rounded-full ${dev.status === 'online' ? 'bg-emerald-500/20 text-emerald-600' : 'bg-red-500/20 text-red-600'}`}>
+                            {dev.status || 'offline'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-    // Verificar duplicidade apenas ao criar nova sessão
-    if (!editingSession) {
-      const duplicateName = sessions.find(
-        s => s.session_name.toLowerCase() === formData.session_name.trim().toLowerCase()
-      );
-      
-      if (duplicateName) {
-        toast({
-          title: "Nome duplicado",
-          description: "Já existe uma sessão com este nome. Por favor, escolha outro nome.",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Impressora Local (Fallback)</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Usada quando o agente Ana Food Print não está disponível</p>
+                    </div>
+                    <Switch
+                      checked={localSettings.enableLocalPrint !== false}
+                      onCheckedChange={(checked) => setLocalSettings((prev: any) => ({ ...prev, enableLocalPrint: checked }))}
+                    />
+                  </div>
 
-    if (editingSession) {
-      saveMutation.mutate({ ...formData, id: editingSession.id });
-    } else {
-      saveMutation.mutate(formData);
-    }
-  };
+                  {localSettings.enableLocalPrint !== false && (
+                    <div className="space-y-2 pl-1">
+                      <Select
+                        value={localSettings.printerName || ""}
+                        onValueChange={(v) => setLocalSettings((prev: any) => ({ ...prev, printerName: v }))}
+                      >
+                        <SelectTrigger className="w-72">
+                          <SelectValue placeholder="Impressora Padrão do Sistema" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Impressora Padrão</SelectItem>
+                          {printers.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
 
-  const handleDelete = (id: string) => {
-    deleteMutation.mutate(id);
-    setDeleteId(null);
-  };
+                      <Button variant="outline" size="sm" onClick={handleTestPrint} disabled={testPrinting} className="flex items-center gap-2">
+                        {testPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                        Imprimir recibo de teste
+                      </Button>
+                    </div>
+                  )}
+                </div>
 
-  // Controle de limite de chamadas
-  const lastCheckRef = useRef<Record<string, number>>({});
-  const MIN_CHECK_INTERVAL = 10000; // 10 segundos entre verificações
+                <Button onClick={handleSaveLocalSettings}>Salvar</Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </PageLayout>
+    );
+  }
 
-  // Verificar status da conexão com logs detalhados
-  const checkConnectionStatus = async (sessionName: string, silent: boolean = false) => {
-    console.log(`[WhatsApp] 🔍 Verificando status da instância: ${sessionName}`);
-    const now = Date.now();
-    const lastCheck = lastCheckRef.current[sessionName] || 0;
-    
-    // Verificar se já passou tempo suficiente desde a última verificação
-    if (!silent && now - lastCheck < MIN_CHECK_INTERVAL) {
-      const waitTime = Math.ceil((MIN_CHECK_INTERVAL - (now - lastCheck)) / 1000);
-      console.log(`[WhatsApp] ⏳ Throttle ativo. Aguardar ${waitTime}s`);
-      toast({
-        title: "Aguarde",
-        description: `Próxima verificação disponível em ${waitTime} segundos`,
-        variant: "default",
-      });
-      return sessions.find(s => s.session_name === sessionName)?.connection_status || 'unknown';
-    }
-
-    setLoadingStatus(prev => ({ ...prev, [sessionName]: true }));
-    lastCheckRef.current[sessionName] = now;
-    
-    try {
-      console.log(`[WhatsApp] 📡 Enviando requisição de status para: ${sessionName}`);
-      const response = await supabase.functions.invoke('whatsapp-evolution', {
-        body: { instanceName: sessionName, action: 'status' }
-      });
-
-      console.log(`[WhatsApp] 📥 Resposta recebida:`, response);
-
-      if (response.error) {
-        console.error(`[WhatsApp] ❌ Erro na resposta:`, response.error);
-        // Detectar erro do servidor Evolution
-        const errData = response.error?.context || response.error;
-        if (errData?.error === 'evolution_server_error') {
-          throw new Error('Servidor da Evolution API indisponível. Verifique se o serviço está online.');
-        }
-        throw new Error(response.error.message || 'Erro ao verificar status');
-      }
-
-      if (response.data?.success) {
-        const status = response.data.data.instance.state;
-        console.log(`[WhatsApp] ✅ Status da instância ${sessionName}: ${status}`);
-        
-        // Atualizar o cache do React Query com o novo status
-        const updatedSessions = sessions.map(s => 
-          s.session_name === sessionName 
-            ? { ...s, connection_status: status }
-            : s
-        );
-        queryClient.setQueryData(["whatsapp-sessions", companyId], updatedSessions);
-        
-        if (!silent) {
-          toast({
-            title: "Status atualizado",
-            description: `Status da sessão: ${status === 'open' ? 'Conectado' : status === 'close' ? 'Desconectado' : 'Conectando...'}`,
-          });
-        }
-        
-        return status;
-      }
-      
-      console.warn(`[WhatsApp] ⚠️ Resposta sem sucesso:`, response.data);
-      return 'unknown';
-    } catch (error) {
-      console.error(`[WhatsApp] ❌ Erro ao verificar status de ${sessionName}:`, error);
-      if (!silent) {
-        toast({
-          title: "Erro ao verificar status",
-          description: error instanceof Error ? error.message : "Não foi possível verificar o status da conexão",
-          variant: "destructive",
-        });
-      }
-      return 'unknown';
-    } finally {
-      setLoadingStatus(prev => ({ ...prev, [sessionName]: false }));
-    }
-  };
-
-  // Verificar e recriar instância se necessário
-  const ensureInstanceExists = async (sessionName: string) => {
-    console.log(`[WhatsApp] 🔧 Verificando existência da instância: ${sessionName}`);
-    
-    try {
-      // Primeiro verifica o status
-      const response = await supabase.functions.invoke('whatsapp-evolution', {
-        body: { instanceName: sessionName, action: 'status' }
-      });
-
-      console.log(`[WhatsApp] 📥 Resposta de verificação:`, response);
-
-      // Se a instância não existe (404), tenta criar
-      if (response.error || !response.data?.success) {
-        console.warn(`[WhatsApp] ⚠️ Instância não existe, tentando criar: ${sessionName}`);
-        
-        const session = sessions.find(s => s.session_name === sessionName);
-        if (!session) {
-          throw new Error('Sessão não encontrada no banco de dados');
-        }
-
-        // Criar a instância na Evolution API
-        const createResponse = await supabase.functions.invoke('whatsapp-evolution', {
-          body: {
-            sessionName: session.session_name,
-            agentName: session.agent_name,
-            agentPrompt: session.agent_prompt || '',
-          }
-        });
-
-        console.log(`[WhatsApp] 📥 Resposta de criação:`, createResponse);
-
-        if (createResponse.error) {
-          throw new Error(createResponse.error.message || 'Erro ao criar instância');
-        }
-
-        console.log(`[WhatsApp] ✅ Instância criada com sucesso: ${sessionName}`);
-        return true;
-      }
-
-      console.log(`[WhatsApp] ✅ Instância já existe: ${sessionName}`);
-      return true;
-    } catch (error: any) {
-      console.error(`[WhatsApp] ❌ Erro ao verificar/criar instância ${sessionName}:`, error);
-      // Detectar erro do servidor Evolution
-      const errorContext = error?.context;
-      if (errorContext?.error === 'evolution_server_error' || error?.message?.includes('evolution_server_error')) {
-        throw new Error('Servidor da Evolution API está com problemas internos. Verifique se o serviço está online.');
-      }
-      throw error;
-    }
-  };
-
-  // Conectar/Reconectar via QR Code com validação
-  const handleConnect = async (sessionName: string) => {
-    console.log(`[WhatsApp] 🔌 Iniciando conexão para: ${sessionName}`);
-    
-    try {
-      toast({
-        title: "Verificando instância",
-        description: "Validando comunicação com Evolution API...",
-      });
-
-      // Primeiro, garantir que a instância existe
-      console.log(`[WhatsApp] 🔧 Garantindo que instância existe: ${sessionName}`);
-      await ensureInstanceExists(sessionName);
-
-      toast({
-        title: "Gerando QR Code",
-        description: "Aguarde enquanto geramos o QR Code...",
-      });
-
-      console.log(`[WhatsApp] 📡 Solicitando QR Code para: ${sessionName}`);
-      const response = await supabase.functions.invoke('whatsapp-evolution', {
-        body: { instanceName: sessionName, action: 'connect' }
-      });
-
-      console.log(`[WhatsApp] 📥 Resposta do QR Code:`, response);
-
-      if (response.error) {
-        console.error(`[WhatsApp] ❌ Erro na resposta:`, response.error);
-        throw new Error(response.error.message || 'Edge Function returned a non-2xx status code');
-      }
-
-      if (response.data?.success && response.data.data?.code) {
-        console.log(`[WhatsApp] ✅ QR Code recebido com sucesso`);
-        
-        // Gerar imagem do QR Code a partir do código
-        try {
-          const qrCodeDataUrl = await QRCode.toDataURL(response.data.data.code, {
-            width: 300,
-            margin: 2,
-          });
-          
-          console.log(`[WhatsApp] 🎨 QR Code renderizado com sucesso`);
-          
-          setQrCodeDialog({
-            open: true,
-            qrCode: qrCodeDataUrl,
-            sessionName: sessionName,
-          });
-
-          // Iniciar polling do status da conexão
-          const pollInterval = setInterval(async () => {
-            const status = await checkConnectionStatus(sessionName, true);
-
-            if (status === 'open') {
-              clearInterval(pollInterval);
-              clearTimeout(timeoutId);
-              setQrCodeDialog({ open: false, qrCode: '', sessionName: '' });
-              toast({
-                title: "Conectado com sucesso!",
-                description: "Sua sessão do WhatsApp está conectada.",
-              });
-              queryClient.invalidateQueries({ queryKey: ["whatsapp-sessions"] });
-            } else if (status === 'close') {
-              clearInterval(pollInterval);
-              clearTimeout(timeoutId);
-              toast({
-                title: "Erro na conexão",
-                description: "Não foi possível conectar. Verifique se o QR Code foi escaneado corretamente.",
-                variant: "destructive",
-              });
-            }
-          }, 3000);
-
-          // Timeout após 2 minutos — limpa o poll se QR expirar
-          const timeoutId = setTimeout(() => {
-            clearInterval(pollInterval);
-            setQrCodeDialog(prev => {
-              if (prev.open) {
-                toast({
-                  title: "Tempo esgotado",
-                  description: "O QR Code expirou. Por favor, tente novamente.",
-                  variant: "destructive",
-                });
-              }
-              return prev;
-            });
-          }, 120000);
-        } catch (qrError) {
-          console.error('[WhatsApp] ❌ Erro ao gerar QR Code:', qrError);
-          throw new Error('Erro ao gerar imagem do QR Code');
-        }
-      } else {
-        console.error(`[WhatsApp] ❌ QR Code não disponível na resposta`);
-        throw new Error('QR Code não disponível');
-      }
-    } catch (error: any) {
-      console.error('[WhatsApp] ❌ Erro ao conectar:', error);
-      
-      const errorMessage = error instanceof Error ? error.message : "Não foi possível gerar o QR Code.";
-      const isServerError = errorMessage.includes('Evolution API') || errorMessage.includes('evolution_server_error');
-      
-      toast({
-        title: isServerError ? "Servidor Evolution indisponível" : "Erro ao gerar QR Code",
-        description: isServerError 
-          ? "O servidor da Evolution API está fora do ar ou com problemas internos. Reinicie o serviço e tente novamente."
-          : errorMessage,
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Botão "Nova Sessão" visível só se não há sessão ativa
-  const hasActiveSession = sessions.some(s => s.is_active);
 
   return (
     <PageLayout title="WhatsApp" subtitle="Configurações de integração">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="h-6 w-6" />
-        </div>
-        {!hasActiveSession && (
-          <Button onClick={handleOpenAddDialog}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Sessão
-          </Button>
-        )}
-      </div>
-
-      <Tabs defaultValue="sessions" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="sessions">Sessões</TabsTrigger>
+      <Tabs defaultValue="bot" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="bot">
             <Bot className="h-4 w-4 mr-1" />
             Bot
           </TabsTrigger>
           <TabsTrigger value="welcome">Boas-vindas</TabsTrigger>
-          <TabsTrigger value="test">Teste</TabsTrigger>
           <TabsTrigger value="status">Status</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="sessions">
-          <WhatsAppSessionList
-            sessions={sessions}
-            isLoading={isLoading}
-            loadingStatus={loadingStatus}
-            onAddNew={handleOpenAddDialog}
-            onEdit={handleOpenEditDialog}
-            onDelete={(id) => setDeleteId(id)}
-            onConnect={handleConnect}
-            onCheckStatus={checkConnectionStatus}
-          />
-        </TabsContent>
 
         <TabsContent value="bot">
           <div className="space-y-4">
@@ -1088,43 +1041,11 @@ export default function WhatsApp() {
           <WelcomeMessageEditor />
         </TabsContent>
 
-        <TabsContent value="test">
-          <WhatsAppTestMessage sessions={sessions} />
-        </TabsContent>
-
         <TabsContent value="status">
           <WhatsAppStatusMessages />
         </TabsContent>
       </Tabs>
 
-      {/* Add/Edit Dialog */}
-      <WhatsAppSessionDialog
-        open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
-        formData={formData}
-        onFormChange={setFormData}
-        onSave={handleSave}
-        onCancel={handleCloseDialog}
-        isEditing={!!editingSession}
-      />
-
-      <ConfirmDeleteDialog
-        open={!!deleteId}
-        onOpenChange={() => setDeleteId(null)}
-        title="Confirmar exclusão"
-        description="Tem certeza que deseja remover esta sessão do WhatsApp? Esta ação não pode ser desfeita."
-        confirmLabel="Remover"
-        onConfirm={() => deleteId && handleDelete(deleteId)}
-      />
-
-      {/* QR Code Dialog */}
-      <WhatsAppQRCodeDialog
-        open={qrCodeDialog.open}
-        qrCode={qrCodeDialog.qrCode}
-        sessionName={qrCodeDialog.sessionName}
-        onClose={() => setQrCodeDialog({ open: false, qrCode: '', sessionName: '' })}
-        onRefresh={handleConnect}
-      />
     </PageLayout>
   );
 }

@@ -38,9 +38,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export function AppSidebar() {
-  const { state, toggleSidebar, setOpen } = useSidebar();
+  const { state, open, setOpen } = useSidebar();
   const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
+  // No Electron (systemView), sidebar fica colapsada para não conflitar com o sidebar Electron
+  const isElectronView = typeof window !== 'undefined' && !!(window as any).__IN_SYSTEM_VIEW;
 
   // Toggle dark mode — persiste por usuário (localStorage + DB), não global
   const toggleTheme = () => {
@@ -102,7 +104,7 @@ export function AppSidebar() {
       if (profile?.company_id) {
         const { data: company } = await supabase
           .from('companies')
-          .select('name, fantasy_name, logo_url, cnpj')
+          .select('id, name, fantasy_name, logo_url, cnpj, email, whatsapp, phone, subdomain')
           .eq('id', profile.company_id)
           .single();
         companyData = company;
@@ -116,12 +118,47 @@ export function AppSidebar() {
     },
   });
 
+  // Sync Supabase merchant session to Electron local settings.json
+  useEffect(() => {
+    const isElectron = typeof window !== 'undefined' && !!(window as any).require;
+    if (isElectron && userInfo?.company) {
+      try {
+        const { ipcRenderer } = (window as any).require("electron");
+        const company = userInfo.company;
+        ipcRenderer.invoke("sync-merchant-session", {
+          companyId: company.id,
+          companyName: company.fantasy_name || company.name || "Sem Nome",
+          companyEmail: company.email || userInfo.email || "",
+          companyPhone: company.whatsapp || company.phone || "",
+          companySubdomain: company.subdomain || "",
+        }).then((res) => {
+          console.log("[Electron Sync] Merchant session synced:", res);
+        }).catch((err) => {
+          console.error("[Electron Sync] Failed to sync session:", err);
+        });
+      } catch (e) {
+        console.error("[Electron Sync] Error in sync-merchant-session:", e);
+      }
+    }
+  }, [userInfo]);
+
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // v2.0.0 — Logout sem erro intermediário: usa window.location.replace pra
   // sair da árvore React ANTES dos useQuery refazerem fetch com user=null
   const handleLogout = async () => {
     try {
+      // Clear Electron session
+      const isElectron = typeof window !== 'undefined' && !!(window as any).require;
+      if (isElectron) {
+        try {
+          const { ipcRenderer } = (window as any).require("electron");
+          await ipcRenderer.invoke("logout-merchant");
+        } catch (e) {
+          console.error("Failed to call logout-merchant in Electron:", e);
+        }
+      }
+
       // Limpa storage primeiro (evita autoLogin de cache stale)
       try {
         Object.keys(localStorage).forEach((k) => {
@@ -161,7 +198,15 @@ export function AppSidebar() {
   const isExpanded = isPinned || (isHovered && !isMobile);
   const showContent = isExpanded;
   
-  // Update sidebar state when hover or pin changes
+  // Sync open state with isPinned on trigger click
+  useEffect(() => {
+    if (isMobile) return;
+    const expectedOpen = isPinned || isHovered;
+    if (open !== expectedOpen) {
+      setIsPinned(open);
+    }
+  }, [open, isPinned, isHovered, isMobile, setIsPinned]);
+
   useEffect(() => {
     if (isPinned || (isHovered && !isMobile)) {
       setOpen(true);
@@ -169,6 +214,19 @@ export function AppSidebar() {
       setOpen(false);
     }
   }, [isHovered, isPinned, isMobile, setOpen]);
+
+  // Sync with Electron main process when expanded state changes
+  useEffect(() => {
+    const isElectron = typeof window !== 'undefined' && !!(window as any).require;
+    if (isElectron) {
+      try {
+        const { ipcRenderer } = (window as any).require("electron");
+        ipcRenderer.send("sidebar-toggled", isExpanded);
+      } catch (e) {
+        console.error("[Electron Sync] Error sending sidebar-toggled:", e);
+      }
+    }
+  }, [isExpanded]);
 
   // Mobile menu toggle button for screens < 1024px
   if (isMobile) {
@@ -517,7 +575,8 @@ export function AppSidebar() {
           </ScrollArea>
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-border">
+        {/* No Electron: footer oculto — logout fica no sidebar Electron, tema não é necessário aqui */}
+        <SidebarFooter className={`border-t border-border${isElectronView ? ' hidden' : ''}`}>
           <div className={`${!showContent ? "p-2" : "p-4"} space-y-1 transition-all duration-300`}>
             {/* Toggle dark/light — padrão GitHub/Linear/Notion: bottom of sidebar */}
             {showContent ? (

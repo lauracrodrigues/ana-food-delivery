@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Outlet, Navigate, useNavigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Outlet, Navigate, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CacheProvider } from "@/contexts/CacheContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -181,6 +182,29 @@ function HashErrorRedirect() {
 const App = () => {
   const subdomain = getSubdomain();
   const customDomain = getCustomDomain();
+
+  // Ouvir logout disparado pelo sidebar Electron — limpar sessão Supabase
+  useEffect(() => {
+    const isElectron = typeof window !== 'undefined' && !!(window as any).require;
+    if (!isElectron) return;
+    try {
+      const { ipcRenderer } = (window as any).require('electron');
+      const handler = () => {
+        try {
+          Object.keys(localStorage).forEach(k => {
+            if (k.startsWith('sb-') || k.startsWith('anafood_') || k.startsWith('user_theme_')) {
+              localStorage.removeItem(k);
+            }
+          });
+          sessionStorage.clear();
+        } catch { /* noop */ }
+        supabase.auth.signOut().catch(() => { /* noop */ });
+      };
+      ipcRenderer.on('merchant-logged-out', handler);
+      return () => { ipcRenderer.removeListener('merchant-logged-out', handler); };
+    } catch { /* noop */ }
+  }, []);
+
   return (
   <ErrorBoundary>
   <QueryClientProvider client={queryClient}>
@@ -190,7 +214,7 @@ const App = () => {
           <GlobalLoader />
           <Toaster />
           <Sonner />
-          <BrowserRouter>
+          <HashRouter>
             <HashErrorRedirect />
             <Routes>
             {/* Subdomain ou domínio próprio: rota raiz renderiza menu público direto */}
@@ -342,7 +366,7 @@ const App = () => {
               </Suspense>
             } />
             </Routes>
-          </BrowserRouter>
+          </HashRouter>
         </TooltipProvider>
       </CacheProvider>
     </ThemeProvider>
