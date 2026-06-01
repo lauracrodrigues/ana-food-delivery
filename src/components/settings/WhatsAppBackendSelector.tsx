@@ -167,9 +167,19 @@ export function WhatsAppBackendSelector() {
                   <li>Criar app em <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="underline">developers.facebook.com</a></li>
                   <li>Adicionar produto "WhatsApp Business Platform"</li>
                   <li>Copiar Permanent Access Token, Phone Number ID e Business Account ID</li>
+                  <li>Configurar webhook URL abaixo (Meta envia inbound aqui)</li>
                   <li>Submeter templates pra aprovação</li>
                 </ol>
               </div>
+            </div>
+
+            <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 rounded-lg p-3 text-xs space-y-1">
+              <p className="font-medium text-emerald-900 dark:text-emerald-100">Webhook (configure no Meta):</p>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-emerald-800 dark:text-emerald-200 break-all">https://api.anafood.vip/v1/whatsapp/cloud-webhook</span>
+              </div>
+              <p className="text-emerald-800 dark:text-emerald-200">Verify Token: peça pro suporte (gerado por instalação)</p>
+              <p className="text-emerald-800 dark:text-emerald-200">Campos: messages, message_status</p>
             </div>
 
             <div className="space-y-1.5">
