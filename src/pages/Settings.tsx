@@ -37,6 +37,7 @@ import { PrintLayoutConfig } from "@/components/settings/print-layout/PrintLayou
 import { AutomationRulesTab } from "@/components/settings/AutomationRulesTab";
 import { WhatsAppGroupTab } from "@/components/settings/WhatsAppGroupTab";
 import { WhatsAppStatusTab } from "@/components/settings/WhatsAppStatusTab";
+import { AbsenceMessageCard } from "@/components/settings/AbsenceMessageCard";
 import { TablesSettings } from "@/components/settings/TablesSettings";
 import { BusinessHoursConfig } from "@/components/settings/BusinessHoursConfig";
 import { PaymentSettingsConfig } from "@/components/settings/PaymentSettingsConfig";
@@ -719,6 +720,7 @@ export function Settings() {
           </TabsContent>
 
           <TabsContent value="wa-status" className="space-y-6">
+            <AbsenceMessageCard />
             <WhatsAppStatusTab />
           </TabsContent>
 

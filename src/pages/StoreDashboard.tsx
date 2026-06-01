@@ -22,6 +22,7 @@ import { TopProductsList } from "@/components/dashboard/TopProductsList";
 import { PaymentMethodsChart } from "@/components/dashboard/PaymentMethodsChart";
 import { TopCustomersList } from "@/components/dashboard/TopCustomersList";
 import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
+import { NightOrdersAlert } from "@/components/dashboard/NightOrdersAlert";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { SkeletonDashboard } from "@/components/loading";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -258,6 +259,9 @@ export default function StoreDashboard() {
       fullHeight
     >
       <div className="space-y-6">
+          {/* Alerta pedidos noturnos (loja fechada) */}
+          <NightOrdersAlert />
+
           {/* Onboarding Checklist */}
           {companyId && <OnboardingChecklist companyId={companyId} />}
 
