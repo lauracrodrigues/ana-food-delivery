@@ -3,7 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { idbPersister, shouldDehydrateQuery } from "@/lib/query-persister";
+import { OfflineBanner } from "@/components/layout/OfflineBanner";
 import { HashRouter, Routes, Route, Outlet, Navigate, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CacheProvider } from "@/contexts/CacheContext";
@@ -118,7 +121,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5,
-      gcTime: 1000 * 60 * 10,
+      gcTime: 1000 * 60 * 60 * 24, // 24h pra persistir offline
       refetchOnWindowFocus: false,
       refetchOnMount: false,
       refetchOnReconnect: false,
@@ -127,10 +130,12 @@ const queryClient = new QueryClient({
       // CRÍTICO pro UX: query failure não propaga pra ErrorBoundary.
       // ErrorBoundary fica só pra erros REAIS de render (TypeError, etc).
       throwOnError: false,
+      networkMode: "offlineFirst", // serve do cache se offline (Fase 3A)
     },
     mutations: {
       // Mutation failure também não dispara boundary
       throwOnError: false,
+      networkMode: "offlineFirst", // pausa offline, resume online
     },
   },
 });
@@ -207,10 +212,18 @@ const App = () => {
 
   return (
   <ErrorBoundary>
-  <QueryClientProvider client={queryClient}>
+  <PersistQueryClientProvider
+    client={queryClient}
+    persistOptions={{
+      persister: idbPersister,
+      maxAge: 1000 * 60 * 60 * 24, // 24h
+      dehydrateOptions: { shouldDehydrateQuery },
+    }}
+  >
     <ThemeProvider defaultTheme="light">
       <CacheProvider defaultTTL={3600} enableLogs={false}>
         <TooltipProvider>
+          <OfflineBanner />
           <GlobalLoader />
           <Toaster />
           <Sonner />
@@ -370,7 +383,7 @@ const App = () => {
         </TooltipProvider>
       </CacheProvider>
     </ThemeProvider>
-  </QueryClientProvider>
+  </PersistQueryClientProvider>
   </ErrorBoundary>
   );
 };
