@@ -1,5 +1,10 @@
-// v1.8.0 — Cache bump v10 + sem duplicação de handlers
-const CACHE_NAME = 'anafood-v10';
+// v1.9.0 — Cache Supabase storage + REST GET reads (Fase 3A ecossistema)
+// Network-first pra HTML/SPA, cache-first pra assets hashed,
+// stale-while-revalidate pra Supabase storage + reads idempotentes
+const CACHE_NAME = 'anafood-v11';
+const SUPABASE_CACHE = 'supabase-data-v1';
+const STORAGE_CACHE = 'supabase-storage-v1';
+const SUPABASE_HOST = 'jgdyklzrxygvwuhlnbat.supabase.co';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -8,7 +13,11 @@ self.addEventListener('install', () => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter((k) => ![CACHE_NAME, SUPABASE_CACHE, STORAGE_CACHE].includes(k))
+          .map((k) => caches.delete(k))
+      )
     ).then(() => self.clients.claim())
   );
 });
@@ -17,10 +26,49 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   const req = e.request;
 
-  // Ignora cross-origin (Supabase, APIs externas)
+  // ── CROSS-ORIGIN: Supabase storage (logos/banners/produtos) — cache-first
+  if (url.host === SUPABASE_HOST && url.pathname.startsWith('/storage/v1/object/public/')) {
+    e.respondWith(
+      caches.open(STORAGE_CACHE).then(async (cache) => {
+        const cached = await cache.match(req);
+        if (cached) return cached;
+        try {
+          const fresh = await fetch(req);
+          if (fresh.ok) cache.put(req, fresh.clone());
+          return fresh;
+        } catch (err) {
+          throw err;
+        }
+      })
+    );
+    return;
+  }
+
+  // ── CROSS-ORIGIN: Supabase REST GET — stale-while-revalidate (operacionais)
+  // POST/PATCH/DELETE NUNCA cacheia
+  if (url.host === SUPABASE_HOST && url.pathname.startsWith('/rest/v1/') && req.method === 'GET') {
+    // Skip auth-sensitive (settings de billing, admin, profiles do user)
+    if (url.pathname.includes('/billing') || url.pathname.includes('/admin')) {
+      return; // browser handle
+    }
+    e.respondWith(
+      caches.open(SUPABASE_CACHE).then(async (cache) => {
+        const cached = await cache.match(req);
+        const fetchPromise = fetch(req).then((res) => {
+          if (res.ok) cache.put(req, res.clone());
+          return res;
+        }).catch(() => cached); // offline → retorna cache
+        // Stale-while-revalidate: serve cache imediato + atualiza em background
+        return cached || fetchPromise;
+      })
+    );
+    return;
+  }
+
+  // Ignora outras cross-origin
   if (url.origin !== self.location.origin) return;
 
-  // NÃO cachear: APIs, webhooks, auth, próprio SW
+  // NÃO cachear: APIs próprias, webhooks, auth, próprio SW
   if (url.pathname.startsWith('/api/') ||
       url.pathname.startsWith('/v1/') ||
       url.pathname.startsWith('/billing') ||
@@ -30,11 +78,10 @@ self.addEventListener('fetch', (e) => {
       url.pathname === '/sw.js' ||
       url.pathname === '/manifest.json' ||
       url.pathname === '/manifest-entregador.json') {
-    return; // browser handle normal
+    return;
   }
 
-  // JS/CSS hashed (Vite gera hash no nome) — cache-first IMUTÁVEL
-  // Hash novo = arquivo novo = sem conflito. Hash velho = serve cache.
+  // JS/CSS hashed (Vite gera hash) — cache-first IMUTÁVEL
   if (url.pathname.match(/\/assets\/.+\.(js|css|woff2|woff)$/)) {
     e.respondWith(
       caches.open(CACHE_NAME).then(async (cache) => {
@@ -45,7 +92,6 @@ self.addEventListener('fetch', (e) => {
           if (fresh.ok) cache.put(req, fresh.clone());
           return fresh;
         } catch (err) {
-          // Sem rede e sem cache → falha (browser mostra erro padrão)
           throw err;
         }
       })
@@ -72,11 +118,10 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // HTML / SPA navigate — SEMPRE network-first (deploy novo aparece no próximo F5)
+  // HTML/SPA navigate — network-first (deploy novo aparece F5)
   if (req.mode === 'navigate' || url.pathname.endsWith('.html')) {
     e.respondWith(
       fetch(req).then((res) => {
-        // Cache cópia pra offline
         if (res.ok) {
           const clone = res.clone();
           caches.open(CACHE_NAME).then((c) => c.put('/', clone));
@@ -89,11 +134,9 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
-
-  // Resto: comportamento normal (rede direta)
 });
 
-// ─── PUSH NOTIFICATIONS (1 handler único — v1.8.0 fix duplicação) ───────────
+// ─── PUSH NOTIFICATIONS ───────────────────────────────────────────────────
 self.addEventListener('push', (event) => {
   let data = {};
   try {
@@ -125,27 +168,23 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      // Foca aba já aberta na mesma URL
       for (const c of clients) {
         if (c.url.includes(targetUrl) && 'focus' in c) return c.focus();
       }
-      // Senão foca primeira + navega
       for (const c of clients) {
         if ('focus' in c) {
           c.focus();
           if ('navigate' in c) {
-            try { c.navigate(targetUrl); } catch { /* */ }
+            try { c.navigate(targetUrl); } catch { /* noop */ }
           }
           return;
         }
       }
-      // Sem aba: abre nova
       if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
     })
   );
 });
 
-// Subscription expirou — renova best-effort + avisa app
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(
     self.registration.pushManager.subscribe(event.oldSubscription?.options)
@@ -154,11 +193,10 @@ self.addEventListener('pushsubscriptionchange', (event) => {
           cs.forEach((c) => c.postMessage({ type: 'pushSubscriptionRenewed', subscription: newSub }))
         )
       )
-      .catch(() => {})
+      .catch(() => { /* noop */ })
   );
 });
 
-// Mensagens do app (skipWaiting on-demand)
 self.addEventListener('message', (e) => {
   if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
